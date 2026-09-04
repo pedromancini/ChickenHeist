@@ -1,0 +1,37 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+
+# IDE and local tooling
+.vs/
+.vscode/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+
+# Unity generated metadata and crash files
+sysinfo.txt
+*.stacktrace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local temporary work
+scratch/
+tmp/
+
+# Original asset bundles are larger than GitHub's per-file limit.
+# Their extracted Unity assets remain tracked above.
+Assets/MarpaStudio/HDRP/FarmHDRPPackage.unitypackage
+Assets/MarpaStudio/URP/FarmURPPackage.unitypackage
