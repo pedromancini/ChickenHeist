@@ -2,13 +2,15 @@ using UnityEngine;
 
 public class ExtractionZone : MonoBehaviour
 {
+    public string returnPrompt = "Ponto de retorno: pressione E para encerrar a noite.";
     private bool playerInside;
 
     private void Update()
     {
-        if (playerInside && Input.GetKeyDown(KeyCode.E) && HeistGameManager.Instance != null)
+        if(GameMenu.BlocksInput)return;
+        if (!ProtagonistPhone.IsOpen && playerInside && Input.GetKeyDown(KeyCode.E) && HeistGameManager.Instance != null)
         {
-            if (HeistGameManager.Instance.backpack.chickensCarried > 0)
+            if (HeistGameManager.Instance.MissionActive || HeistGameManager.Instance.backpack.chickensCarried > 0)
                 HeistGameManager.Instance.CompleteMission();
             else
                 HeistGameManager.Instance.ShowMessage("Voce ainda nao roubou nenhuma galinha.", 2f);
@@ -21,7 +23,8 @@ public class ExtractionZone : MonoBehaviour
             return;
 
         playerInside = true;
-        HeistGameManager.Instance.ShowMessage("Caminhonete: pressione E para fugir.", 2f);
+        if(HeistGameManager.Instance.MissionActive || HeistGameManager.Instance.backpack.chickensCarried>0)
+            HeistGameManager.Instance.ShowMessage("Retorno ao sitio.", 2f);
     }
 
     private void OnTriggerExit(Collider other)

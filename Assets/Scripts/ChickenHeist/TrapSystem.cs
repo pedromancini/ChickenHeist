@@ -7,7 +7,7 @@ public class TrapSystem : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (triggered || !other.CompareTag("Player"))
+        if (!FarmSecurityProgression.Installed || GameMenu.BlocksInput || HeistGameManager.Instance?.IsMissionTarget(this)!=true || triggered || !other.CompareTag("Player"))
             return;
 
         triggered = true;

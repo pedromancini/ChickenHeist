@@ -33,12 +33,18 @@ public class FarmerSleepSystem : MonoBehaviour
 
     private void Start()
     {
+        // Large procedural lots must keep their own coop inside hearing range.
+        var farm = GetComponentInParent<FarmLayoutInfo>();
+        if (farm != null)
+            foreach (var coop in farm.GetComponentsInChildren<ChickenCoopLockpick>())
+                hearingRange = Mathf.Max(hearingRange, Vector3.Distance(transform.position, coop.transform.position) + 18f);
         CurrentSleep = startingSleep;
         UpdateState();
     }
 
     private void Update()
     {
+        if(GameMenu.IsOpen || HeistGameManager.Instance?.IsMissionFarmer(this)!=true)return;
         if (CurrentSleep < 100f)
         {
             CurrentSleep = Mathf.Max(minimumSleep, CurrentSleep - quietDecayPerSecond * Time.deltaTime);
@@ -58,8 +64,14 @@ public class FarmerSleepSystem : MonoBehaviour
 
     public void AddNoise(float amount)
     {
+        if(GameMenu.IsOpen || HeistGameManager.Instance?.IsMissionFarmer(this)!=true)return;
         CurrentSleep = Mathf.Clamp(CurrentSleep + amount * lighterSleepMultiplier, minimumSleep, 100f);
         UpdateState();
+    }
+
+    public void RestoreSleep(float value)
+    {
+        CurrentSleep=Mathf.Clamp(value,minimumSleep,100);UpdateState();
     }
 
     private void UpdateState()
@@ -72,7 +84,7 @@ public class FarmerSleepSystem : MonoBehaviour
         else if (CurrentSleep < 100f) State = FarmerAwakeState.Searching;
         else State = FarmerAwakeState.Chase;
 
-        if (previous != State && HeistGameManager.Instance != null)
+        if (previous != State && HeistGameManager.Instance?.IsMissionFarmer(this)==true)
             HeistGameManager.Instance.ShowMessage(GetStateMessage(), 3f);
     }
 

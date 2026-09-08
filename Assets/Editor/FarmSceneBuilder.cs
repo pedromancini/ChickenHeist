@@ -2,14 +2,9 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 
-[InitializeOnLoad]
 public class FarmSceneBuilder
 {
-    static FarmSceneBuilder()
-    {
-        EditorApplication.delayCall += Run;
-    }
-
+    [MenuItem("Chicken Heist/Legacy/Build Single Farm")]
     private static void Run()
     {
         // Se a fazenda já foi gerada nesta sessão, não roda de novo

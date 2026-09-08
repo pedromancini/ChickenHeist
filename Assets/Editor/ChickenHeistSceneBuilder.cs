@@ -20,6 +20,11 @@ public static class ChickenHeistSceneBuilder
     [MenuItem("Chicken Heist/Build Prototype Scene")]
     public static void BuildPrototypeScene()
     {
+        BuildScene(ScenePath);
+    }
+
+    public static void BuildScene(string targetPath)
+    {
         AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         scene.name = "ChickenHeistPrototype";
@@ -33,13 +38,14 @@ public static class ChickenHeistSceneBuilder
 
         GameObject generatorObject = new GameObject("Procedural Farm Generator");
         ProceduralFarmGenerator generator = generatorObject.AddComponent<ProceduralFarmGenerator>();
-        generator.randomizeSeed = true;
+        generator.randomizeSeed = false;
+        generator.seed = 260906;
         generator.difficulty = 2;
         generator.farmColumns = 4;
         generator.farmRows = 3;
-        generator.lotWidth = 66f;
-        generator.lotDepth = 56f;
-        generator.roadWidth = 118f;
+        generator.lotWidth = 88f;
+        generator.lotDepth = 82f;
+        generator.roadWidth = 155f;
         generator.farmScatter = 0.38f;
         generator.worldBorderPadding = 140f;
         generator.pathWidth = 6f;
@@ -60,12 +66,21 @@ public static class ChickenHeistSceneBuilder
         generator.reliefMaxHeight = 4.8f;
         generator.reliefMinRadius = 20f;
         generator.reliefMaxRadius = 38f;
-        generator.terrainResolutionX = 132;
-        generator.terrainResolutionZ = 104;
+        generator.terrainResolutionX = 400;
+        generator.terrainResolutionZ = 320;
         generator.terrainMaxHeight = 7f;
         generator.terrainEdgeHeight = 10f;
         generator.terrainNoiseScale = 0.012f;
         generator.chickenCount = 8;
+        generator.dirtAlbedo = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Materials/ground/Ground048_1K-JPG_Color.jpg");
+        // The source normal map is imported as color. Leave it untouched and use matte albedo.
+        generator.orchardTreePrefab = LoadAsset("Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Env_Tree_01.prefab");
+        generator.cropPlantPrefabs = LoadAssets(
+            "Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Env_Wheat.prefab",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Crop_Carrot_STAGE_3_01.fbx",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Crop_Cauliflower_STAGE_3_01.fbx",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Crop_Beetroot_STAGE_3_01.fbx",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Crop_Bean_STAGE_4_01.fbx");
         generator.cowCount = 3;
         generator.housePrefab = LoadAsset("Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Bld_FarmerHouse.prefab");
         generator.barnPrefab = LoadAsset("Assets/Quaternius_Farm_Buildings/FBX/Barn.fbx");
@@ -75,7 +90,12 @@ public static class ChickenHeistSceneBuilder
         generator.troughPrefab = LoadAsset("Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Prop_Trough_01.fbx");
         generator.siloPrefab = LoadAsset("Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Bld_Silo_01.prefab");
         generator.housePrefabs = LoadAssets(
-            "Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Bld_FarmerHouse.prefab");
+            "Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Bld_FarmerHouse.prefab",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Bld_Wooden_Cabin_01.fbx",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Bld_Log_Cabin_01.fbx",
+            "Assets/MarpaStudio/Built-In/Prefabs/House.prefab",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Bld_Log_Cabin_02.fbx",
+            "Assets/Grimnir_Farm_Assets/Grimnir_Low-Poly-Farm-Assets_Vol1_1.0/Models/FBX Format (Unity)/Bld_Wooden_Cabin_02.fbx");
         generator.barnPrefabs = LoadAssets(
             "Assets/Quaternius_Farm_Buildings/FBX/Barn.fbx",
             "Assets/Quaternius_Farm_Buildings/FBX/BigBarn.fbx",
@@ -232,19 +252,21 @@ public static class ChickenHeistSceneBuilder
         generator.cowAnimalPrefabs = CreateAnimalPrefabs(new[] { "HolsteinCow", "BrownCow", "WhiteCow" }, animalMaterial);
         generator.generateOnStart = false;
 
+        RuralTreeReview.PrepareGeneratorTrees(generator);
         generator.Generate();
         Object.DestroyImmediate(generatorObject);
 
-        EditorSceneManager.SaveScene(scene, ScenePath);
+        RuralWorldReview.PersistGeneratedAssets(scene);
+        EditorSceneManager.SaveScene(scene, targetPath);
 
         EditorBuildSettings.scenes = new[]
         {
-            new EditorBuildSettingsScene(ScenePath, true)
+            new EditorBuildSettingsScene(targetPath, true)
         };
 
         AssetDatabase.SaveAssets();
 
-        Debug.Log("Chicken Heist prototype scene created at " + ScenePath);
+        Debug.Log("Chicken Heist prototype scene created at " + targetPath);
     }
 
     private static GameObject LoadAsset(string path)
@@ -320,6 +342,7 @@ public static class ChickenHeistSceneBuilder
                 animal.transform.rotation = source.rotation;
                 animal.transform.localScale = source.lossyScale;
                 ApplyMaterial(animal, material);
+                if(animalNames[i]=="Chicken" || animalNames[i]=="Hen")HomeExperienceUpgrade.KeepSingleBird(animal);
 
                 string prefabPath = GeneratedAnimalFolder + "/" + animalNames[i] + ".prefab";
                 prefabs[i] = PrefabUtility.SaveAsPrefabAsset(animal, prefabPath);

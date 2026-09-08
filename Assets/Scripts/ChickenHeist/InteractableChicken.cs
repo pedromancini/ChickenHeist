@@ -5,13 +5,17 @@ public class InteractableChicken : MonoBehaviour
     public float interactionDistance = 2.4f;
     public bool sleeping;
     public float cluckChancePerSecond = 0.08f;
+    public ChickenCoopLockpick coop;
+    private FarmAnimalBoundary boundary;
 
     private Transform player;
     private Vector3 wanderTarget;
     private float nextWanderTime;
+    static int pickupFrame=-1;
 
     private void Start()
     {
+        boundary = GetComponent<FarmAnimalBoundary>();
         if (HeistGameManager.Instance != null)
         {
             player = HeistGameManager.Instance.player;
@@ -23,7 +27,8 @@ public class InteractableChicken : MonoBehaviour
 
     private void Update()
     {
-        if (player != null && Input.GetKeyDown(KeyCode.E) && IsPlayerClose())
+        if(GameMenu.BlocksInput)return;
+        if (!ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && HeistGameManager.Instance?.missionEnded!=true && player != null && Input.GetKeyDown(KeyCode.E) && IsPlayerClose())
             TrySteal();
 
         if (sleeping)
@@ -32,42 +37,51 @@ public class InteractableChicken : MonoBehaviour
         if (Time.time >= nextWanderTime)
             PickWanderTarget();
 
-        transform.position = Vector3.MoveTowards(transform.position, wanderTarget, 0.7f * Time.deltaTime);
+        Vector3 nextPosition = Vector3.MoveTowards(transform.position, wanderTarget, 0.7f * Time.deltaTime);
+        if (boundary == null || boundary.Allows(nextPosition)) transform.position = nextPosition;
+        else PickWanderTarget();
         Vector3 direction = wanderTarget - transform.position;
         if (direction.sqrMagnitude > 0.05f)
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 6f * Time.deltaTime);
 
         if (Random.value < cluckChancePerSecond * Time.deltaTime)
-            NoiseEmitter.EmitGlobal(NoiseSource.ChickenCluck, transform.position);
+            NoiseEmitter.EmitAnimalActivity(NoiseSource.ChickenCluck, transform.position);
     }
 
     private bool IsPlayerClose()
     {
-        return Vector3.Distance(player.position, transform.position) <= interactionDistance;
+        return (coop == null || coop.IsOpen) && Vector3.Distance(player.position, transform.position) <= interactionDistance;
     }
 
-    private void TrySteal()
+    public bool TrySteal()
     {
+        if(GameMenu.BlocksInput || HeistGameManager.Instance?.IsMissionTarget(this)!=true)return false;
+        if(pickupFrame==Time.frameCount || player==null || !IsPlayerClose() || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true)return false;
         BackpackInventory backpack = player.GetComponent<BackpackInventory>();
         if (backpack == null || backpack.IsFull)
         {
             HeistGameManager.Instance.ShowMessage("Mochila cheia. Hora de ir embora.", 2f);
-            return;
+            return false;
         }
 
         if (backpack.TryAddChicken())
         {
+            pickupFrame=Time.frameCount;
             if (!sleeping)
                 NoiseEmitter.EmitGlobal(NoiseSource.ChickenCluck, transform.position);
 
+            player.GetComponent<PlayerChickenCarry>()?.Lift(this);
             HeistGameManager.Instance.ChickenStolen();
-            Destroy(gameObject);
+            gameObject.SetActive(false);
+            return true;
         }
+        return false;
     }
 
     private void PickWanderTarget()
     {
         nextWanderTime = Time.time + Random.Range(2f, 6f);
+        if (boundary != null) { wanderTarget = boundary.PickTarget(transform.position, 3.5f); return; }
         Vector2 offset = Random.insideUnitCircle * 3.5f;
         wanderTarget = new Vector3(transform.position.x + offset.x, transform.position.y, transform.position.z + offset.y);
     }

@@ -8,20 +8,61 @@ public class SecurityCamera : MonoBehaviour
     public float rotationArc = 80f;
     public float rotationSpeed = 32f;
     public float detectionCooldown = 1.5f;
-    public float disabledDuration = 6f;
 
     private float startYaw;
     private float nextDetectionTime;
     private float disabledUntil;
+    Renderer paintRenderer;
+    MaterialPropertyBlock originalPaint,coatedPaint;
+    bool showingPaint;
+    public const float PaintDuration=60f;
+    public float PaintSecondsRemaining => Mathf.Clamp(disabledUntil-Time.time,0,PaintDuration);
+    public void RestorePaint(float seconds){disabledUntil=Time.time+Mathf.Clamp(seconds,0,PaintDuration);}
+    void Awake()
+    {
+        paintRenderer=GetComponent<Renderer>();
+        if(paintRenderer==null)return;
+        originalPaint=new MaterialPropertyBlock();coatedPaint=new MaterialPropertyBlock();
+        paintRenderer.GetPropertyBlock(originalPaint);paintRenderer.GetPropertyBlock(coatedPaint);
+        coatedPaint.SetColor("_BaseColor",new Color(.38f,.19f,.14f));coatedPaint.SetColor("_Color",new Color(.38f,.19f,.14f));
+    }
+    void LateUpdate()
+    {
+        bool coated=PaintSecondsRemaining>0;
+        if(paintRenderer!=null && showingPaint!=coated){paintRenderer.SetPropertyBlock(coated?coatedPaint:originalPaint);showingPaint=coated;}
+    }
+    public bool CanPaintNow()
+    {
+        var game=HeistGameManager.Instance;var eye=Camera.main;
+        if(!FarmSecurityProgression.Installed || game==null || game.missionEnded || !game.IsMissionTarget(this) || eye==null || PaintSecondsRemaining>0)return false;
+        Vector3 delta=transform.position-eye.transform.position;
+        if(delta.sqrMagnitude>3f*3f || Vector3.Dot(eye.transform.forward,delta.normalized)<.86f)return false;
+        var hits=Physics.RaycastAll(eye.transform.position,delta.normalized,delta.magnitude,~0,QueryTriggerInteraction.Ignore);
+        System.Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
+        // Geometry behind the camera's visible surface must not occlude its lens.
+        foreach(var hit in hits)
+            if(!hit.transform.IsChildOf(game.player))return hit.transform.IsChildOf(transform);
+        return true;
+    }
+    public bool TryPaint()
+    {
+        if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || !CanPaintNow())return false;
+        var economy=HouseholdEconomy.Instance;
+        if(economy==null || economy.Account.paintUses<1)
+        {HeistGameManager.Instance.ShowMessage("Sem tinta. Compre uma lata na loja.",3);return false;}
+        if(!economy.UsePaint()){HeistGameManager.Instance.ShowMessage(economy.Message,3);return false;}
+        RestorePaint(PaintDuration);
+        HeistGameManager.Instance.ShowMessage("Lente coberta por 60 s. Tinta: "+economy.Account.paintUses+" usos restantes.",3);return true;
+    }
 
     private void Start()
     {
         startYaw = transform.eulerAngles.y;
-        CreateVisionCone();
     }
 
     private void Update()
     {
+        if(!FarmSecurityProgression.Installed || GameMenu.BlocksInput || HeistGameManager.Instance?.IsMissionTarget(this)!=true)return;
         if (Time.time < disabledUntil)
             return;
 
@@ -35,11 +76,6 @@ public class SecurityCamera : MonoBehaviour
             HeistGameManager.Instance.ShowMessage("Camera te viu. O fazendeiro ouviu o alerta.", 2f);
         }
 
-        if (player != null && Input.GetKeyDown(KeyCode.F) && Vector3.Distance(player.position, transform.position) < 3f)
-        {
-            disabledUntil = Time.time + disabledDuration;
-            HeistGameManager.Instance.ShowMessage("Camera desativada por alguns segundos.", 2f);
-        }
     }
 
     private bool CanSeePlayer()
@@ -61,25 +97,4 @@ public class SecurityCamera : MonoBehaviour
         return true;
     }
 
-    private void CreateVisionCone()
-    {
-        GameObject cone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        cone.name = "VisionCone";
-        cone.transform.SetParent(transform, false);
-        cone.transform.localPosition = new Vector3(0f, -0.45f, viewDistance * 0.5f);
-        cone.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-        cone.transform.localScale = new Vector3(viewDistance * 0.28f, 0.03f, viewDistance * 0.5f);
-        Destroy(cone.GetComponent<Collider>());
-
-        Renderer renderer = cone.GetComponent<Renderer>();
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null)
-            shader = Shader.Find("Standard");
-
-        Material material = new Material(shader);
-        material.color = new Color(1f, 0.84f, 0.1f, 0.18f);
-        material.SetFloat("_Surface", 1f);
-        material.SetFloat("_AlphaClip", 0f);
-        renderer.material = material;
-    }
 }

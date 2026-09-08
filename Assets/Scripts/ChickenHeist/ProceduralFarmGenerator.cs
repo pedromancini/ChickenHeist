@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ProceduralFarmGenerator : MonoBehaviour
+public partial class ProceduralFarmGenerator : MonoBehaviour
 {
     [Header("Seed")]
     public bool generateOnStart = true;
@@ -127,6 +127,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
         terrainSeedZ = seed * 0.0211f;
         BuildDirtPathLayout();
         farmers.Clear();
+        roadSpans.Clear();
         CreateMaterials();
         CreateLighting();
         CreateGroundAndRoads();
@@ -143,16 +144,18 @@ public class ProceduralFarmGenerator : MonoBehaviour
             for (int column = 0; column < farmColumns; column++)
             {
                 int farmIndex = row * farmColumns + column;
-                CreateFarmLot(farmIndex, GetLotRect(column, row), player);
+                CreateDesignedFarm(farmIndex, GetLotRect(column, row), player);
             }
         }
 
+        RuralRoadSurface.Build(roadSpans,dirtAlbedo);
         CreateForest();
+        RuralTreeRoots.GroundAll();
         AttachCameraToPlayer(player);
         game.farmerSleep = farmers.Count > 0 ? farmers[0] : null;
         game.farmers = farmers.ToArray();
         game.targetChickens = Mathf.Min(chickenCount * farmColumns * farmRows, 10 + difficulty * 2);
-        game.statusMessage = "Mundo aberto: roube galinhas de varias fazendas e volte para a caminhonete.";
+        game.statusMessage = "Mundo aberto: roube galinhas de varias fazendas e volte ao ponto de retorno.";
     }
 
     private void CreateFarmLot(int farmIndex, Rect lot, Transform player)
@@ -381,6 +384,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
         Mesh mesh = new Mesh();
         mesh.name = "Terreno Rural Continuo";
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         mesh.vertices = vertices;
         mesh.uv = uvs;
         mesh.subMeshCount = 3;
@@ -427,12 +431,12 @@ public class ProceduralFarmGenerator : MonoBehaviour
                 float dx = Mathf.Max(lot.xMin - worldX, 0f, worldX - lot.xMax);
                 float dz = Mathf.Max(lot.yMin - worldZ, 0f, worldZ - lot.yMax);
                 float distance = Mathf.Sqrt(dx * dx + dz * dz);
-                influence = Mathf.Max(influence, 1f - Mathf.SmoothStep(0f, 12f, distance));
+                influence = Mathf.Max(influence, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(5f, 24f, distance)));
             }
         }
 
         float pathDistance = DistanceToDirtPath(point);
-        float pathInfluence = 1f - Mathf.SmoothStep(pathWidth * 0.75f, pathWidth * 2.2f, pathDistance);
+        float pathInfluence = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(pathWidth * 0.5f + 5f, pathWidth * 2.2f + 5f, pathDistance));
         return Mathf.Clamp01(Mathf.Max(influence, pathInfluence));
     }
 
@@ -461,7 +465,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
             int row = farmIndex / farmColumns;
             int column = farmIndex % farmColumns;
             Rect lot = GetLotRect(column, row);
-            Vector2 destination = new Vector2(lot.center.x, lot.yMin + 2.5f);
+            Vector2 destination = new Vector2(lot.center.x, lot.yMin - 5f);
             Vector2 source = connectedEntrances[0];
             float nearestDistance = Vector2.SqrMagnitude(destination - source);
 
@@ -487,7 +491,6 @@ public class ProceduralFarmGenerator : MonoBehaviour
         }
 
         primaryDirtPathSegmentCount = dirtPathSegments.Count;
-        AddFarmShortcuts();
         AddForestAccessTrails();
     }
 
@@ -545,7 +548,8 @@ public class ProceduralFarmGenerator : MonoBehaviour
                     break;
             }
 
-            AddBentDirtPath(start, end, farmIndex * 37 + 811, 0.20f);
+            end = start + (end - start).normalized * 55f;
+            AddBentDirtPath(start, end, farmIndex * 37 + 811, 0.12f);
         }
     }
 
@@ -562,7 +566,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
     private void AddDirtPathSegment(Vector2 start, Vector2 end)
     {
-        dirtPathSegments.Add(new Vector4(start.x, start.y, end.x, end.y));
+        RouteAroundFarms(start, end);
     }
 
     private void CreateDirtPathNetwork()
@@ -705,17 +709,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
     private void CreateDirtPathSegment(string name, Vector3 start, Vector3 end, float width)
     {
-        Vector3 direction = end - start;
-        float length = direction.magnitude;
-        if (length <= 0.1f)
-            return;
-
-        GameObject path = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        path.name = name;
-        path.transform.position = (start + end) * 0.5f;
-        path.transform.rotation = Quaternion.LookRotation(direction.normalized);
-        path.transform.localScale = new Vector3(width, 0.08f, length);
-        path.GetComponent<Renderer>().material = roadMaterial;
+        BuildDirtRoad(name, start, end, width, null, true);
     }
 
     private void CreateForest()
@@ -845,6 +839,8 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
     private void ApplyNatureMaterials(GameObject instance, string assetName)
     {
+        var calibratedTree=instance.GetComponent<RuralTreeRoots>();
+        if(calibratedTree!=null && calibratedTree.materialsCalibrated)return;
         string lowerName = assetName.ToLowerInvariant();
         bool isTree = lowerName.Contains("tree") || lowerName.Contains("arvore");
         bool isBush = lowerName.Contains("bush") || lowerName.Contains("arbusto");
@@ -866,10 +862,15 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
             for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
             {
+                Material original = materials[materialIndex];
+                string partName = (renderer.name + " " + (original != null ? original.name : "")).ToLowerInvariant();
+                bool bark = partName.Contains("bark") || partName.Contains("trunk") || partName.Contains("wood") || partName.Contains("brown");
+                if (original != null && original.shader != null && original.mainTexture != null)
+                    continue;
                 if (isTree)
                 {
                     Material leafMaterial = lowerName.Contains("autumn") ? natureAutumnLeafMaterial : natureLeafMaterial;
-                    materials[materialIndex] = materials.Length > 1 && materialIndex > 0 ? natureBarkMaterial : leafMaterial;
+                    materials[materialIndex] = bark ? natureBarkMaterial : leafMaterial;
                 }
                 else if (isBush)
                     materials[materialIndex] = natureLeafMaterial;
@@ -1047,9 +1048,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
             float prefabLength = GetPrefabLength(selectedFence, out lengthAxis);
             Quaternion rotation = Quaternion.FromToRotation(lengthAxis, direction);
             GameObject fence = Instantiate(selectedFence, position, rotation, parent);
-            float lengthScale = segmentLength * fenceOverlap / Mathf.Max(0.1f, prefabLength);
-            ScaleAlongLocalAxis(fence.transform, lengthAxis, lengthScale);
-            fence.transform.localScale = Vector3.Scale(fence.transform.localScale, new Vector3(1.1f, 1.1f, 1.1f));
+            FitFenceToSpan(fence, position, direction, segmentLength + 0.025f);
         }
         else
         {
@@ -1065,9 +1064,8 @@ public class ProceduralFarmGenerator : MonoBehaviour
         Quaternion rotation = Quaternion.FromToRotation(lengthAxis, Vector3.right);
         GameObject gate = Instantiate(prefab, position, rotation, parent);
         gate.name = "Portao alinhado";
-        float gateScale = gateWidth * 1.04f / Mathf.Max(0.1f, prefabLength);
-        ScaleAlongLocalAxis(gate.transform, lengthAxis, gateScale);
-        gate.transform.localScale = Vector3.Scale(gate.transform.localScale, new Vector3(1.1f, 1.1f, 1.1f));
+        FitFenceToSpan(gate, position, Vector3.right, gateWidth + 0.025f);
+        gate.AddComponent<RuralGate>();
     }
 
     private float GetPrefabLength(GameObject prefab, out Vector3 lengthAxis)
@@ -1109,11 +1107,11 @@ public class ProceduralFarmGenerator : MonoBehaviour
         Vector3 center = new Vector3(rect.center.x, 0f, rect.center.y);
         if (selectedCoop != null)
         {
-            GameObject coop = Instantiate(selectedCoop, center + new Vector3(0f, 0f, 0.35f), Quaternion.Euler(0f, 90f, 0f), enclosure.transform);
+            GameObject coop = Instantiate(selectedCoop, enclosure.transform);
             coop.name = "Casinha das Galinhas - Fazenda " + (farmIndex + 1);
             ApplyAssetMaterials(coop, buildingMaterial);
-            FitCoopHouseInside(coop, rect, height);
-            PlaceAssetOnGround(coop, 0.12f);
+            FitAsset(coop, center + new Vector3(-rect.width * 0.20f, 0.16f, rect.height * 0.20f), new Vector3(4.1f, 2.05f, 3.6f));
+            EnsureBuildingCollision(coop);
         }
         else
             CreateColoredCube("Casinha das Galinhas - Fazenda " + (farmIndex + 1), center + Vector3.up, new Vector3(3f, 2f, 2.4f), buildingMaterial, enclosure.transform);
@@ -1125,10 +1123,10 @@ public class ProceduralFarmGenerator : MonoBehaviour
         Vector3 feederPosition = center + new Vector3(rect.width * 0.22f, 0f, -rect.height * 0.22f);
         if (selectedFeeder != null)
         {
-            GameObject feeder = Instantiate(selectedFeeder, feederPosition, Quaternion.Euler(0f, 180f + (farmIndex % 3) * 12f, 0f), enclosure.transform);
+            GameObject feeder = Instantiate(selectedFeeder, enclosure.transform);
             feeder.name = "Comedouro das Galinhas - Fazenda " + (farmIndex + 1);
             ApplyAssetMaterials(feeder, woodPropFallbackMaterial);
-            PlaceAssetOnGround(feeder, 0.08f);
+            FitAsset(feeder, feederPosition + Vector3.up * 0.16f, new Vector3(1.8f, 0.65f, 0.9f));
         }
         else
             CreateColoredCube("Comedouro das Galinhas - Fazenda " + (farmIndex + 1), feederPosition + Vector3.up * 0.16f, new Vector3(1.15f, 0.32f, 0.55f), woodPropFallbackMaterial, enclosure.transform);
@@ -1188,7 +1186,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
         float horizontalSpacing = 0.58f;
         float leftX = rect.xMin;
         float rightX = rect.xMax;
-        float frontHeight = eaveHeight - 0.06f;
+        float frontHeight = GetCoopDepthRoofHeight(bottomZ, bottomZ, topZ, eaveHeight, ridgeHeight) - 0.06f;
 
         // Frente e fundo ficam no beiral. A porta permanece na frente.
         for (float x = leftX + 0.35f; x < rightX; x += verticalSpacing)
@@ -1227,24 +1225,20 @@ public class ProceduralFarmGenerator : MonoBehaviour
     private float GetCoopDepthRoofHeight(float z, float bottomZ, float topZ, float eaveHeight, float ridgeHeight)
     {
         float distanceFromRidge = Mathf.Abs(z - (bottomZ + topZ) * 0.5f) / Mathf.Max(0.01f, (topZ - bottomZ) * 0.5f);
-        float arch = 1f - Mathf.Clamp01(distanceFromRidge);
-        arch = arch * arch * (3f - 2f * arch);
+        // Match the straight roof sheets, including their 45 cm overhang.
+        float halfDepth = (topZ - bottomZ) * 0.5f;
+        float arch = 1f - Mathf.Clamp01(distanceFromRidge * halfDepth / (halfDepth + 0.45f));
         return Mathf.Lerp(eaveHeight, ridgeHeight, arch);
     }
 
     private void CreateCoopSideHorizontalLine(float x, float bottomZ, float topZ, float y, float eaveHeight, float ridgeHeight, Transform parent, float thickness)
     {
-        float segmentStep = 0.68f;
-        for (float z = bottomZ + 0.12f; z < topZ - 0.08f; z += segmentStep)
-        {
-            float nextZ = Mathf.Min(z + segmentStep, topZ - 0.12f);
-            float startTop = GetCoopDepthRoofHeight(z, bottomZ, topZ, eaveHeight, ridgeHeight);
-            float endTop = GetCoopDepthRoofHeight(nextZ, bottomZ, topZ, eaveHeight, ridgeHeight);
-            if (startTop < y + 0.03f || endTop < y + 0.03f)
-                continue;
-
-            CreateCoopRailSegment(new Vector3(x, y, z), new Vector3(x, y, nextZ), thickness, parent, coopMeshMaterial);
-        }
+        float center = (bottomZ + topZ) * 0.5f;
+        float halfDepth = (topZ - bottomZ) * 0.5f;
+        float roofSlope = (ridgeHeight - eaveHeight) / (halfDepth + 0.45f);
+        float halfSpan = Mathf.Min(halfDepth, (ridgeHeight - y - thickness) / roofSlope);
+        if (halfSpan > 0f)
+            CreateCoopRailSegment(new Vector3(x, y, center - halfSpan), new Vector3(x, y, center + halfSpan), thickness, parent, coopMeshMaterial);
     }
 
     private void CreateCoopRailSegment(Vector3 start, Vector3 end, float thickness, Transform parent, Material material)
@@ -1275,7 +1269,8 @@ public class ProceduralFarmGenerator : MonoBehaviour
         for (float y = frame + 0.05f; y < height - frame; y += 0.46f)
             CreateCoopBar(new Vector3(rect.center.x, y, z - 0.04f), new Vector3(doorWidth - 0.28f, 0.035f, 0.035f), door.transform, coopMeshMaterial);
 
-        CreateColoredCube("Cadeado do Galinheiro", new Vector3(rect.center.x + doorWidth * 0.22f, height * 0.53f, z - 0.13f), new Vector3(0.20f, 0.28f, 0.08f), dangerMaterial, door.transform);
+        var padlock=CreateColoredCube("Cadeado do Galinheiro", new Vector3(rect.center.x + doorWidth * 0.22f, height * 0.53f, z - 0.13f), new Vector3(0.20f, 0.28f, 0.08f), dangerMaterial, door.transform);
+        CoopPadlockModel.Apply(padlock.transform);
         return door;
     }
 
@@ -1506,16 +1501,13 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
     private void CreateExtractionZone(Vector3 position)
     {
-        GameObject truck = CreateColoredCube("Caminhonete de Fuga", position + Vector3.up * 0.7f, new Vector3(3.6f, 1.4f, 2f), buildingMaterial, null);
-        GameObject zone = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        GameObject zone = new GameObject("Zona de Extracao");
         zone.name = "Zona de Extracao";
         zone.transform.position = position;
-        zone.transform.localScale = new Vector3(6f, 0.1f, 5f);
-        zone.GetComponent<Renderer>().material = dangerMaterial;
-        Collider collider = zone.GetComponent<Collider>();
+        BoxCollider collider = zone.AddComponent<BoxCollider>();
+        collider.size = new Vector3(6f, 2.5f, 5f);
         collider.isTrigger = true;
         zone.AddComponent<ExtractionZone>();
-        truck.transform.SetParent(zone.transform);
     }
 
     private void SpawnFarmClutter(Rect lot, int farmIndex, Vector3 housePosition, Vector3 barnPosition, Transform parent)
@@ -1660,7 +1652,9 @@ public class ProceduralFarmGenerator : MonoBehaviour
 
         centerX += jitterX + (row % 2 == 0 ? -spacingX * 0.08f : spacingX * 0.08f);
         centerZ += jitterZ;
-        return new Rect(centerX - lotWidth * 0.5f, centerZ - lotDepth * 0.5f, lotWidth, lotDepth);
+        float width = lotWidth * Mathf.Lerp(0.90f, 1.12f, Hash01(index * 71 + 19));
+        float depth = lotDepth * Mathf.Lerp(0.90f, 1.12f, Hash01(index * 61 + 23));
+        return new Rect(centerX - width * 0.5f, centerZ - depth * 0.5f, width, depth);
     }
 
     private float Hash01(int value)
@@ -1736,7 +1730,7 @@ public class ProceduralFarmGenerator : MonoBehaviour
     private void CreateMaterials()
     {
         groundMaterial = CreateMaterial(new Color(0.12f, 0.28f, 0.14f));
-        roadMaterial = CreateMaterial(new Color(0.15f, 0.13f, 0.11f));
+        roadMaterial = CreateMaterial(new Color(0.34f, 0.24f, 0.15f));
         fenceMaterial = CreateMaterial(new Color(0.47f, 0.32f, 0.18f));
         chickenMaterial = CreateMaterial(new Color(0.95f, 0.92f, 0.78f));
         cowMaterial = CreateMaterial(new Color(0.16f, 0.14f, 0.13f));

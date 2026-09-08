@@ -21,6 +21,7 @@ public class FarmerStateMachine : MonoBehaviour
 
     private void Update()
     {
+        if(GameMenu.IsOpen || HeistGameManager.Instance?.IsMissionFarmer(sleepSystem)!=true)return;
         if (sleepSystem == null || player == null || HeistGameManager.Instance == null || HeistGameManager.Instance.missionEnded)
             return;
 

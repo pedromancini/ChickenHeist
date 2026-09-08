@@ -31,6 +31,19 @@ Thumbs.db
 scratch/
 tmp/
 
+# Local reviews and automatic scene backups (active scenes remain tracked).
+output/
+Assets/Scenes/Before*.unity
+Assets/Scenes/Before*.unity.meta
+Assets/_Recovery/
+Assets/_Recovery.meta
+Assets/*.zip
+Assets/*.zip.meta
+*.blend1
+*.slnx
+Assets/Resources/PerformanceTestRunInfo.json*
+Assets/Resources/PerformanceTestRunSettings.json*
+
 # Original asset bundles are larger than GitHub's per-file limit.
 # Their extracted Unity assets remain tracked above.
 Assets/MarpaStudio/HDRP/FarmHDRPPackage.unitypackage
