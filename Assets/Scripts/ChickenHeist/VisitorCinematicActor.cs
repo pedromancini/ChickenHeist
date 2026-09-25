@@ -7,8 +7,9 @@ public sealed class VisitorCinematicActor
 {
     public readonly Transform root,head,spine,leftHand,rightHand;
     readonly Transform leftArm,leftElbow,rightArm,rightElbow;
-    readonly Animation animation;readonly AnimationClip idle,walk;
-    readonly Transform[] bones;readonly Quaternion[] rest,walkPose;
+    readonly Animation animation;readonly AnimationClip idle,walk,talk;
+    readonly Transform[] bones;readonly Quaternion[] rest,walkPose,talkPose;
+    float talkWeight;
     readonly Vector3[] handContact=new Vector3[2];readonly Quaternion[] handFrame=new Quaternion[2];
     readonly Transform[][] fingers=new Transform[2][];readonly Quaternion[][] fingerRest=new Quaternion[2][];
     public float ContactError {get;private set;}
@@ -17,12 +18,14 @@ public sealed class VisitorCinematicActor
         root=actor;animation=actor.GetComponentInChildren<Animation>();
         foreach(var skin in actor.GetComponentsInChildren<SkinnedMeshRenderer>())skin.forceMatrixRecalculationPerRender=true;
         if(animation==null)throw new System.InvalidOperationException("Cinematic actor requires Animation: "+actor.name);
-        idle=animation.GetClip("Idle");walk=animation.GetClip("Walk");animation.enabled=false;
+        idle=Clip("Breathe","Idle");walk=animation.GetClip("Walk");animation.enabled=false;
+        // Captured conversation take: "Talk" on ProtagonistRig, "Trade" (Talk01) on the Medieval People cast.
+        talk=actor.GetComponentsInChildren<Transform>(true).Any(t=>t.name=="ProtagonistRig")?Clip("Talk"):Clip("Talk","Trade");
         if(idle==null || walk==null)throw new System.InvalidOperationException("Missing cinematic Idle/Walk clips");
         head=Bone("Head");spine=Bone("Chest","Spine_02","Spine");
         leftArm=Bone("UpperArmL","Upperarm_L");leftElbow=Bone("ForearmL","Lowerarm_L");leftHand=Bone("HandL","Hand_L");
         rightArm=Bone("UpperArmR","Upperarm_R");rightElbow=Bone("ForearmR","Lowerarm_R");rightHand=Bone("HandR","Hand_R");
-        bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];
+        bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];talkPose=new Quaternion[bones.Length];
         idle.SampleAnimation(animation.gameObject,0);
         for(int i=0;i<2;i++)
         {
@@ -35,6 +38,7 @@ public sealed class VisitorCinematicActor
             fingerRest[i]=fingers[i].Select(t=>t.localRotation).ToArray();
         }
     }
+    AnimationClip Clip(params string[] names){foreach(var n in names){var c=animation.GetClip(n);if(c!=null)return c;}return null;}
     Transform Bone(params string[] names)=>root.GetComponentsInChildren<Transform>(true).First(t=>names.Contains(t.name));
     public void Pose(Vector3 position,float yaw,float time,bool moving,bool speaking,Vector3 gaze,float lean=0,float distance=0,float walkWeight=1)
     {
@@ -44,15 +48,22 @@ public sealed class VisitorCinematicActor
             walk.SampleAnimation(animation.gameObject,Mathf.Repeat(distance/1.05f,1)*walk.length);
             for(int i=0;i<bones.Length;i++)walkPose[i]=bones[i].localRotation;
         }
-        idle.SampleAnimation(animation.gameObject,Mathf.Repeat(time*.65f,Mathf.Max(.1f,idle.length)));
+        talkWeight=Mathf.MoveTowards(talkWeight,speaking && !moving && talk!=null?1:0,Time.deltaTime*2.2f);
+        if(talkWeight>0)
+        {
+            talk.SampleAnimation(animation.gameObject,Mathf.Repeat(time,talk.length));
+            for(int i=0;i<bones.Length;i++)talkPose[i]=bones[i].localRotation;
+        }
+        idle.SampleAnimation(animation.gameObject,Mathf.Repeat(time,Mathf.Max(.1f,idle.length)));
+        if(talkWeight>0){float w=Mathf.SmoothStep(0,1,talkWeight);for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,talkPose[i],w);}
         if(moving)for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,walkPose[i],walkWeight);
         ContactError=0;
         root.localPosition=position;root.localRotation=Quaternion.Euler(0,yaw,0);
-        spine.rotation=Quaternion.AngleAxis(lean+(speaking?Mathf.Sin(time*2.8f)*.65f:0),root.right)*spine.rotation;
+        spine.rotation=Quaternion.AngleAxis(lean,root.right)*spine.rotation;
         Vector3 delta=root.InverseTransformDirection(gaze-head.position);
         float turn=Mathf.Clamp(Mathf.Atan2(delta.x,delta.z)*Mathf.Rad2Deg,-28,28);
         float pitch=Mathf.Clamp(-Mathf.Atan2(delta.y,new Vector2(delta.x,delta.z).magnitude)*Mathf.Rad2Deg,-16,23);
-        head.rotation=Quaternion.AngleAxis(turn*.7f,root.up)*Quaternion.AngleAxis(pitch*.65f+(speaking?Mathf.Sin(time*4)*1.1f:0),root.right)*head.rotation;
+        head.rotation=Quaternion.AngleAxis(turn*.7f,root.up)*Quaternion.AngleAxis(pitch*.65f,root.right)*head.rotation;
     }
     public void Grip(bool right,Vector3 surface,Vector3 normal,Vector3 along,float weight=1)
     {

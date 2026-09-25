@@ -21,6 +21,10 @@ public static class CastPalette
     {
         // Elias (peasant_3): brown hair, faded olive T-shirt, dark work trousers (the back of the hair shares the trousers band).
         {"elias",new Dictionary<string,Color32>{{"slate",new Color32(58,42,30,255)},{"lightBrown",new Color32(108,116,90,255)},{"darkBrown",new Color32(52,40,32,255)},{"white",new Color32(150,148,138,255)}}},
+        // Native Elias (peasant_3 skeleton + cap and stubble from build_elias_native.py): brown hair, worn olive shirt,
+        // red flannel sleeves, dark work trousers; the unused red and brownGray bands carry the cap and the stubble.
+        {"eliasNative",new Dictionary<string,Color32>{{"slate",new Color32(58,42,30,255)},{"lightBrown",new Color32(96,104,78,255)},{"white",new Color32(132,52,44,255)},
+            {"darkBrown",new Color32(50,44,40,255)},{"red",new Color32(52,62,84,255)},{"brownGray",new Color32(66,52,42,255)}}},
         // peasant_5 farmer: khaki work shirt, leather vest, jeans.
         {"farmerKhaki",new Dictionary<string,Color32>{{"brownGray",new Color32(62,80,112,255)},{"tan",new Color32(172,152,108,255)}}},
         // rich_citizzens_1 farmer: red flannel, olive trim, brown work trousers.
@@ -31,6 +35,7 @@ public static class CastPalette
         {"dress",new Dictionary<string,Color32>{{"lightBrown",new Color32(98,116,146,255)}}},
     };
 
+    public static void GenerateEliasNative(){Material("eliasNative");AssetDatabase.SaveAssets();}
     public static Material Material(string variant)
     {
         string texturePath=Folder+"/MedievalAtlas-"+variant+".png",materialPath=Folder+"/MedievalAtlas-"+variant+".mat";

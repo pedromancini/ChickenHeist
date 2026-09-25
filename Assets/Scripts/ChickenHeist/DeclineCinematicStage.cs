@@ -27,15 +27,18 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         }
         foreach(var actor in new[]{osvaldo,joana})
         {
-            var location=actor.localPosition;var rotation=actor.localRotation;var anim=actor.GetComponent<Animation>();anim.GetClip("Idle").SampleAnimation(actor.gameObject,Mathf.Repeat(total*.22f,Mathf.Max(.1f,anim.GetClip("Idle").length)));actor.localPosition=location;actor.localRotation=rotation;
-            var head=actor.GetComponentsInChildren<Transform>().First(t=>t.name=="Head");
+            var location=actor.localPosition;var rotation=actor.localRotation;var anim=actor.GetComponent<Animation>();
             bool speaking=(line%2==0?joana:osvaldo)==actor;
+            // Captured takes: the speaker talks (Trade = Talk01), the listener breathes (Sleep = Idle02).
+            var take=speaking && anim.GetClip("Trade")!=null?anim.GetClip("Trade"):anim.GetClip("Sleep")??anim.GetClip("Idle");
+            take.SampleAnimation(actor.gameObject,Mathf.Repeat(total+(actor==joana?1.1f:0),Mathf.Max(.1f,take.length)));actor.localPosition=location;actor.localRotation=rotation;
+            var head=actor.GetComponentsInChildren<Transform>().First(t=>t.name=="Head");
             var other=actor==joana?osvaldo:joana;
             float turn=Mathf.Clamp(Vector3.SignedAngle(actor.forward,other.position-actor.position,Vector3.up),-18,18);
             float envelope=Mathf.Sin(Mathf.Clamp01(time/duration)*Mathf.PI);
-            head.rotation=Quaternion.AngleAxis(turn*.45f,Vector3.up)*Quaternion.AngleAxis(8+(speaking?Mathf.Sin(time*2)*2:0)+envelope*3,actor.right)*head.rotation;
+            head.rotation=Quaternion.AngleAxis(turn*.45f,Vector3.up)*Quaternion.AngleAxis(4+envelope*2,actor.right)*head.rotation;
             var spine=actor.GetComponentsInChildren<Transform>().FirstOrDefault(t=>t.name=="Spine" || t.name=="Spine_02");
-            if(spine!=null)spine.localRotation*=Quaternion.Euler(Mathf.Sin(total*1.7f)*.4f+envelope*(speaking?1.2f:.4f),0,0);
+            
         }
         float dolly=Mathf.SmoothStep(0,1,Mathf.Clamp01(time/duration));
         if(line==0)

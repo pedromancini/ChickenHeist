@@ -13,11 +13,15 @@ public sealed class OpeningCinematicStage : MonoBehaviour
     sealed class Actor
     {
         public Transform root,head,spine,arm,forearm,hand; public Animation animation;
-        public AnimationClip idle,walk; public Vector3 origin;
+        public AnimationClip idle,walk,talk; public Vector3 origin;float talkWeight;
+        Transform[] bones;Quaternion[] talkPose;
         public Actor(Transform r)
         {
             root=r;origin=r.localPosition;animation=r.GetComponentInChildren<Animation>();
-            idle=animation.GetClip("Idle");walk=animation.GetClip("Walk");animation.enabled=false;
+            idle=Clip("Breathe","Idle");walk=animation.GetClip("Walk");animation.enabled=false;
+            bool protagonist=r.GetComponentsInChildren<Transform>(true).Any(t=>t.name=="ProtagonistRig");
+            talk=protagonist?Clip("Talk"):Clip("Talk","Trade");
+            bones=animation.GetComponentsInChildren<Transform>(true);talkPose=new Quaternion[bones.Length];
             var all=r.GetComponentsInChildren<Transform>();
             head=all.First(t=>t.name=="Head");
             spine=all.First(t=>t.name=="Spine" || t.name=="Spine_02");
@@ -25,11 +29,14 @@ public sealed class OpeningCinematicStage : MonoBehaviour
             forearm=all.First(t=>t.name=="ForearmR" || t.name=="Lowerarm_R");
             hand=all.First(t=>t.name=="HandR" || t.name=="Hand_R");
         }
+        AnimationClip Clip(params string[] names){foreach(var n in names){var c=animation.GetClip(n);if(c!=null)return c;}return null;}
+        // Standing in place: captured breathing for the listener, captured conversation for the speaker.
         public void Pose(float time,float lineTime,bool speaking,int line,bool departing)
         {
-            // Fixed relaxed pose: no walking, arm oscillation or accumulated root motion.
-            idle.SampleAnimation(animation.gameObject,0);
-
+            talkWeight=Mathf.MoveTowards(talkWeight,speaking && talk!=null?1:0,Time.deltaTime*2.2f);
+            if(talkWeight>0){talk.SampleAnimation(animation.gameObject,Mathf.Repeat(time,talk.length));for(int i=0;i<bones.Length;i++)talkPose[i]=bones[i].localRotation;}
+            idle.SampleAnimation(animation.gameObject,Mathf.Repeat(time,Mathf.Max(.1f,idle.length)));
+            if(talkWeight>0){float w=Mathf.SmoothStep(0,1,talkWeight);for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,talkPose[i],w);}
         }
     }
     public static OpeningCinematicStage Create(Transform home)
@@ -55,7 +62,8 @@ public sealed class OpeningCinematicStage : MonoBehaviour
     }
     public void Evaluate(Camera camera,int line,float localTime,float duration,float total)
     {
-        first.Pose(0,0,false,line,false);second.Pose(0,0,false,line,false);
+        // Elias speaks on odd lines, Lia on even ones (see Shot selection below).
+        first.Pose(total,localTime,line%2==1,line,false);second.Pose(total+1.3f,localTime,line%2==0 && line>0,line,false);
         elias.localPosition=first.origin;lia.localPosition=second.origin;
         Shot=line==0?0:line==3 && localTime>duration*.55f?3:line==11?4:line%2==0?1:2;
         Vector3 from,target;

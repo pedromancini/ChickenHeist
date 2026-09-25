@@ -106,12 +106,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         first.Pose(ep,eyaw,total,emove,VisitorOpeningDialogue.Speakers[line]=="Elias",World(egaze),line==0?12:line>=29?6:line==14?-3:2,edistance,ew);
         second.Pose(vp,vyaw,total,vmove,VisitorOpeningDialogue.Speakers[line]=="Visitante",World(vgaze),line==1?4:0,vdistance,vw);
         props.Paper(line==0?localTime:6);
-        if(line>=3 && line<9)
-        {
-            float gesture=Mathf.Sin(p*Mathf.PI)*.7f;
-            if(VisitorOpeningDialogue.Speakers[line]=="Elias")first.Reach(true,elias.TransformPoint(new Vector3(.26f,1.12f,.27f)),gesture);
-            else second.Reach(true,visitor.TransformPoint(new Vector3(.25f,1.12f,.26f)),gesture);
-        }
+        // Conversation gestures come from the captured Talk take inside VisitorCinematicActor.
         if(line==0)
         {
             first.Reach(true,props.KeyContact+home.up*(.025f+Mathf.Abs(localTime-.85f)*.02f),localTime<1.5f?.95f:.35f);
@@ -149,6 +144,8 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         SoundEvents(line,localTime,emove,vmove,change,edistance,vdistance);
         previousLocal=localTime;
     }
+    // Eye height of native Elias in stage space (real proportions; the previous rig sat ~0.2 m lower).
+    const float EliasEye=1.63f;
     void Direct(Camera camera,int line,float p,Vector3 ep,Vector3 vp)
     {
         Vector3 from,target;float fov=46;
@@ -158,16 +155,16 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         // The door is still closed while the visitor answers, so this line is covered from the porch.
         else if(line==3){Shot=11;from=new Vector3(-1.62f,2.12f,.62f)+Vector3.forward*p*.05f;target=vp+new Vector3(0,1.45f,0);fov=44;}
         else if(line==2 || line==4 || line==7 || line==26)
-        {Shot=2;from=line<5?new Vector3(-1.80f,2.12f,3.40f):new Vector3(-2.80f,2.10f,1.88f);target=ep+new Vector3(0,1.40f,-.05f);fov=48;from+=Vector3.forward*p*.04f;}
+        {Shot=2;from=line<5?new Vector3(-1.80f,2.12f,3.40f):new Vector3(-2.80f,2.10f,1.88f);target=ep+new Vector3(0,EliasEye-.05f,-.05f);fov=48;from+=Vector3.forward*p*.04f;}
         else if(line==9 || line==19)
         {Shot=3;from=home.InverseTransformPoint(props.tablet.position)+new Vector3(.23f,.70f,.38f);target=home.InverseTransformPoint(props.tablet.position);fov=46;}
-        else if(line==14){Shot=4;from=new Vector3(-2.82f,2.12f,1.88f);target=ep+Vector3.up*1.43f;fov=43;}
+        else if(line==14){Shot=4;from=new Vector3(-2.82f,2.12f,1.88f)+Vector3.up*.18f;target=ep+Vector3.up*EliasEye;fov=43;}
         else if(line>=10 && line<=12 || line>=15 && line<=18 || line==24 || line==25 || line==5)
         {Shot=5;from=new Vector3(-2.45f,2.30f,3.02f)+new Vector3(-.06f,0,.1f)*p;target=new Vector3(-3.04f,1.94f,2.20f);fov=70;}
         else if(line>=20 && line<=23)
-        {Shot=10;from=Vector3.Lerp(new Vector3(-2.80f,2.10f,1.88f),new Vector3(-2.68f,2.14f,1.97f),((line-20)+p)/4f);target=ep+Vector3.up*1.43f;fov=45;}
+        {Shot=10;from=Vector3.Lerp(new Vector3(-2.80f,2.10f,1.88f),new Vector3(-2.68f,2.14f,1.97f),((line-20)+p)/4f)+Vector3.up*.18f;target=ep+Vector3.up*EliasEye;fov=45;}
         else if(line==28){Shot=6;from=Vector3.Lerp(new Vector3(-2.52f,2.17f,2.75f),new Vector3(-2.56f,2.27f,2.35f),p);target=vp+Vector3.up*1.2f;fov=54;}
-        else if(line==29){Shot=7;from=new Vector3(-2.60f,2.40f,4.95f)+Vector3.left*p*.35f;target=ep+Vector3.up*1.14f;fov=57;}
+        else if(line==29){Shot=7;from=new Vector3(-2.60f,2.40f,4.95f)+Vector3.left*p*.35f;target=ep+Vector3.up*(EliasEye-.3f);fov=57;}
         else if(line==30){Shot=8;from=Vector3.Lerp(desk+new Vector3(.7f,1.14f,.67f),desk+new Vector3(.53f,.82f,.53f),p);target=desk+new Vector3(.04f,.02f,.025f);fov=47;}
         else{Shot=9;from=new Vector3(-2.54f,2.29f,2.38f)+Vector3.back*p*.06f;target=vp+new Vector3(0,1.52f,.01f);fov=line==13?37:43;}
         camera.transform.SetPositionAndRotation(World(from),Quaternion.LookRotation(World(target)-World(from),home.up));camera.fieldOfView=fov;

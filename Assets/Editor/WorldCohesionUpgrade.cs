@@ -24,7 +24,7 @@ public static class WorldCohesionUpgrade
         var scene=EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         if(!AssetDatabase.IsValidFolder(Folder))AssetDatabase.CreateFolder("Assets/ChickenHeistGenerated/World","Cohesion");
         var log=new List<string>();
-        Grade(log);MuteMaterials(log);MuteAtlases(log);Fences(log);Roads(log);Pastures(log);
+        Grade(log);MuteMaterials(log);MuteAtlases(log);Fences(log);Roads(log);Pastures(log);PorchLights(log);
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
         Directory.CreateDirectory("output/map-review");File.WriteAllLines("output/map-review/cohesion-install.txt",log);
     }
@@ -39,13 +39,25 @@ public static class WorldCohesionUpgrade
         // Volume components must live inside the profile asset, or the saved profile comes back empty.
         if(!AssetDatabase.Contains(color)){color.name="ColorAdjustments";color.hideFlags=HideFlags.HideInInspector|HideFlags.HideInHierarchy;AssetDatabase.AddObjectToAsset(color,profile);}
         color.saturation.Override(-22);color.contrast.Override(10);color.colorFilter.Override(new Color(1,.965f,.92f));
+        color.postExposure.Override(.25f);
+        // Filmic finish for the night: neutral tonemapping keeps lamp highlights, bloom lets windows and
+        // lanterns glow, a light vignette pulls the eye to the centre of the frame.
+        T Component<T>() where T:VolumeComponent
+        {
+            if(!profile.TryGet(out T c))c=profile.Add<T>(true);
+            if(!AssetDatabase.Contains(c)){c.name=typeof(T).Name;c.hideFlags=HideFlags.HideInInspector|HideFlags.HideInHierarchy;AssetDatabase.AddObjectToAsset(c,profile);}
+            return c;
+        }
+        var tone=Component<Tonemapping>();tone.mode.Override(TonemappingMode.Neutral);
+        var bloom=Component<Bloom>();bloom.threshold.Override(1.05f);bloom.intensity.Override(.6f);bloom.scatter.Override(.65f);bloom.tint.Override(new Color(1,.9f,.78f));
+        var vignette=Component<Vignette>();vignette.intensity.Override(.24f);vignette.smoothness.Override(.45f);
         EditorUtility.SetDirty(profile);
         var go=GameObject.Find("Grade de cor rural")??new GameObject("Grade de cor rural");
         var volume=go.GetComponent<Volume>()??go.AddComponent<Volume>();volume.isGlobal=true;volume.priority=0;volume.sharedProfile=profile;
         int cameras=0;
         foreach(var cam in Object.FindObjectsByType<Camera>(FindObjectsInactive.Include,FindObjectsSortMode.None))
         {var data=cam.GetUniversalAdditionalCameraData();if(data!=null){data.renderPostProcessing=true;EditorUtility.SetDirty(data);cameras++;}}
-        log.Add("Global grade: saturation -22, contrast +10, warm filter; post-processing on "+cameras+" cameras");
+        log.Add("Global grade: saturation -22, contrast +10, warm filter, exposure +0.25, neutral tonemapping, bloom, vignette; post-processing on "+cameras+" cameras");
     }
 
     // Untextured pack colours that read as neon at night.
@@ -190,6 +202,43 @@ public static class WorldCohesionUpgrade
             if(rng.NextDouble()<.65){trees[i].gameObject.SetActive(false);hidden++;}
         }
         log.Add($"Pastures: {hidden} of {trees.Count} isolated trees deactivated");
+    }
+    // Warm practical light at every inhabited door: amber against the cold moonlight is what gives the
+    // night depth. No shadows (cost), a small emissive lantern so bloom has something to catch.
+    static void PorchLights(List<string> log)
+    {
+        var glass=AssetDatabase.LoadAssetAtPath<Material>(Folder+"/Lanterna acesa.mat");
+        if(glass==null)
+        {
+            glass=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Lanterna acesa"};
+            glass.SetColor("_BaseColor",new Color(1,.78f,.5f));glass.EnableKeyword("_EMISSION");glass.SetColor("_EmissionColor",new Color(1,.62f,.3f)*6f);
+            glass.globalIlluminationFlags=MaterialGlobalIlluminationFlags.None;AssetDatabase.CreateAsset(glass,Folder+"/Lanterna acesa.mat");
+        }
+        int count=0;
+        void Lantern(Transform anchor,Vector3 position,Vector3 facing,float intensity)
+        {
+            const string name="Lanterna da varanda";
+            var old=anchor.Find(name);if(old!=null)Object.DestroyImmediate(old.gameObject);
+            var root=new GameObject(name);root.transform.SetParent(anchor,true);root.transform.position=position;
+            if(facing.sqrMagnitude>.01f)root.transform.rotation=Quaternion.LookRotation(new Vector3(facing.x,0,facing.z));
+            var body=GameObject.CreatePrimitive(PrimitiveType.Cube);body.name="Vidro aceso";Object.DestroyImmediate(body.GetComponent<Collider>());
+            body.transform.SetParent(root.transform,false);body.transform.localScale=new Vector3(.14f,.2f,.14f);
+            var renderer=body.GetComponent<MeshRenderer>();renderer.sharedMaterial=glass;renderer.shadowCastingMode=ShadowCastingMode.Off;
+            var light=root.AddComponent<Light>();light.type=LightType.Point;light.color=new Color(1,.7f,.42f);light.intensity=intensity;light.range=9;light.shadows=LightShadows.None;
+            count++;
+        }
+        foreach(var home in Object.FindObjectsByType<FarmerResidence>(FindObjectsSortMode.None))
+        {
+            if(home.outsideDoor==null || home.insideDoor==null)continue;
+            var outward=home.outsideDoor.position-home.insideDoor.position;outward.y=0;
+            Lantern(home.transform,home.outsideDoor.position-outward.normalized*.35f+Vector3.up*2.35f+Vector3.Cross(Vector3.up,outward.normalized)*.75f,outward,2.4f);
+        }
+        var protagonistHome=GameObject.Find("Casa do Protagonista - Sitio do Recomeco");
+        var door=protagonistHome!=null?protagonistHome.GetComponentInChildren<HomeDoor>():null;
+        if(door!=null)Lantern(protagonistHome.transform,door.hinge.position+Vector3.up*1.2f-door.hinge.forward*.4f,-door.hinge.forward,2f);
+        var market=Object.FindFirstObjectByType<VillageMarket>();
+        if(market!=null)Lantern(market.transform,market.counter.position+Vector3.up*1.9f-market.counter.forward*.2f,market.counter.forward,2.6f);
+        log.Add("Porch lanterns: "+count);
     }
     static Rect Expand(Rect r,float m)=>new Rect(r.xMin-m,r.yMin-m,r.width+2*m,r.height+2*m);
     static float Segment(Vector3 p,Vector3 a,Vector3 b){p.y=a.y=b.y=0;var d=b-a;float t=Mathf.Clamp01(Vector3.Dot(p-a,d)/Mathf.Max(1e-4f,d.sqrMagnitude));return Vector3.Distance(p,a+d*t);}

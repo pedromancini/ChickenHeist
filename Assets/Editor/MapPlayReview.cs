@@ -43,6 +43,8 @@ public static class MapPlayReview
             views=new List<(Vector3,Vector3,string)>{(home.position+home.forward*14,-home.forward,"home"),(market.position+market.forward*16,-market.forward,"market")};
             foreach(var road in Object.FindObjectsByType<RuralRoadSpan>(FindObjectsSortMode.None).OrderByDescending(r=>Vector3.Distance(r.start,r.end)).Take(5))views.Add((Vector3.Lerp(road.start,road.end,.5f),road.end-road.start,"road"));
             foreach(var f in Object.FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).OrderBy(f=>f.layoutIndex).Take(3)){var c=new Vector3(f.lot.center.x,0,f.lot.center.y);views.Add((f.entrance+(f.entrance-c).normalized*10,c-f.entrance,"farm-"+f.layoutIndex));}
+            foreach(var lantern in Object.FindObjectsByType<Light>(FindObjectsSortMode.None).Where(l=>l.name=="Lanterna da varanda").Take(4))
+            {var f=lantern.transform.forward;views.Add((lantern.transform.position+f*7-Vector3.up*1.9f+lantern.transform.right*2.5f,-(f*7+lantern.transform.right*2.5f),"lantern"));}
             var data=UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(eye);
             var stack=UnityEngine.Rendering.VolumeManager.instance.stack;var grade=stack?.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
             File.WriteAllLines(Folder+"/diagnostics.txt",new[]{"camera "+eye.name+" post="+data.renderPostProcessing+" mask="+data.volumeLayerMask.value+" trigger="+(data.volumeTrigger?data.volumeTrigger.name:"-")+" type="+data.renderType,
