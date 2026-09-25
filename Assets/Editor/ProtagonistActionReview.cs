@@ -24,7 +24,7 @@ public static class ProtagonistActionReview
     }
     public static void RunBatch()
     {
-        ProtagonistInstaller.Install();
+        EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         Directory.CreateDirectory(Folder);
         var economy=Object.FindAnyObjectByType<HouseholdEconomy>();
         economy.editorTestSavePath=Path.GetFullPath("Temp/articulation-review-"+Guid.NewGuid().ToString("N")+".json");
@@ -83,7 +83,7 @@ public static class ProtagonistActionReview
                 foreach(var look in game.player.GetComponentsInChildren<PlayerLook>())look.enabled=false;
                 game.player.GetComponent<PlayerMovement>().enabled=false;
                 Check(rig!=null,"new protagonist articulation installed");
-                Check(rig.GetComponentsInChildren<Transform>().Count(t=>new[]{"Index","Middle","Ring","Little","Thumb"}.Any(p=>t.name.StartsWith(p)))==30,"30 weighted finger joints");
+                Check(rig.GetComponentsInChildren<Transform>().Count(t=>new[]{"Index","Middle","Ring","Little","Thumb"}.Any(p=>t.name.StartsWith(p)))>=18,"weighted finger joints (native Elias: thumb, index and ring, three joints each)");
                 finger=rig.GetComponentsInChildren<Transform>().Single(t=>t.name=="Index2R");fingerBefore=finger.localRotation;
                 eyes.transform.localRotation=Quaternion.Euler(20,60,0);
             }

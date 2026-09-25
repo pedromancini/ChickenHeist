@@ -37,7 +37,8 @@ public class RoadsideWalker : MonoBehaviour
         var net=WalkNetwork.Shared;if(net==null || current<0)return;
         Vector3 before=transform.position;
         var player=HeistGameManager.Instance?.player;
-        bool giveWay=player!=null && (player.position-before).sqrMagnitude<2.8f;
+        // Only stop when practically touching the player; otherwise walk around them.
+        bool giveWay=player!=null && (player.position-before).sqrMagnitude<.8f*.8f;
         if(Time.time<waitUntil || giveWay)
         {
             if(looking)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,lookYaw,0),Time.deltaTime*1.5f);
@@ -57,6 +58,11 @@ public class RoadsideWalker : MonoBehaviour
                 {
                     if(other==this)continue;Vector3 gap=other.transform.position-before;gap.y=0;
                     if(gap.sqrMagnitude<2.6f*2.6f && Vector3.Dot(gap,heading)>0)heading+=transform.right*.9f*(1-gap.magnitude/2.6f);
+                }
+                if(player!=null)
+                {
+                    Vector3 gap=player.position-before;gap.y=0;
+                    if(gap.sqrMagnitude<2.4f*2.4f && Vector3.Dot(gap,heading)>0)heading+=Vector3.Cross(Vector3.up,heading).normalized*1.1f*(1-gap.magnitude/2.4f);
                 }
                 controller.Move(heading.normalized*speed*pace*Time.deltaTime);
             }

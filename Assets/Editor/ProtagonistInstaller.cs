@@ -31,6 +31,9 @@ public static class ProtagonistInstaller
     public static void Install()
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Exit Play mode first.");
+        // The previous rig was replaced by native Elias (EliasNativeInstall); reinstalling it would undo that.
+        if(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath).GetComponentsInChildren<Transform>(true).Any(t=>t.name=="Spine2"))
+            throw new InvalidOperationException("Native Elias is installed; use EliasNativeInstall instead of the legacy protagonist installer.");
         Directory.CreateDirectory(Output);
         AssetDatabase.ImportAsset(Model,ImportAssetOptions.ForceSynchronousImport);
         var importer=(ModelImporter)AssetImporter.GetAtPath(Model);

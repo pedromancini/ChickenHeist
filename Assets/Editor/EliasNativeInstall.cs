@@ -31,6 +31,7 @@ public static class EliasNativeInstall
     };
     static readonly string[] Authored={"CrouchIdle","Crouch","Pickup","Trade","Drive","Ignite","Lockpick","Carry"};
     static readonly string[] OneShot={"Pickup","Trade","Jump"};
+    static float newStanding;
 
     public static void Install()
     {
@@ -44,17 +45,29 @@ public static class EliasNativeInstall
         foreach(string state in Authored)
         {
             var old=AssetDatabase.LoadAssetAtPath<AnimationClip>(OldFolder+state+".anim");
-            var source=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(OldFolder+"Protagonist.prefab"));
+            // Source is always the previous rig from its own FBX (the prefab now holds native Elias).
+            var source=new GameObject("old rig");
+            var oldModel=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(OldFolder+"Protagonist_Rigged.fbx"),source.transform);oldModel.name=ModelChild;
+            foreach(var a in oldModel.GetComponentsInChildren<Animation>())Object.DestroyImmediate(a);foreach(var a in oldModel.GetComponentsInChildren<Animator>())Object.DestroyImmediate(a);
             try
             {
                 var sourceRoot=source.GetComponentsInChildren<Transform>().First(t=>t.name=="ProtagonistRig").parent;
+                var oldHips=sourceRoot.GetComponentsInChildren<Transform>().First(t=>t.name=="Hips");
                 var reader=new HumanPoseHandler(oldAvatar,sourceRoot);var pose=new HumanPose();
-                // Old rig still carries the previous body, only its bones matter here.
+                // Humanoid transfer keeps limb angles but not the pelvis drop of sitting and crouching poses:
+                // the pelvis follows the source, scaled by the ratio of standing pelvis heights.
+                AssetDatabase.LoadAssetAtPath<AnimationClip>(OldFolder+"Idle.anim").SampleAnimation(source,0);
+                float oldStanding=sourceRoot.InverseTransformPoint(oldHips.position).y;
                 clips[state]=Bake(state,avatar,(target,t)=>
                 {
                     old.SampleAnimation(source,t);reader.GetHumanPose(ref pose);
                     var writer=new HumanPoseHandler(avatar,target.transform);writer.SetHumanPose(ref pose);
+                    var hips=target.GetComponentsInChildren<Transform>().First(b=>b.name=="Hips");
+                    if(newStanding<=0){Take("Idle01").SampleAnimation(target,0);newStanding=target.transform.InverseTransformPoint(hips.position).y;writer.SetHumanPose(ref pose);}
+                    var rel=sourceRoot.InverseTransformPoint(oldHips.position)*(newStanding/oldStanding);
+                    hips.position=target.transform.TransformPoint(rel);
                 },old.length);
+                newStanding=0;
             }
             finally{Object.DestroyImmediate(source);}
         }
@@ -185,16 +198,20 @@ public static class EliasNativeInstall
             int frames=Mathf.Max(2,Mathf.RoundToInt(length*30));
             var rot=bones.ToDictionary(b=>b,b=>Enumerable.Range(0,4).Select(_=>new AnimationCurve()).ToArray());
             var pos=Enumerable.Range(0,3).Select(_=>new AnimationCurve()).ToArray();
+            // Humanoid posing may also move the non-human Root bone above the pelvis; record it too.
+            var root=hips.parent!=rig?hips.parent:null;var rootPos=Enumerable.Range(0,3).Select(_=>new AnimationCurve()).ToArray();
             for(int f=0;f<=frames;f++)
             {
                 float t=length*f/frames;poseAt(model,t);
                 foreach(var b in bones){var q=b.localRotation;var c=rot[b];c[0].AddKey(t,q.x);c[1].AddKey(t,q.y);c[2].AddKey(t,q.z);c[3].AddKey(t,q.w);}
                 var p=hips.localPosition;pos[0].AddKey(t,p.x);pos[1].AddKey(t,p.y);pos[2].AddKey(t,p.z);
+                if(root!=null){var r=root.localPosition;rootPos[0].AddKey(t,r.x);rootPos[1].AddKey(t,r.y);rootPos[2].AddKey(t,r.z);}
             }
             bool once=OneShot.Contains(state);
             var clip=new AnimationClip{name=state,legacy=true,frameRate=30,wrapMode=once?WrapMode.ClampForever:WrapMode.Loop};
             foreach(var kv in rot){string path=AnimationUtility.CalculateTransformPath(kv.Key,holder.transform);for(int c=0;c<4;c++)clip.SetCurve(path,typeof(Transform),"localRotation."+"xyzw"[c],kv.Value[c]);}
             string hipPath=AnimationUtility.CalculateTransformPath(hips,holder.transform);for(int c=0;c<3;c++)clip.SetCurve(hipPath,typeof(Transform),"localPosition."+"xyz"[c],pos[c]);
+            if(root!=null){string rootPath=AnimationUtility.CalculateTransformPath(root,holder.transform);for(int c=0;c<3;c++)clip.SetCurve(rootPath,typeof(Transform),"localPosition."+"xyz"[c],rootPos[c]);}
             clip.EnsureQuaternionContinuity();
             string asset=Folder+state+".anim";var existing=AssetDatabase.LoadAssetAtPath<AnimationClip>(asset);
             if(existing!=null){EditorUtility.CopySerialized(clip,existing);existing.name=state;EditorUtility.SetDirty(existing);Object.DestroyImmediate(clip);return existing;}
