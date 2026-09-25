@@ -24,7 +24,9 @@ public static class CastPalette
         // Native Elias (peasant_3 skeleton + cap and stubble from build_elias_native.py): brown hair, worn olive shirt,
         // red flannel sleeves, dark work trousers; the unused red and brownGray bands carry the cap and the stubble.
         {"eliasNative",new Dictionary<string,Color32>{{"slate",new Color32(58,42,30,255)},{"lightBrown",new Color32(96,104,78,255)},{"white",new Color32(132,52,44,255)},
-            {"darkBrown",new Color32(50,44,40,255)},{"red",new Color32(52,62,84,255)},{"brownGray",new Color32(66,52,42,255)}}},
+            {"darkBrown",new Color32(50,44,40,255)},{"red",new Color32(52,62,84,255)},{"brownGray",new Color32(66,52,42,255)},
+            // Sun-worn skin: the pack's pale skin reads as plastic under warm interior light.
+            {"skin",new Color32(198,146,112,255)},{"skinLight",new Color32(208,160,126,255)}}},
         // peasant_5 farmer: khaki work shirt, leather vest, jeans.
         {"farmerKhaki",new Dictionary<string,Color32>{{"brownGray",new Color32(62,80,112,255)},{"tan",new Color32(172,152,108,255)}}},
         // rich_citizzens_1 farmer: red flannel, olive trim, brown work trousers.

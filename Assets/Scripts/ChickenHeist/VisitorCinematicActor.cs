@@ -62,7 +62,8 @@ public sealed class VisitorCinematicActor
         spine.rotation=Quaternion.AngleAxis(lean,root.right)*spine.rotation;
         Vector3 delta=root.InverseTransformDirection(gaze-head.position);
         float turn=Mathf.Clamp(Mathf.Atan2(delta.x,delta.z)*Mathf.Rad2Deg,-28,28);
-        float pitch=Mathf.Clamp(-Mathf.Atan2(delta.y,new Vector2(delta.x,delta.z).magnitude)*Mathf.Rad2Deg,-16,23);
+        // Downward look is limited so the cap brim never hides the face in close-ups.
+        float pitch=Mathf.Clamp(-Mathf.Atan2(delta.y,new Vector2(delta.x,delta.z).magnitude)*Mathf.Rad2Deg,-16,12);
         head.rotation=Quaternion.AngleAxis(turn*.7f,root.up)*Quaternion.AngleAxis(pitch*.65f,root.right)*head.rotation;
     }
     public void Grip(bool right,Vector3 surface,Vector3 normal,Vector3 along,float weight=1)

@@ -158,11 +158,11 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         {Shot=2;from=line<5?new Vector3(-1.80f,2.12f,3.40f):new Vector3(-2.80f,2.10f,1.88f);target=ep+new Vector3(0,EliasEye-.05f,-.05f);fov=48;from+=Vector3.forward*p*.04f;}
         else if(line==9 || line==19)
         {Shot=3;from=home.InverseTransformPoint(props.tablet.position)+new Vector3(.23f,.70f,.38f);target=home.InverseTransformPoint(props.tablet.position);fov=46;}
-        else if(line==14){Shot=4;from=new Vector3(-2.82f,2.12f,1.88f)+Vector3.up*.18f;target=ep+Vector3.up*EliasEye;fov=43;}
+        else if(line==14){Shot=4;from=new Vector3(-2.82f,ep.y+EliasEye-.28f,1.88f);target=ep+Vector3.up*(EliasEye-.04f);fov=43;}
         else if(line>=10 && line<=12 || line>=15 && line<=18 || line==24 || line==25 || line==5)
         {Shot=5;from=new Vector3(-2.45f,2.30f,3.02f)+new Vector3(-.06f,0,.1f)*p;target=new Vector3(-3.04f,1.94f,2.20f);fov=70;}
         else if(line>=20 && line<=23)
-        {Shot=10;from=Vector3.Lerp(new Vector3(-2.80f,2.10f,1.88f),new Vector3(-2.68f,2.14f,1.97f),((line-20)+p)/4f)+Vector3.up*.18f;target=ep+Vector3.up*EliasEye;fov=45;}
+        {Shot=10;from=Vector3.Lerp(new Vector3(-2.80f,0,1.88f),new Vector3(-2.68f,0,1.97f),((line-20)+p)/4f)+Vector3.up*(ep.y+EliasEye-.28f);target=ep+Vector3.up*(EliasEye-.04f);fov=45;}
         else if(line==28){Shot=6;from=Vector3.Lerp(new Vector3(-2.52f,2.17f,2.75f),new Vector3(-2.56f,2.27f,2.35f),p);target=vp+Vector3.up*1.2f;fov=54;}
         else if(line==29){Shot=7;from=new Vector3(-2.60f,2.40f,4.95f)+Vector3.left*p*.35f;target=ep+Vector3.up*(EliasEye-.3f);fov=57;}
         else if(line==30){Shot=8;from=Vector3.Lerp(desk+new Vector3(.7f,1.14f,.67f),desk+new Vector3(.53f,.82f,.53f),p);target=desk+new Vector3(.04f,.02f,.025f);fov=47;}
