@@ -12,6 +12,8 @@ public static class RealisticPickupUpgrade
     public static void RunBatch()
     {
         EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
+        var characterImporter=(ModelImporter)AssetImporter.GetAtPath("Assets/ChickenHeistGenerated/Characters/Protagonist/Protagonist_Rigged.fbx");
+        characterImporter.isReadable=true;characterImporter.SaveAndReimport();
         const string path=Folder+"/FarmPickup.fbx";
         AssetDatabase.ImportAsset(path,ImportAssetOptions.ForceSynchronousImport);
         var importer=(ModelImporter)AssetImporter.GetAtPath(path);
@@ -45,6 +47,7 @@ public static class RealisticPickupUpgrade
                 if(name=="Rubber")color=new Color(.028f,.030f,.027f);
                 m.color=color;m.SetFloat("_Metallic",name=="WornSteel"?.65f:name=="Headlamp"?.2f:.06f);
                 m.SetFloat("_Smoothness",name=="WornSteel"?.4f:.22f);
+                m.SetFloat("_Cull",0); // Interior faces of the stamped shell remain visible.
                 if(name=="WindowGlass")
                 {
                     m.color=new Color(.37f,.49f,.50f,.16f);m.SetFloat("_Surface",1);m.SetFloat("_ZWrite",0);
@@ -81,8 +84,15 @@ public static class RealisticPickupUpgrade
             w.sidewaysFriction=new WheelFrictionCurve{extremumSlip=.22f,extremumValue=1,asymptoteSlip=.55f,asymptoteValue=.75f,stiffness=1.15f};
             physics.axles[i]=w;
         }
-        truck.wheels=physics.wheelModels;truck.steeringWheel=transforms.Single(t=>t.name=="Steering");
-        truck.seat.localPosition=new Vector3(-.40f,-.10f,0);
+        truck.wheels=physics.wheelModels;
+        var wheelMesh=transforms.Single(t=>t.name=="Steering");
+        var pivot=new GameObject("Volante - eixo da coluna").transform;
+        pivot.SetParent(truck.transform,false);
+        pivot.position=wheelMesh.position;
+        pivot.localRotation=Quaternion.LookRotation(new Vector3(0,-.10f,.145f),new Vector3(0,.145f,.10f));
+        wheelMesh.SetParent(pivot,true);
+        truck.steeringWheel=pivot;
+        truck.seat.localPosition=new Vector3(-.40f,-.10f,.40f);
         truck.cargoPoint.localPosition=new Vector3(0,.95f,-2.45f);
         for(int i=0;i<4;i++)truck.cages[i].transform.localPosition=new Vector3(i%2==0?-.41f:.41f,.80f,i<2?-.73f:-1.64f);
         var home=Object.FindFirstObjectByType<HouseholdEconomy>().home;

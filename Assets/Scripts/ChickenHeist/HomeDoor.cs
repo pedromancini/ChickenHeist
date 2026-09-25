@@ -16,7 +16,7 @@ public class HomeDoor : MonoBehaviour
         if(GameMenu.BlocksInput)return;
         var game=HeistGameManager.Instance;
         if(game==null || game.player==null)return;
-        if(!ProtagonistPhone.IsOpen && Vector3.Distance(game.player.position,transform.position)<2.6f && Input.GetKeyDown(KeyCode.E))
+        if(!ProtagonistPhone.IsOpen && Vector3.Distance(game.player.position,transform.position)<2.6f && WorldInteraction.Pressed(this))
         {
             Vector3 p=transform.InverseTransformPoint(game.player.position);
             if(opened && Mathf.Abs(p.x)<1.15f && Mathf.Abs(p.z)<.8f)

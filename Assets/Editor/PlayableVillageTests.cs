@@ -69,10 +69,9 @@ public static class PlayableVillageTests
     }
     static void SetPick(float value)
     {
-        var flags=BindingFlags.NonPublic|BindingFlags.Instance;
-        typeof(ChickenCoopLockpick).GetField("pickPosition",flags).SetValue(coop,value);
-        typeof(ChickenCoopLockpick).GetField("sweetSpot",flags).SetValue(coop,.5f);
-        coop.SendMessage("TryPick");
+        if(value>.1f){CoopPressureTests.SolvePiece(coop);return;}
+        int wrong=(coop.Latch.NextPiece+1)%3;
+        for(int i=0;i<42;i++)coop.Manipulate(.02f,wrong,0,true);
     }
     static void Tick()
     {
@@ -135,7 +134,11 @@ public static class PlayableVillageTests
             }
             else if(phase==1)
             {
-                SetPick(.5f);Expect(coop.IsOpen,"Correct lockpick unlocks coop");
+                if(!coop.IsOpen)
+                {
+                    for(int pin=0;pin<3;pin++)SetPick(.5f);Expect(coop.IsOpen,"Correct lockpick unlocks coop");
+                    if(coop.IsOpen){next=Time.realtimeSinceStartup+.1f;return;}
+                }
                 Expect(coop.gameObject.activeInHierarchy,"Lockpick remains alive to finish jumpscare cleanup");
                 Position(first.transform.position+Vector3.back*.6f);
                 Expect(first.TrySteal() && game.backpack.chickensCarried==1,"Actual chicken pickup adds exactly one bird");
@@ -152,13 +155,15 @@ public static class PlayableVillageTests
             else if(phase==2)
             {
                 Position(second.transform.position+Vector3.back*.6f);
-                Expect(second.TrySteal() && game.backpack.chickensCarried==2,"Second pickup on a later frame works");
+                Expect(!second.TrySteal() && game.backpack.chickensCarried==1,"A second chicken cannot be carried even on a later frame");
                 Position(market.counter.position+Vector3.back*.8f-Vector3.up);
                 game.player.rotation=Quaternion.identity;
                 Camera.main.transform.localRotation=Quaternion.identity;
                 market.Open();Expect(VillageMarket.IsOpen,"Merchant interaction opens trade panel");
-                Expect(market.Sell(1,true) && economy.Account.balance==140 && game.backpack.chickensCarried==1,"Backpack sale credits R$45 and removes one bird");
+                Expect(market.Sell(1,true) && economy.Account.balance==140 && game.backpack.chickensCarried==0,"Backpack sale credits R$45 and removes one bird");
                 Expect(!market.Sell(99,true) && !market.Sell(-1,true) && !market.Sell(0,true) && economy.Account.balance==140,"Invalid sale quantities cannot credit money");
+                Expect(!market.Sell(1,true),"empty hands cannot sell another bird");
+                market.Close();Position(second.transform.position+Vector3.back*.6f);Expect(second.TrySteal(),"after selling, player can pick up another chicken");Position(market.counter.position+Vector3.back*.8f-Vector3.up);market.Open();
                 Expect(market.Sell(1,true) && !market.Sell(1,true) && economy.Account.balance==185,"Empty backpack cannot be sold twice");
                 handBefore=market.merchant.gestureBone.localRotation;
                 ScreenCapture.CaptureScreenshot(Output+"/trade-ui.png");
@@ -169,12 +174,13 @@ public static class PlayableVillageTests
                 Expect(Quaternion.Angle(handBefore,market.merchant.gestureBone.localRotation)>5,"Merchant trade animation moves the arm");
                 economy.Buy(0);Expect(economy.Account.balance==160 && economy.Account.feed==1,"Supply purchase debits account and adds feed");
                 int capacity=game.backpack.capacity;economy.Buy(2);
-                Expect(economy.Account.balance==70 && game.backpack.capacity==capacity+3,"Backpack upgrade changes actual carrying capacity");
+                Expect(economy.Account.balance==70 && game.backpack.capacity==1 && economy.Account.backpackUpgrade,"tool backpack upgrade does not increase chicken carrying limit");
                 economy.Buy(2);Expect(economy.Account.balance==70,"Upgrade cannot be purchased twice");
                 economy.Pay(0);Expect(economy.Account.balance==70 && economy.Account.debts[0].amount==160,"Insufficient funds cannot pay a debt");
                 market.Close();Expect(!VillageMarket.IsOpen,"Trade panel closes cleanly");
-                Position(economy.home.position+new Vector3(-3,1,-9));
-                game.backpack.TryAddChicken();game.backpack.TryAddChicken();game.backpack.TryAddChicken();
+                // Delivery happens at the coop entrance (HomeFlockView.DeliveryPoint, 2.5 m rule since 10/09).
+                Position(economy.home.GetComponentInChildren<HomeFlockView>().DeliveryPoint+Vector3.up*.1f);
+                game.backpack.TryAddChicken();game.CompleteMission();game.backpack.TryAddChicken();game.CompleteMission();game.backpack.TryAddChicken();
                 game.CompleteMission();
                 Expect(game.backpack.chickensCarried==0 && economy.Account.flock==3 && economy.Account.day==1,"Home delivery transfers stock without advancing day before sleep");
                 Expect(!game.MissionActive && game.MissionFarm==-1,"Returning home clears mission and farmer HUD state");

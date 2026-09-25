@@ -1,23 +1,18 @@
 using UnityEngine;
-
 public class RuralGate : MonoBehaviour
 {
-    private bool opened;
+    bool opened;HingedBarrier hinge;
     public bool IsOpen=>opened;
-    public void RestoreOpen(bool value)
+    public Vector3 InteractionPoint {get{Ensure();return hinge.InteractionPoint;}}
+    void Awake(){Ensure();}
+    void Ensure(){if(hinge==null){hinge=GetComponent<HingedBarrier>();if(hinge==null)hinge=gameObject.AddComponent<HingedBarrier>();hinge.SetOpen(opened,true);}}
+    public void RestoreOpen(bool value){Ensure();opened=value;hinge.SetOpen(value,true);}
+    void Update()
     {
-        if(opened!=value)transform.position+=Vector3.down*(value?1.6f:-1.6f);
-        opened=value;foreach(var c in GetComponentsInChildren<Collider>())c.enabled=!value;
-    }
-    private void Update()
-    {
-        if(GameMenu.BlocksInput)return;
-        var game = HeistGameManager.Instance;
-        if (ProtagonistPhone.IsOpen || opened || game == null || game.player == null || !Input.GetKeyDown(KeyCode.E)) return;
-        if (Vector3.Distance(game.player.position, transform.position) > 3.2f) return;
-        opened = true;
-        foreach (var collider in GetComponentsInChildren<Collider>()) collider.enabled = false;
-        transform.position += Vector3.down * 1.6f;
-        NoiseEmitter.EmitGlobal(NoiseSource.FloorCreak, transform.position);
+        if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return;
+        var game=HeistGameManager.Instance;if(game?.player==null || !WorldInteraction.Pressed(this))return;
+        Ensure();if(Vector3.Distance(game.player.position+Vector3.up,hinge.InteractionPoint)>3.2f)return;
+        opened=!opened;hinge.SetOpen(opened,false);NoiseEmitter.EmitGlobal(NoiseSource.FloorCreak,hinge.InteractionPoint);
+        MissionNavigation.Instance?.Refresh();
     }
 }

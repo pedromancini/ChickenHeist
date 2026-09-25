@@ -28,7 +28,7 @@ public class InteractableChicken : MonoBehaviour
     private void Update()
     {
         if(GameMenu.BlocksInput)return;
-        if (!ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && HeistGameManager.Instance?.missionEnded!=true && player != null && Input.GetKeyDown(KeyCode.E) && IsPlayerClose())
+        if (!ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && HeistGameManager.Instance?.missionEnded!=true && player != null && WorldInteraction.Pressed(this) && IsPlayerClose())
             TrySteal();
 
         if (sleeping)
@@ -50,17 +50,21 @@ public class InteractableChicken : MonoBehaviour
 
     private bool IsPlayerClose()
     {
-        return (coop == null || coop.IsOpen) && Vector3.Distance(player.position, transform.position) <= interactionDistance;
+        if(player==null || (coop!=null && !coop.IsOpen) || Vector3.Distance(player.position,transform.position)>interactionDistance)return false;
+        Vector3 origin=player.position+Vector3.up*.9f,target=transform.position+Vector3.up*.2f;
+        foreach(var hit in Physics.RaycastAll(origin,(target-origin).normalized,Vector3.Distance(origin,target),~0,QueryTriggerInteraction.Ignore))
+            if(!hit.transform.IsChildOf(player) && !hit.transform.IsChildOf(transform))return false;
+        return true;
     }
 
     public bool TrySteal()
     {
-        if(GameMenu.BlocksInput || HeistGameManager.Instance?.IsMissionTarget(this)!=true)return false;
+        if(!isActiveAndEnabled || ChickenScare.Active!=null || ChickenCoopLockpick.Active!=null || ChickenCoopLockpick.ClosedFrame==Time.frameCount || GameMenu.BlocksInput || HeistGameManager.Instance?.IsMissionTarget(this)!=true)return false;
         if(pickupFrame==Time.frameCount || player==null || !IsPlayerClose() || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true)return false;
         BackpackInventory backpack = player.GetComponent<BackpackInventory>();
         if (backpack == null || backpack.IsFull)
         {
-            HeistGameManager.Instance.ShowMessage("Mochila cheia. Hora de ir embora.", 2f);
+            HeistGameManager.Instance.ShowMessage("Voce ja carrega uma galinha. Coloque-a na gaiola antes de pegar outra.", 2f);
             return false;
         }
 

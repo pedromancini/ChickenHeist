@@ -33,6 +33,10 @@ public static class HomeInteriorTests
     public static void Run()
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode)return;
+        // Command-line validation starts from Unity's bootstrap scene.  Always
+        // load the authored rural world before looking up the home and phone.
+        if(UnityEngine.SceneManagement.SceneManager.GetActiveScene().path!=RuralWorldReview.WorldScene)
+            EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         Checks();EditorSceneManager.SaveOpenScenes();
         foreach(var look in Object.FindObjectsByType<PlayerLook>(FindObjectsSortMode.None))look.enabled=false;
         foreach(var move in Object.FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None))move.enabled=false;
@@ -88,9 +92,10 @@ public static class HomeInteriorTests
         Expect(!a.Pay(0) && a.balance==240,"Paid debt cannot be charged twice");
         Expect(!a.Pay(99),"Unknown debt rejected");
         Expect(a.Buy(1) && a.Repair() && a.repairs==1 && a.boards==0,"Repair consumes purchased kit");
-        a.boards=5;a.Repair();a.Repair();Expect(!a.Repair() && a.boards==3,"Repair stages capped at three");
+        a.boards=5;a.Repair();a.Repair();Expect(!a.Repair() && a.boards==0,"Repair stages consume each level and cap at three");
         string serialized=JsonUtility.ToJson(a);var loaded=JsonUtility.FromJson<HouseholdAccount>(serialized);
-        Expect(loaded.IsValid() && loaded.balance==a.balance && loaded.backpackUpgrade && loaded.ledger.Count==a.ledger.Count,"Save JSON round trip retains state");
+        Expect(loaded.IsValid() && loaded.balance==a.balance && loaded.backpackUpgrade && loaded.ledger.Count==a.ledger.Count,
+            "Save JSON round trip retains state | valid="+loaded.IsValid()+" balance="+loaded.balance+"/"+a.balance+" backpack="+loaded.backpackUpgrade+" ledger="+(loaded.ledger==null?-1:loaded.ledger.Count)+"/"+a.ledger.Count+" debts="+(loaded.debts==null?-1:loaded.debts.Count));
         string testPath=Path.GetFullPath("Temp/household-test-"+System.Guid.NewGuid().ToString("N")+".json");
         try
         {
@@ -103,8 +108,9 @@ public static class HomeInteriorTests
         }
         finally{foreach(string suffix in new[]{"",".bak",".tmp"})if(File.Exists(testPath+suffix))File.Delete(testPath+suffix);}
         var phone=Object.FindFirstObjectByType<ProtagonistPhone>();
-        Expect(phone!=null && phone.farmPhotos.Length==12,"Twelve recon photos wired");
-        var unique=new HashSet<Texture2D>();foreach(var photo in phone.farmPhotos)if(photo!=null)unique.Add(photo);
+        Expect(phone!=null && phone.farmPhotos!=null && phone.farmPhotos.Length==12,"Twelve recon photos wired");
+        var unique=new HashSet<Texture2D>();
+        if(phone!=null && phone.farmPhotos!=null)foreach(var photo in phone.farmPhotos)if(photo!=null)unique.Add(photo);
         Expect(unique.Count==12,"Recon photos are unique assets");
         Expect(Object.FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).Length==12,"All target farms preserved");
         File.WriteAllLines("output/player-home/economy-tests.txt",checks);
@@ -120,6 +126,7 @@ public static class HomeInteriorTests
         {
             SessionState.SetBool(Key,false);EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
             Debug.Log("HOME TEST COMPLETE: output/player-home/*tests.txt and phone-*.png");
+            if(Application.isBatchMode)EditorApplication.Exit(errors==0?0:1);
         }
     }
     static void Tick()

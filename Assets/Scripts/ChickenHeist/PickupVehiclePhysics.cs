@@ -24,7 +24,25 @@ public class PickupVehiclePhysics : MonoBehaviour
         for(int i=0;i<wheelModels.Length;i++)wheelRotations[i]=Quaternion.Inverse(transform.rotation)*wheelModels[i].rotation;
         foreach(var wheel in axles)wheel.ConfigureVehicleSubsteps(5,12,16);
     }
-    void FixedUpdate(){PhysicsStep(Time.fixedDeltaTime);}
+    readonly Collider[] impactHits=new Collider[32];
+    void FixedUpdate(){PhysicsStep(Time.fixedDeltaTime);CheckPedestrians();}
+    void CheckPedestrians()
+    {
+        if(Body==null || GameMenu.BlocksInput || Body.linearVelocity.magnitude<2.5f)return;
+        Vector3 center=transform.position+Vector3.up*.8f;
+        int count=Physics.OverlapCapsuleNonAlloc(center-transform.forward*2.1f,center+transform.forward*2.1f+Body.linearVelocity*Time.fixedDeltaTime,1.05f,impactHits,~0,QueryTriggerInteraction.Ignore);
+        for(int i=0;i<count;i++)
+        {
+            var c=impactHits[i];if(c.transform.IsChildOf(transform))continue;
+            Component person=c.GetComponentInParent<RoadsideWalker>();if(person==null)person=c.GetComponentInParent<FarmerStateMachine>();
+            if(person==null)continue;
+            var reaction=person.GetComponent<VehicleImpactReaction>();if(reaction==null)reaction=person.gameObject.AddComponent<VehicleImpactReaction>();
+            Vector3 target=person.transform.position+Vector3.up*.7f,delta=target-center;bool blocked=false;
+            foreach(var hit in Physics.RaycastAll(center,delta.normalized,delta.magnitude,~0,QueryTriggerInteraction.Ignore))
+                if(!hit.transform.IsChildOf(transform) && !hit.transform.IsChildOf(person.transform)){blocked=true;break;}
+            if(!blocked)reaction.Hit(Body.linearVelocity);
+        }
+    }
     public void PhysicsStep(float dt)
     {
         if(Body==null || axles.Length!=4)return;

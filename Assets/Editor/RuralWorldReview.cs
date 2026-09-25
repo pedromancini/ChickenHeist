@@ -129,6 +129,12 @@ public class RuralWorldReview : ScriptableObject
     [MenuItem("Chicken Heist/Review Rural World")]
     public static void AuditAndCapture()
     {
+        // This method is also used from batch-mode release checks.  In that
+        // context Unity opens an empty bootstrap scene, so auditing before the
+        // rural scene is loaded used to report a false material failure and
+        // then crash while looking for the world lights.
+        if (SceneManager.GetActiveScene().path != WorldScene)
+            EditorSceneManager.OpenScene(WorldScene);
         Directory.CreateDirectory(ReviewFolder);
         var farms = Object.FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).OrderBy(f => f.layoutIndex).ToArray();
         var lines = new List<string>();
@@ -211,13 +217,17 @@ public class RuralWorldReview : ScriptableObject
         camera.backgroundColor = new Color(0.40f,0.55f,0.65f);
         bool fog = RenderSettings.fog;
         Color ambient = RenderSettings.ambientLight;
-        var moon = GameObject.Find("Moon Light").GetComponent<Light>();
-        float intensity = moon.intensity;
-        Color moonColor = moon.color;
+        var moonNode = GameObject.Find("Moon Light");
+        var moon = moonNode != null ? moonNode.GetComponent<Light>() : null;
+        float intensity = moon != null ? moon.intensity : 0f;
+        Color moonColor = moon != null ? moon.color : Color.white;
         RenderSettings.fog = false;
         RenderSettings.ambientLight = new Color(0.55f,0.57f,0.60f);
-        moon.intensity = 1.6f;
-        moon.color = new Color(1f,0.94f,0.82f);
+        if (moon != null)
+        {
+            moon.intensity = 1.6f;
+            moon.color = new Color(1f,0.94f,0.82f);
+        }
         try
         {
             foreach (var farm in farms)
@@ -259,8 +269,11 @@ public class RuralWorldReview : ScriptableObject
         {
             RenderSettings.fog = fog;
             RenderSettings.ambientLight = ambient;
-            moon.intensity = intensity;
-            moon.color = moonColor;
+            if (moon != null)
+            {
+                moon.intensity = intensity;
+                moon.color = moonColor;
+            }
             Object.DestroyImmediate(go);
         }
     }

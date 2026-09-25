@@ -7,8 +7,10 @@ using UnityEngine.Rendering.Universal;
 public class GamePreferences
 {
     public float sensitivity=100,volume=.8f,fov=65;
-    public int quality=1,width=1920,height=1080,frameLimit=60;
-    public bool fullscreen=true,vsync=true,invertY;
+    public float effectsVolume=1,ambienceVolume=.7f,voiceVolume=1;
+    public int quality=1,width=1920,height=1080,frameLimit=144;
+    public int performanceVersion;
+    public bool fullscreen=true,vsync=false,invertY;
     const string Key="ChickenHeist.Settings.v1";
     static UniversalRenderPipelineAsset runtimePipeline;
     public static GamePreferences Defaults()=>new GamePreferences{width=Screen.width,height=Screen.height,fullscreen=Screen.fullScreen};
@@ -16,8 +18,13 @@ public class GamePreferences
     {
         var defaults=Defaults();
         if(HouseholdEconomy.ReviewSession)return defaults;
-        try{return PlayerPrefs.HasKey(Key)?JsonUtility.FromJson<GamePreferences>(PlayerPrefs.GetString(Key))??defaults:defaults;}
+        try{var value=PlayerPrefs.HasKey(Key)?JsonUtility.FromJson<GamePreferences>(PlayerPrefs.GetString(Key))??defaults:defaults;value.UpgradePerformance();return value;}
         catch{return defaults;}
+    }
+    public void UpgradePerformance()
+    {
+        if(performanceVersion>=1)return;
+        frameLimit=144;vsync=false;performanceVersion=1;
     }
     public void Apply(bool display)
     {
@@ -41,6 +48,7 @@ public class GamePreferences
         }
         Application.targetFrameRate=frameLimit<=0?-1:Mathf.Clamp(frameLimit,30,240);
         AudioListener.volume=volume;
+        GameAudioMix.Effects=Mathf.Clamp01(effectsVolume);GameAudioMix.Ambience=Mathf.Clamp01(ambienceVolume);GameAudioMix.Voice=Mathf.Clamp01(voiceVolume);
         foreach(var look in UnityEngine.Object.FindObjectsByType<PlayerLook>())
         {look.sensibilidade=sensitivity;look.invertY=invertY;}
         if(Camera.main!=null)Camera.main.fieldOfView=fov;

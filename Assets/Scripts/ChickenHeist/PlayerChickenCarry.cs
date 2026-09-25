@@ -9,6 +9,7 @@ public class PlayerChickenCarry : MonoBehaviour
     public bool IsLifting => visual != null && Time.time < liftStarted + LiftDuration;
     public Vector3 BirdPosition => visual != null ? visual.transform.position : transform.position;
     public float HandError { get; private set; }
+    public float WristBend {get;private set;}
     const float LiftDuration = .85f;
     Transform player, eyes;
     BackpackInventory pack;
@@ -20,6 +21,9 @@ public class PlayerChickenCarry : MonoBehaviour
     readonly Transform[] bones = new Transform[6];
     readonly Quaternion[] original = new Quaternion[6];
     bool posed;
+    readonly HandGripPose[] grips=new HandGripPose[2];
+    readonly HandGripPose[] wheelGrips=new HandGripPose[2];
+    readonly Quaternion[] wristBind=new Quaternion[2];
 
     void Awake()
     {
@@ -30,6 +34,15 @@ public class PlayerChickenCarry : MonoBehaviour
         var names=new[]{"UpperArmL","ForearmL","HandL","UpperArmR","ForearmR","HandR"};
         if(animator!=null)foreach(var bone in animator.GetComponentsInChildren<Transform>())
             for(int i=0;i<names.Length;i++)if(bone.name==names[i])bones[i]=bone;
+        for(int side=0;side<2;side++)
+        {
+            var hand=bones[side*3+2];if(hand==null)continue;wristBind[side]=hand.localRotation;
+            foreach(var skin in animator.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                int h=System.Array.IndexOf(skin.bones,hand),f=System.Array.IndexOf(skin.bones,hand.parent);
+                if(h>=0 && f>=0){wristBind[side]=(skin.sharedMesh.bindposes[f]*skin.sharedMesh.bindposes[h].inverse).rotation;break;}
+            }
+        }
     }
 
     public void Lift(InteractableChicken bird)
@@ -66,12 +79,13 @@ public class PlayerChickenCarry : MonoBehaviour
         var bounds=renderers[0].bounds;foreach(var r in renderers)bounds.Encapsulate(r.bounds);
         foreach(Transform part in visual.transform)part.position-=bounds.center;
         visual.transform.localScale=Vector3.one*(.38f/Mathf.Max(.01f,bounds.size.y));
+        visual.AddComponent<FarmAnimalMotion>().carried=true;
     }
 
     void RestoreArms()
     {
         if(!posed)return;
-        for(int i=0;i<bones.Length;i++)if(bones[i]!=null)bones[i].localRotation=original[i];
+        for(int i=0;i<bones.Length;i++)if(bones[i]!=null && !(i>=3 && phone!=null && phone.IsBusy))bones[i].localRotation=original[i];
         posed=false;
     }
     void Update(){RestoreArms();}
@@ -79,6 +93,24 @@ public class PlayerChickenCarry : MonoBehaviour
     void LateUpdate()
     {
         if(pack==null || eyes==null)return;
+        if(ChickenCoopLockpick.Active!=null && animator?.GetComponent<ProtagonistArticulation>()!=null)
+        {if(visual!=null)visual.SetActive(false);poseWeight=0;return;}
+        if(TruckCageLids.Active?.HandsOnLid==true)
+        {
+            for(int i=0;i<bones.Length;i++){if(bones[i]==null)return;original[i]=bones[i].localRotation;}
+            posed=true;poseWeight=1;
+            HandError=0;
+            for(int side=0;side<2;side++)
+            {
+                if(grips[side]==null)grips[side]=new HandGripPose(bones[side*3+2],animator.transform);
+                var surface=(side==0?TruckCageLids.Active.LeftHand:TruckCageLids.Active.RightHand)-Vector3.up*.015f;
+                var rotation=grips[side].Rotation(Vector3.up,player.forward);
+                Reach(side*3,grips[side].Wrist(surface,rotation),side==0?-1:1);
+                bones[side*3+2].rotation=rotation;
+                HandError=Mathf.Max(HandError,Vector3.Distance(grips[side].Contact,surface));
+            }
+            return;
+        }
         if(OldPickupTruck.IsDriving)
         {
             ClearVisual();
@@ -86,7 +118,19 @@ public class PlayerChickenCarry : MonoBehaviour
             for(int i=0;i<bones.Length;i++)original[i]=bones[i].localRotation;
             posed=true;poseWeight=Mathf.MoveTowards(poseWeight,1,Time.deltaTime*5);
             var truck=OldPickupTruck.Instance;
-            for(int side=0;side<2;side++)Reach(side*3,truck.steeringWheel.position+truck.transform.right*(side==0?-.13f:.13f),side==0?-1:1);
+            HandError=0;
+            for(int side=0;side<2;side++)
+            {
+                if(side==1 && phone!=null && phone.IsBusy)continue;
+                if(side==1 && truck.ignition.Active && animator.GetComponent<ProtagonistArticulation>()!=null)continue;
+                if(wheelGrips[side]==null)wheelGrips[side]=new HandGripPose(bones[side*3+2],animator.transform,true,true);
+                CharacterGripHands.Attach(animator.transform).SetPose(bones[side*3+2],CharacterGripHands.Pose.Wheel);
+                var surface=truck.SteeringGrip(side==0?-1:1)-truck.steeringWheel.forward*.012f;
+                var rotation=wheelGrips[side].Rotation(truck.steeringWheel.forward,truck.steeringWheel.right*(side==0?1:-1));
+                Reach(side*3,wheelGrips[side].Wrist(surface,rotation),side==0?-1:1);
+                bones[side*3+2].rotation=Quaternion.Slerp(bones[side*3+2].rotation,rotation,poseWeight);
+                HandError=Mathf.Max(HandError,Vector3.Distance(wheelGrips[side].Contact,surface));
+            }
             return;
         }
         if(pack.chickensCarried==0){ClearVisual();poseWeight=0;return;}
@@ -102,7 +146,8 @@ public class PlayerChickenCarry : MonoBehaviour
         float t=Mathf.SmoothStep(0,1,Mathf.Clamp01((Time.time-liftStarted)/LiftDuration));
         var movement=GetComponent<PlayerMovement>();
         float bob=movement!=null && movement.estaMovendo?Mathf.Sin(Time.time*(movement.estaSprinting?12:8))*.014f:Mathf.Sin(Time.time*2)*.003f;
-        var target=player.position+Vector3.up*(eyes.localPosition.y-.34f+bob)+player.forward*.43f;
+        bool articulated=animator!=null && animator.GetComponent<ProtagonistArticulation>()!=null;
+        var target=player.position+Vector3.up*(eyes.localPosition.y-(articulated?.32f:.34f)+bob)+player.forward*(articulated?.47f:.43f);
         visual.transform.position=Vector3.Lerp(liftOrigin,target,t)+Vector3.up*(Mathf.Sin(t*Mathf.PI)*.10f);
         visual.transform.rotation=player.rotation*Quaternion.Euler(0,78,Mathf.Sin(Time.time*2)*2);
         poseWeight=Mathf.MoveTowards(poseWeight,1,Time.deltaTime*5);
@@ -112,9 +157,36 @@ public class PlayerChickenCarry : MonoBehaviour
         HandError=0;
         for(int side=0;side<2;side++)
         {
-            var wrist=visual.transform.position+player.right*(side==0?-.13f:.13f)-Vector3.up*.075f;
-            Reach(side*3,wrist,side==0?-1:1);
-            HandError=Mathf.Max(HandError,Vector3.Distance(bones[side*3+2].position,wrist));
+            var wrist=visual.transform.position+player.right*(side==0?-.14f:.14f)-Vector3.up*.035f;
+            if(animator.GetComponent<ProtagonistArticulation>()!=null)
+            {
+                if(grips[side]==null)grips[side]=new HandGripPose(bones[side*3+2],animator.transform);
+                // Keep the wrist neutral and put the grip roll into the forearm.
+                var hand=bones[side*3+2];var forearm=bones[side*3+1];
+                for(int iteration=0;iteration<2;iteration++)
+                {
+                    hand.localRotation=wristBind[side];
+                    var direction=(hand.position-forearm.position).normalized;
+                    var normal=(player.right*(side==0?1:-1)+player.up*.25f).normalized;
+                    var desired=grips[side].Rotation(normal,direction);
+                    Reach(side*3,grips[side].Wrist(wrist,desired),side==0?-1:1);
+                    hand.localRotation=wristBind[side];
+                    direction=(hand.position-forearm.position).normalized;
+                    desired=grips[side].Rotation(normal,direction);
+                    var delta=desired*Quaternion.Inverse(hand.rotation);
+                    var vector=Vector3.Project(new Vector3(delta.x,delta.y,delta.z),direction);
+                    var twist=new Quaternion(vector.x,vector.y,vector.z,delta.w);
+                    if(Quaternion.Dot(twist,twist)>.00001f)forearm.rotation=Quaternion.Slerp(Quaternion.identity,twist.normalized,poseWeight)*forearm.rotation;
+                    hand.localRotation=wristBind[side];
+                }
+                WristBend=Quaternion.Angle(hand.localRotation,wristBind[side]);
+                HandError=Mathf.Max(HandError,Vector3.Distance(grips[side].Contact,wrist));
+            }
+            else
+            {
+                Reach(side*3,wrist,side==0?-1:1);
+                HandError=Mathf.Max(HandError,Vector3.Distance(bones[side*3+2].position,wrist));
+            }
         }
     }
 

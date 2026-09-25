@@ -9,7 +9,7 @@ public class GameMenu : MonoBehaviour
 {
     public static GameMenu Instance { get; private set; }
     public static bool IsOpen => Instance!=null && Instance.page!=Page.Play;
-    public static bool BlocksInput => IsOpen || HomeNextNight.IsResting || closedFrame==Time.frameCount || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput;
+    public static bool BlocksInput => IsOpen || StoryDirector.Active || TruckCageLids.Active!=null || HomeNextNight.IsResting || closedFrame==Time.frameCount || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput;
     static int closedFrame=-1;
     static bool played,pendingFresh;
     static GameCheckpointData pendingLoad;
@@ -44,6 +44,7 @@ public class GameMenu : MonoBehaviour
         Instance=this;checkpoint=gameObject.AddComponent<GameCheckpoint>();
         gameObject.AddComponent<DeveloperConsole>();
         gameObject.AddComponent<BackpackPanel>();
+        gameObject.AddComponent<StoryDirector>();gameObject.AddComponent<GameAudioMix>();
         if(!Application.isBatchMode)page=Page.Main;
     }
     IEnumerator Start()
@@ -61,20 +62,22 @@ public class GameMenu : MonoBehaviour
         {
             pendingFresh=false;
             if(HouseholdEconomy.Instance.RestoreAccount(new HouseholdAccount()))
-            {played=true;SetPage(Page.Play);checkpoint.Save(out feedback);}
+            {played=true;SetPage(Page.Play);checkpoint.Save(out feedback);StoryDirector.Instance.Begin(false,()=>checkpoint.Save(out feedback));}
             else{feedback=HouseholdEconomy.Instance.Message;SetPage(Page.Main);}
         }
         else if(played)SetPage(Page.Play);
+        if(!IsOpen && !StoryDirector.Active && HouseholdEconomy.Instance.Account.pendingVision)StoryDirector.Instance.Begin(true,()=>checkpoint.Save(out feedback));
         RefreshSaveSummary();
     }
     void Update()
     {
         if(confirmUntil>0 && Time.realtimeSinceStartup>=confirmUntil)RevertVideo();
-        if(DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput)return;
+        if(StoryDirector.Active || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput)return;
         if(page==Page.Loading)return;
         if(!Input.GetKeyDown(KeyCode.Escape))return;
         if(page==Page.Play)
         {
+            if(OldPickupTruck.Instance?.ignition?.Active==true)return;
             if(ProtagonistPhone.IsOpen || VillageMarket.IsOpen || ProtagonistPhone.LastClosedFrame==Time.frameCount || VillageMarket.ClosedFrame==Time.frameCount)return;
             if(FindObjectsByType<ChickenCoopLockpick>().Any(c=>c.ChallengeActive))return;
             Pause();
@@ -160,7 +163,7 @@ public class GameMenu : MonoBehaviour
     {
         if(HasSave)
         {returnPage=Page.Main;SetPage(Page.NewGame);return;}
-        played=true;SetPage(Page.Play);SaveProgress();
+        pendingFresh=true;Reload();
     }
     void OpenSettings(){returnPage=page;settings=applied.Copy();feedback="";scroll=Vector2.zero;SetPage(Page.Settings);}
     void LeaveSettings(){settings=applied.Copy();SetPage(returnPage);}
@@ -216,6 +219,7 @@ public class GameMenu : MonoBehaviour
         else if(page==Page.Pause)
         {
             if(Action("Continuar"))Resume();
+            if(HouseholdEconomy.Instance.Account.introSeen && Action("Rever abertura")){Resume();StoryDirector.Instance.ReplayOpening();}
             if(Action("Salvar jogo"))SaveProgress();
             GUI.enabled=HasSave;if(Action("Carregar jogo"))RequestLoad();GUI.enabled=true;
             if(Action("Configuracoes"))OpenSettings();
@@ -284,12 +288,18 @@ public class GameMenu : MonoBehaviour
             settings.frameLimit=caps[next];
             Slider("Campo de visao",ref settings.fov,50,90);
         }
-        else if(settingsTab==1)Slider("Volume geral",ref settings.volume,0,1,true);
+        else if(settingsTab==1)
+        {
+            Slider("Volume geral",ref settings.volume,0,1,true);
+            Slider("Efeitos",ref settings.effectsVolume,0,1,true);
+            Slider("Ambiente e animais",ref settings.ambienceVolume,0,1,true);
+            Slider("Narracao",ref settings.voiceVolume,0,1,true);
+        }
         else
         {
             Slider("Sensibilidade do mouse",ref settings.sensitivity,20,300);
             settings.invertY=GUILayout.Toggle(settings.invertY,"Inverter eixo vertical",toggle);GUILayout.Space(20);
-            GUILayout.Label("Movimento   WASD\nCorrer   Shift\nAgachar   C\nPular   Espaco\nInteragir   E\nCelular   Tab\nMochila   B\nTinta na camera   F\nPausa   Esc",small);
+            GUILayout.Label("Movimento   WASD\nCorrer   Shift\nAgachar   C\nPular   Espaco\nInteragir   E\nTablet   Tab\nMochila de itens   B\nUsar spray selecionado   Botao direito\nPausa   Esc\nDirigir / sair   F\nCarga: colocar E / retirar R\nEntregar no galinheiro   G\nAlternar rota fazenda / sitio   N",small);
         }
         GUILayout.EndScrollView();GUI.enabled=true;GUILayout.Space(14);
         if(confirmUntil>0)
@@ -311,3 +321,4 @@ public class GameMenu : MonoBehaviour
         value=GUILayout.HorizontalSlider(value,min,max,GUILayout.Height(24));GUILayout.Space(8);
     }
 }
+

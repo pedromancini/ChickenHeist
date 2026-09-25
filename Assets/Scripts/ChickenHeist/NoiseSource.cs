@@ -1,5 +1,6 @@
 public enum NoiseSource
 {
+    VehicleEngine = 1,
     Footstep = 2,
     FloorCreak = 5,
     ChickenCluck = 10,

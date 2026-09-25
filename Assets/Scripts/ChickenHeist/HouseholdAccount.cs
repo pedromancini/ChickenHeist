@@ -17,9 +17,19 @@ public class HouseholdAccount
 {
     public int version=1, day=1, balance=95, feed=0, boards=0, flock=0, meals=0, repairs=0;
     public bool backpackUpgrade;
+    public bool introSeen,pendingVision,declineSeen;
+    public bool campaignCelebrated;
+    public bool CampaignComplete => repairs>=3 && debts!=null && debts.TrueForAll(d=>d.amount==0);
+    public string CampaignObjective => CampaignComplete?"Sitio recuperado. Continue vivendo no vale.":"Recupere o sitio: quite as contas e melhore o galinheiro ("+CoopLevel+"/3).";
+    public int CoopLevel=>Mathf.Clamp(repairs,0,3);
+    public int EggIncome=>6+CoopLevel*2;
+    public int FeedPortions=>5+CoopLevel;
+    public int NextCoopBoards=>CoopLevel>=3?0:CoopLevel+1;
+    public string CoopBenefit=>CoopLevel==0?"Base: abrigo gasto":CoopLevel==1?"Estrutura reforcada | 6 porcoes por racao | R$ 8 por galinha alimentada":CoopLevel==2?"Cobertura e tela | 7 porcoes por racao | R$ 10 por galinha alimentada":"Ninhos e comedouro | 8 porcoes por racao | R$ 12 por galinha alimentada";
     public bool professionalLockpick, professionalEquipped;
     public int paintUses;
-    public int truckCages, truckChickens;
+    public int truckCages=1;
+    public int truckChickens;
     public const int TruckLimit=8;
     public int TruckCapacity=>truckCages*2;
     public bool regionalSecurity, newsUnread;
@@ -39,16 +49,18 @@ public class HouseholdAccount
         if(pendingRaids==null)pendingRaids=new List<FarmRaidNews>();
         if(news==null)news=new List<FarmRaidNews>();
         foreach(var report in pendingRaids){report.day=day;news.Insert(0,report);}
-        if(pendingRaids.Count>0){regionalSecurity=true;newsUnread=true;}
+        if(pendingRaids.Count>0){regionalSecurity=true;newsUnread=true;if(!declineSeen)pendingVision=true;}
         pendingRaids.Clear();
         if(news.Count>20)news.RemoveRange(20,news.Count-20);
         Record("Descansou ate a manha");
     }
     public const int PaintUsesPerCan=3;
     public const int ProductCount=6;
-    public static string ProductName(int id)=>id==0?"Racao - 5 porcoes":id==1?"Kit de tabuas e pregos":id==2?"Mochila reforcada +3":id==3?"Lockpick profissional":id==4?"Tinta spray - 3 usos":id==5?"Gaiola para caminhonete - 2 galinhas":"Produto invalido";
+    public static string ProductName(int id)=>id==0?"Racao - 5 porcoes":id==1?"Kit de tabuas e pregos":id==2?"Mochila de ferramentas +3 slots":id==3?"Lockpick profissional":id==4?"Tinta spray - 3 usos":id==5?"Gaiola para caminhonete - 2 galinhas":"Produto invalido";
     public static int ProductPrice(int id)=>id==0?25:id==1?35:id==2?90:id==3?180:id==4?30:id==5?100:0;
     public bool OwnsUniqueProduct(int id)=>(id==2 && backpackUpgrade) || (id==3 && professionalLockpick);
+    // The backpack is a one-time upgrade, not a disabled item.  The unique
+    // ownership check below already prevents charging for it twice.
     public bool CanBuy(int id)=>ProductPrice(id)>0 && balance>=ProductPrice(id) && !OwnsUniqueProduct(id)
         && (id!=4 || paintUses<=int.MaxValue-PaintUsesPerCan) && (id!=5 || truckCages<4);
     public List<HouseholdDebt> debts=new List<HouseholdDebt> {
@@ -90,12 +102,12 @@ public class HouseholdAccount
     public bool Feed()
     {
         if(feed<1 || flock<1 || meals>=flock)return false;
-        feed--; meals+=5; Record("Comedouro abastecido: +5 porcoes"); return true;
+        feed--; meals+=FeedPortions; Record("Comedouro abastecido: +"+FeedPortions+" porcoes"); return true;
     }
     public bool Repair()
     {
-        if(boards<1 || repairs>=3)return false;
-        boards--;repairs++;Record("Galinheiro remendado: etapa "+repairs+"/3");return true;
+        if(boards<NextCoopBoards || repairs>=3)return false;
+        boards-=NextCoopBoards;repairs++;Record("Galinheiro melhorado: nivel "+repairs+"/3");return true;
     }
     public bool Sell()
     {
@@ -109,7 +121,7 @@ public class HouseholdAccount
     public void ReturnFromHeist(int chickens)
     {
         int fed=Mathf.Min(meals,flock); meals-=fed;
-        if(fed>0){balance+=fed*6;Record("+ R$ "+fed*6+" | Ovos vendidos na cooperativa");}
+        if(fed>0){balance+=fed*EggIncome;Record("+ R$ "+fed*EggIncome+" | Ovos vendidos na cooperativa");}
         flock+=Mathf.Max(0,chickens);Record("Retorno ao sitio: +"+chickens+" galinhas");
     }
 }

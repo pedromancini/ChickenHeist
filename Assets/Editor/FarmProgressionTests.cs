@@ -33,6 +33,9 @@ public static class FarmProgressionTests
             Check(traps.All(c=>!c.GetComponent<Renderer>().enabled && !c.GetComponent<Collider>().enabled),"all traps physically absent in untouched region");
             Check(cameras.All(c=>!c.CanPaintNow()),"absent cameras cannot consume equipment");
             Check(game.StartMission(0),"first unprotected farm can be selected");
+            // Deliveries count only at the coop entrance (HomeFlockView.DeliveryPoint).
+            var entrance=economy.home.GetComponentInChildren<HomeFlockView>().DeliveryPoint;
+            var body=game.player.GetComponent<CharacterController>();body.enabled=false;game.player.position=entrance+Vector3.up*.1f;body.enabled=true;Physics.SyncTransforms();
             game.backpack.RestoreCount(2);game.CompleteMission();
             Check(!economy.Account.regionalSecurity && economy.Account.pendingRaids.Count==1,"real home delivery records robbery without early defenses");
             Check(game.PrepareNextNight() && economy.Account.regionalSecurity && economy.Account.newsUnread,"real rest path installs defenses and queues phone notification");

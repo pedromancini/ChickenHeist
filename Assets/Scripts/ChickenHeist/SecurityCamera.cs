@@ -12,6 +12,12 @@ public class SecurityCamera : MonoBehaviour
     private float startYaw;
     private float nextDetectionTime;
     private float disabledUntil;
+    readonly RaycastHit[] visibilityHits=new RaycastHit[64];
+    public Transform scanHead;
+    public bool Detecting { get; private set; }
+    public bool Operational => enabled && FarmSecurityProgression.Installed && PaintSecondsRemaining<=0 &&
+        HeistGameManager.Instance?.missionEnded==false && HeistGameManager.Instance.IsMissionTarget(this);
+    public Vector3 Eye => (scanHead!=null?scanHead:transform).TransformPoint(new Vector3(0,0,.31f));
     Renderer paintRenderer;
     MaterialPropertyBlock originalPaint,coatedPaint;
     bool showingPaint;
@@ -20,6 +26,8 @@ public class SecurityCamera : MonoBehaviour
     public void RestorePaint(float seconds){disabledUntil=Time.time+Mathf.Clamp(seconds,0,PaintDuration);}
     void Awake()
     {
+        if(GetComponent<SecurityEquipmentPresentation>()==null)gameObject.AddComponent<SecurityEquipmentPresentation>();
+        if(GetComponent<SecurityEquipmentAudio>()==null)gameObject.AddComponent<SecurityEquipmentAudio>();
         paintRenderer=GetComponent<Renderer>();
         if(paintRenderer==null)return;
         originalPaint=new MaterialPropertyBlock();coatedPaint=new MaterialPropertyBlock();
@@ -62,16 +70,17 @@ public class SecurityCamera : MonoBehaviour
 
     private void Update()
     {
-        if(!FarmSecurityProgression.Installed || GameMenu.BlocksInput || HeistGameManager.Instance?.IsMissionTarget(this)!=true)return;
-        if (Time.time < disabledUntil)
-            return;
+        Detecting=false;
+        if(!Operational || GameMenu.BlocksInput)return;
 
         float yaw = startYaw + Mathf.Sin(Time.time * rotationSpeed * Mathf.Deg2Rad) * rotationArc;
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        (scanHead!=null?scanHead:transform).rotation = Quaternion.Euler(0f, yaw, 0f);
 
-        if (player != null && CanSeePlayer() && Time.time >= nextDetectionTime)
+        Detecting=player!=null && CanSeePlayer();
+        if (Detecting && Time.time >= nextDetectionTime)
         {
             nextDetectionTime = Time.time + detectionCooldown;
+            GetComponent<SecurityEquipmentAudio>()?.Alert();
             NoiseEmitter.EmitGlobal(NoiseSource.CameraDetected, player.position);
             HeistGameManager.Instance.ShowMessage("Camera te viu. O fazendeiro ouviu o alerta.", 2f);
         }
@@ -80,21 +89,49 @@ public class SecurityCamera : MonoBehaviour
 
     private bool CanSeePlayer()
     {
-        Vector3 toPlayer = player.position - transform.position;
+        return CanSeePoint(player.position+Vector3.up*(player.GetComponent<PlayerMovement>()?.estaAgachado==true?.5f:1f));
+    }
+
+    public bool CanSeePoint(Vector3 target)
+    {
+        Vector3 toPlayer = target - Eye;
         toPlayer.y = 0f;
 
         if (toPlayer.magnitude > viewDistance)
             return false;
 
-        if (Vector3.Angle(transform.forward, toPlayer.normalized) > viewAngle)
+        if (Vector3.Angle((scanHead!=null?scanHead:transform).forward, toPlayer.normalized) > viewAngle)
             return false;
 
-        Vector3 eye = transform.position + Vector3.up * 0.6f;
-        Vector3 target = player.position + Vector3.up;
-        if (Physics.Linecast(eye, target, out RaycastHit hit))
-            return hit.transform == player || hit.transform.IsChildOf(player);
+        return Unoccluded(target) && toPlayer.magnitude<=ClearRange(toPlayer.normalized,target.y)+.01f;
+    }
 
+    public bool Unoccluded(Vector3 target)
+    {
+        var delta=target-Eye;
+        int count=Physics.RaycastNonAlloc(Eye,delta.normalized,visibilityHits,delta.magnitude,~0,QueryTriggerInteraction.Ignore);
+        if(count==visibilityHits.Length)return false;
+        for(int i=0;i<count;i++)
+            if(!visibilityHits[i].transform.IsChildOf(transform) && (player==null || !visibilityHits[i].transform.IsChildOf(player)))return false;
         return true;
+    }
+
+    // Footprint of the same line-of-sight test at standing torso height.
+    public float ClearRange(Vector3 direction,float targetHeight)
+    {
+        Vector3 origin=Eye;origin.y=targetHeight;
+        float previous=0;
+        for(float d=.3f;d<viewDistance+.3f;d+=.3f)
+        {
+            float end=Mathf.Min(d,viewDistance);
+            if(!Unoccluded(origin+direction*end))
+            {
+                for(int j=0;j<5;j++){float mid=(previous+end)*.5f;if(Unoccluded(origin+direction*mid))previous=mid;else end=mid;}
+                return previous;
+            }
+            previous=end;
+        }
+        return viewDistance;
     }
 
 }

@@ -6,10 +6,10 @@ using Object=UnityEngine.Object;
 public static class VillagerNPCFactory
 {
     const string Folder="Assets/ChickenHeistGenerated/Characters/Villagers";
-    public static GameObject Create(Transform parent,string name,string model)
+    public static GameObject Create(Transform parent,string name,string model,string palette=null)
     {
         if(!AssetDatabase.IsValidFolder(Folder))AssetDatabase.CreateFolder("Assets/ChickenHeistGenerated/Characters","Villagers");
-        bool medieval=model.StartsWith("peasant") || model.StartsWith("city");
+        bool medieval=model.StartsWith("peasant") || model.StartsWith("city") || model.StartsWith("rich");
         string path=medieval?"Assets/ImportedMedievalPeople/fbx/people_unity/"+model+".fbx":"Assets/ImportedVillagerNPC/Villager NPC Free/FBX/Characters/"+model+".fbx";
         var source=AssetDatabase.LoadAssetAtPath<GameObject>(path);
         if(source==null)throw new System.InvalidOperationException("Missing NPC model: "+path);
@@ -29,6 +29,7 @@ public static class VillagerNPCFactory
             material.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(medieval?"Assets/ImportedMedievalPeople/texture/people_texture_map.png":"Assets/ImportedVillagerNPC/Villager NPC Free/Texture/Villagers_Texture.png"));
             material.SetFloat("_Smoothness",.07f);AssetDatabase.CreateAsset(material,materialPath);
         }
+        if(medieval && !string.IsNullOrEmpty(palette))material=CastPalette.Material(palette);
         foreach(var renderer in visual.GetComponentsInChildren<Renderer>())renderer.sharedMaterials=Enumerable.Repeat(material,renderer.sharedMaterials.Length).ToArray();
         var transforms=visual.GetComponentsInChildren<Transform>();
         string[] boneNames=medieval?new[]{"Spine_02","Head","Upperarm_L","Lowerarm_L","Upperarm_R","Lowerarm_R","Thigh_L","Calf_L","Thigh_R","Calf_R"}:

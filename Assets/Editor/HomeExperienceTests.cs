@@ -17,33 +17,37 @@ public static class HomeExperienceTests
         results.Clear();camera=Camera.main;player=HeistGameManager.Instance.player;oldPosition=player.position;oldRotation=player.rotation;oldLook=camera.transform.localRotation;
         var birds=Object.FindObjectsByType<InteractableChicken>(FindObjectsSortMode.None);
         foreach(var bird in birds)Check(bird.GetComponentsInChildren<MeshRenderer>().Count(r=>r.name.StartsWith("alt"))==1,bird.name+": one visible animal variant");
-        phone=player.GetComponentInChildren<HandheldPhone>();Check(phone!=null && phone.eyes==camera.transform,"Handheld phone bound to player camera");
+        phone=player.GetComponentInChildren<HandheldPhone>();Check(phone!=null && !phone.IsBusy,"Tablet has no hand animation");
         mirror=Object.FindAnyObjectByType<CrackedHomeMirror>();Check(mirror!=null,"Cracked mirror installed inside home");
         var controller=player.GetComponent<CharacterController>();controller.enabled=false;
         player.position=mirror.transform.position+mirror.transform.forward*1.8f-Vector3.up*1.31f;
         player.rotation=Quaternion.LookRotation(-mirror.transform.forward);camera.transform.localRotation=Quaternion.identity;controller.enabled=true;
         var body=player.GetComponentInChildren<RuralCharacterAnimator>();body.movement.estaMovendo=false;body.movement.estaSprinting=false;
         var liner=body.GetComponentsInChildren<Transform>().FirstOrDefault(t=>t.name=="Forro fechado da camisa");
-        Check(liner!=null && liner.GetComponent<Renderer>().enabled,"Closed shirt lining exists");
-        ProtagonistPhone.Instance.SetOpen(true);Check(!phone.ScreenReady,"Phone UI waits for drawing motion");
+        if(body.articulatedPlayer)
+        {
+            var shirt=body.GetComponentsInChildren<SkinnedMeshRenderer>().Single(r=>r.name=="ProtagonistBody");
+            // The low-poly body has a closed tunic; the first-person copy hides the torso instead of an inner shirt.
+            Check(body.transform.Find("Corpo em primeira pessoa")!=null,"First person body is present below the camera");
+        }
+        else Check(liner!=null && liner.GetComponent<Renderer>().enabled,"Closed shirt lining exists");
+        ProtagonistPhone.Instance.SetOpen(true);Check(phone.ScreenReady && !phone.IsBusy,"Tablet opens immediately without drawing motion");
     }
     public static void ClosePhone()
     {
-        Check(phone.ScreenReady && phone.handset.gameObject.activeInHierarchy,"Phone drawing reaches held pose");
-        float distance=Vector3.Distance(phone.hand.position,phone.GripPoint);
-        Check(distance<.16f,"Hand reaches the phone: "+distance.ToString("F3")+"m");
-        Capture("phone-held");
-        var rect=phone.ScreenRect;
-        Check(rect.x>0 && rect.y>0 && rect.xMax<Screen.width && rect.yMax<Screen.height,"Phone and interface stay inside the viewport");
-        Check(rect.height>Screen.height*.65f && rect.height<Screen.height*.9f,"Readable phone screen without filling entire view");
-        ScreenCapture.CaptureScreenshot("output/home-experience/phone-interface.png");
+        Check(ProtagonistPhone.IsOpen && phone.ScreenReady,"Tablet opens without waiting for hands");
+        Check(!phone.IsBusy && (phone.handset==null || !phone.handset.gameObject.activeSelf),"No phone model or animated holding pose");
+        var rect=ProtagonistPhone.TabletRect(Screen.width,Screen.height);
+        Check(rect.width>rect.height && rect.x>=0 && rect.y>=0 && rect.xMax<=Screen.width && rect.yMax<=Screen.height,"Landscape tablet fits viewport");
+        Check(rect.height>Screen.height*.8f,"Tablet occupies most of screen height");
+        ScreenCapture.CaptureScreenshot("output/home-experience/tablet-interface.png");
     }
     public static void StowPhone(){ProtagonistPhone.Instance.SetOpen(false);}
     public static IEnumerable<string> Finish()
     {
         try
         {
-            Check(!phone.handset.gameObject.activeSelf,"Phone is stowed after closing");
+            Check(phone.handset==null || !phone.handset.gameObject.activeSelf,"Phone model remains hidden after closing tablet");
             Check(phone.hand.position.y<player.position.y+1.2f,"Arm returns below chest after stowing phone");
             var animator=player.GetComponentInChildren<RuralCharacterAnimator>();animator.clips["Idle"].clip.SampleAnimation(animator.gameObject,0);
             Capture("mirror-in-home");Check(mirror.RenderCount>0 && mirror.Reflection!=null,"Mirror renders live reflection");
@@ -78,3 +82,4 @@ public static class HomeExperienceTests
         finally{RenderTexture.active=previous;Object.DestroyImmediate(image);}
     }
 }
+

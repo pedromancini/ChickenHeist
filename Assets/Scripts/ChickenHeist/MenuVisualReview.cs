@@ -63,6 +63,13 @@ public class MenuVisualReview : MonoBehaviour
         yield return new WaitForSecondsRealtime(1);
         Check(!GameMenu.IsOpen && !HeistGameManager.Instance.MissionActive,"Start game enters quiet free exploration");
         yield return Shot("07-exploration");
+        var inventoryAccount=JsonUtility.FromJson<HouseholdAccount>(JsonUtility.ToJson(HouseholdEconomy.Instance.Account));
+        HouseholdEconomy.Instance.RestoreAccount(new HouseholdAccount{paintUses=6,professionalLockpick=true,feed=1,boards=1});
+        Check(BackpackPanel.Instance.Open(),"item slots open in free exploration");
+        Set(BackpackPanel.Instance,"selected",2);Set(BackpackPanel.Instance,"context",2);
+        yield return Shot("inventory-item-slots");
+        BackpackPanel.Instance.Close();HouseholdEconomy.Instance.RestoreAccount(inventoryAccount);
+        yield return null;
         if(Array.IndexOf(Environment.GetCommandLineArgs(),"--truck-review")>=0)
         {
             var checkpoint=menu.GetComponent<GameCheckpoint>();var baseline=checkpoint.Capture();
@@ -75,15 +82,57 @@ public class MenuVisualReview : MonoBehaviour
             yield return Shot("truck-01-old-pickup");
             for(int i=0;i<4;i++)economy.Buy(5);
             Check(economy.Account.truckCages==4 && economy.Account.TruckCapacity==8,"Shop installs four two-bird cages for 400");
-            Check(game.StartMission(0),"Truck review starts a mission");game.backpack.RestoreCount(8);
+            Check(game.StartMission(0),"Truck review starts a mission");game.backpack.RestoreCount(1);
             cc.enabled=false;game.player.position=truck.cargoPoint.position-Vector3.up;cc.enabled=true;
-            for(int i=0;i<8;i++)Check(truck.LoadOne(),"Load bird "+(i+1)+" into truck");
+                        for(int i=0;i<8;i++)
+            {
+                cc.enabled=false;game.player.position=truck.cargoPoint.position-Vector3.up;cc.enabled=true;
+                game.backpack.RestoreCount(1);
+                Check(!game.backpack.TryAddChicken(),"only one chicken can be carried");
+                Check(truck.LoadOne(),"Load bird "+(i+1)+" into truck");
+                if(i%2==1)
+                {
+                    float deadline=Time.realtimeSinceStartup+10;
+                    while(TruckCageLids.Active!=null && !truck.cageLids.HandsOnLid && Time.realtimeSinceStartup<deadline)yield return null;
+                    if(i==1)yield return Shot("truck-cage-lid-placement");
+                    while(TruckCageLids.Active!=null && Time.realtimeSinceStartup<deadline)yield return null;
+                    Check(truck.cageLids.Closed(i/2),"full cage receives its lid");
+                }
+            }
             cc.enabled=false;game.player.position=truck.transform.position+new Vector3(3.5f,.2f,4.5f);cc.enabled=true;
             Camera.main.transform.LookAt(truck.transform.position+Vector3.up*1.1f);yield return Shot("truck-02-full-cages");
             cc.enabled=false;game.player.position=truck.seat.position-truck.transform.right*1.5f;movement.RestorePosture(false);cc.enabled=true;
             Camera.main.transform.localRotation=Quaternion.identity;
             Check(truck.EnterDriver(),"Driver enters cabin with loaded cages");yield return new WaitForSecondsRealtime(.6f);
             yield return Shot("truck-03-driving-view");
+                        if(OldPickupTruck.IsDriving)
+            {
+                Check(!truck.ignition.EngineRunning,"engine starts switched off");
+                truck.ignition.Begin();Check(!truck.ignition.Confirm() && !truck.ignition.EngineRunning,"wrong timing does not start engine");
+                yield return new WaitForSecondsRealtime(1.1f);truck.ignition.Begin();
+                yield return Shot("truck-ignition-challenge");
+                for(int hit=0;hit<2;hit++)
+                {
+                    while(Mathf.Abs(truck.ignition.CursorPosition-truck.ignition.Target)>.04f)yield return null;
+                    Check(truck.ignition.Confirm(),"timed engine contact "+hit);yield return null;
+                }
+                Check(truck.ignition.EngineRunning,"correct timing starts engine");
+            }
+            var carry=game.player.GetComponent<PlayerChickenCarry>();
+            Check(carry.HandError<.03f,"Both palms reach steering rim: "+carry.HandError.ToString("F3"));
+            truck.vehicle.ExternalControl=true;
+            Vector3 column=truck.steeringWheel.forward;
+            truck.Drive(0,1,true,.02f);yield return new WaitForSecondsRealtime(.7f);
+            Check(Vector3.Dot(column,truck.steeringWheel.forward)>.999f,"Steering rotates around column without tipping");
+            Check(carry.HandError<.03f,"Hands follow turned steering rim: "+carry.HandError.ToString("F3"));
+            Camera.main.transform.localRotation=Quaternion.Euler(25,0,0);
+            yield return Shot("truck-03b-hands-turning");
+            truck.Drive(0,-1,true,.02f);yield return new WaitForSecondsRealtime(1.3f);
+            Check(carry.HandError<.03f,"Hands follow opposite steering turn: "+carry.HandError.ToString("F3"));
+            yield return Shot("truck-03c-hands-left");
+            truck.Drive(0,0,true,.02f);yield return new WaitForSecondsRealtime(.7f);
+            Camera.main.transform.localRotation=Quaternion.identity;
+            truck.vehicle.ExternalControl=false;
             if(Array.IndexOf(Environment.GetCommandLineArgs(),"--physics-review")>=0)
             {
                 var vehicle=truck.vehicle;vehicle.ExternalControl=true;Vector3 start=vehicle.Body.position;
@@ -120,7 +169,7 @@ public class MenuVisualReview : MonoBehaviour
             yield return new WaitForSecondsRealtime(.8f);
             Camera.main.transform.localRotation=Quaternion.identity;
             yield return Shot("progression-03-in-arms");
-            var carry=game.player.GetComponent<PlayerChickenCarry>();
+                        var carry=game.player.GetComponent<PlayerChickenCarry>();
             Check(carry.HasVisual && !carry.IsLifting,"Chicken remains visibly carried after pickup finishes");
             Check(carry.HandError<.18f,"Both wrists reach the carried chicken");
             var driver=game.player.GetComponentInChildren<RuralCharacterAnimator>();

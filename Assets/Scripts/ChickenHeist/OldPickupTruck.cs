@@ -14,10 +14,14 @@ public class OldPickupTruck : MonoBehaviour
     public bool NearCargo=>Player!=null && Vector3.Distance(Player.position+Vector3.up,cargoPoint.position)<2.5f;
     Transform Player=>HeistGameManager.Instance?.player;
     public PickupVehiclePhysics vehicle;
+    public TruckIgnition ignition;
+    public TruckCageLids cageLids;
+    void Start(){cageLids=GetComponent<TruckCageLids>();if(cageLids==null)cageLids=gameObject.AddComponent<TruckCageLids>();}
     float nextNoise;
     Quaternion wheelBase;
+    public Vector3 SteeringGrip(int side)=>steeringWheel.TransformPoint(new Vector3(side<0?-.175f:.175f,0,0));
     bool movementEnabled;
-    void Awake(){Instance=this;vehicle=GetComponent<PickupVehiclePhysics>();if(steeringWheel!=null)wheelBase=steeringWheel.localRotation;}
+    void Awake(){Instance=this;vehicle=GetComponent<PickupVehiclePhysics>();ignition=GetComponent<TruckIgnition>();if(ignition==null)ignition=gameObject.AddComponent<TruckIgnition>();if(steeringWheel!=null)wheelBase=steeringWheel.localRotation;}
     void OnDestroy(){if(Instance==this)Instance=null;}
     void Update()
     {
@@ -30,14 +34,14 @@ public class OldPickupTruck : MonoBehaviour
             if(Input.GetKeyDown(KeyCode.F)){ExitDriver();return;}
             if(!vehicle.ExternalControl)Drive(Input.GetAxisRaw("Vertical"),Input.GetAxisRaw("Horizontal"),Input.GetKey(KeyCode.Space),Time.deltaTime);
             if(Mathf.Abs(Speed)>1 && Time.time>nextNoise)
-            {nextNoise=Time.time+1.2f;NoiseEmitter.EmitGlobal(NoiseSource.TrapTriggered,transform.position,.35f);}
+            {nextNoise=Time.time+1.2f;NoiseEmitter.EmitGlobal(NoiseSource.VehicleEngine,transform.position,1f);}
         }
         else
         {
             if(Input.GetKeyDown(KeyCode.F) && Vector3.Distance(Player.position,seat.position)<3)EnterDriver();
             if(NearCargo)
             {
-                if(Input.GetKeyDown(KeyCode.E))LoadOne();
+                if(WorldInteraction.Pressed(this))LoadOne();
                 if(Input.GetKeyDown(KeyCode.R))UnloadOne();
                 if(Input.GetKeyDown(KeyCode.G) && AtHome)HeistGameManager.Instance.CompleteMission();
             }
@@ -46,14 +50,14 @@ public class OldPickupTruck : MonoBehaviour
     public void Drive(float throttle,float turn,bool brake,float dt)
     {
         if(!driving)return;
-        vehicle.SetInput(throttle,turn,brake,true);
+        vehicle.SetInput(ignition.EngineRunning?throttle:0,turn,brake || !ignition.EngineRunning,true);
     }
     void LateUpdate()
     {
         if(driving && Player!=null)
         {
             Player.position=seat.position;Player.rotation=transform.rotation;
-            if(steeringWheel!=null)steeringWheel.localRotation=wheelBase*Quaternion.AngleAxis(-vehicle.SteeringAngle*3,Vector3.forward);
+            if(steeringWheel!=null)steeringWheel.localRotation=wheelBase*Quaternion.AngleAxis(-vehicle.SteeringAngle*1.5f,Vector3.forward);
         }
     }
     public bool EnterDriver()
@@ -85,7 +89,7 @@ public class OldPickupTruck : MonoBehaviour
     public void ForceExit(Vector3 position)
     {
         if(Player==null)return;
-        driving=false;vehicle.SetInput(0,0,true,false);Player.position=position;
+        driving=false;ignition.StopEngine();vehicle.SetInput(0,0,true,false);Player.position=position;
         Player.GetComponent<CharacterController>().enabled=true;Player.GetComponent<PlayerMovement>().enabled=movementEnabled;
     }
     public bool LoadOne()
@@ -97,6 +101,7 @@ public class OldPickupTruck : MonoBehaviour
         {HeistGameManager.Instance.ShowMessage("Sem vaga nas gaiolas. Compre gaiolas na loja: 2 galinhas por R$ 100.",4);return false;}
         if(!economy.Commit(a=>{a.truckChickens++;return true;},"Galinha colocada na gaiola."))return false;
         pack.RemoveChickens(1);Player.GetComponentInChildren<RuralCharacterAnimator>()?.Gesture();
+        if(economy.Account.truckChickens%2==0)cageLids.CloseFullCage(economy.Account.truckChickens/2-1);
         HeistGameManager.Instance.ShowMessage("Na caminhonete: "+economy.Account.truckChickens+" / "+economy.Account.TruckCapacity);return true;
     }
     public bool UnloadOne()
@@ -111,6 +116,7 @@ public class OldPickupTruck : MonoBehaviour
     {RestorePose(position,Quaternion.Euler(0,yaw,0));}
     public void RestorePose(Vector3 position,Quaternion rotation)
     {
+        cageLids?.CancelPlacement();
         if(driving)ForceExit(Player.position);
         vehicle.ResetPose(position,rotation);
     }
@@ -118,7 +124,7 @@ public class OldPickupTruck : MonoBehaviour
     {
         if(GameMenu.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || Player==null)return;
         string prompt=driving?"W/S acelerar e re  |  A/D virar  |  ESPACO frear  |  F sair\n"+Mathf.Abs(Speed*3.6f).ToString("0")+" km/h":
-            NearCargo?"E colocar galinha  |  R retirar"+(AtHome?"  |  G entregar no sitio":"")+"\nGaiolas: "+HouseholdEconomy.Instance.Account.truckCages+"/4  |  Galinhas: "+HouseholdEconomy.Instance.Account.truckChickens+"/"+HouseholdEconomy.Instance.Account.TruckCapacity:
+            NearCargo?"E colocar galinha  |  R retirar"+(HeistGameManager.Instance.CanDeliverHere?"  |  G entregar no galinheiro":"")+"\nGaiolas: "+HouseholdEconomy.Instance.Account.truckCages+"/4  |  Galinhas: "+HouseholdEconomy.Instance.Account.truckChickens+"/"+HouseholdEconomy.Instance.Account.TruckCapacity:
             Vector3.Distance(Player.position,seat.position)<3?"F  |  Dirigir a velha caminhonete":"";
         if(prompt.Length>0)GUI.Box(new Rect(Screen.width*.5f-270,Screen.height*.82f,540,60),prompt,new GUIStyle(GUI.skin.box){fontSize=16,wordWrap=true});
     }

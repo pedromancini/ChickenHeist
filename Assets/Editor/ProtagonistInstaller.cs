@@ -10,17 +10,20 @@ using Object=UnityEngine.Object;
 
 public static class ProtagonistInstaller
 {
-    const string Folder="Assets/ChickenHeistGenerated/Characters/Protagonist";
+    const string Folder="Assets/ChickenHeistGenerated/Characters/ProtagonistV2";
     const string Model=Folder+"/Protagonist_Rigged.fbx";
     public const string PrefabPath=Folder+"/Protagonist.prefab";
     const string Output="output/protagonist-review";
-    static readonly string[] States={"Idle","Walk","Run","CrouchIdle","Crouch","Jump","Fall","Pickup","Trade"};
+    static readonly string[] States={"Idle","Walk","Run","CrouchIdle","Crouch","Jump","Fall","Pickup","Trade","Drive","Ignite","Lockpick","Carry",
+        "WalkBackward","WalkLeft","WalkRight","WalkForwardLeft","WalkForwardRight","WalkBackwardLeft","WalkBackwardRight",
+        "RunBackward","RunLeft","RunRight","RunForwardLeft","RunForwardRight","RunBackwardLeft","RunBackwardRight"};
     public static GameObject Create(Transform parent,string name)
     {
         var root=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath),parent);
-        root.name=name;root.transform.localPosition=new Vector3(0,0,-.22f);
+        root.name=name;root.transform.localPosition=Vector3.zero;
         root.GetComponent<RuralCharacterAnimator>().movement=parent.GetComponent<PlayerMovement>();
         root.GetComponent<HandheldPhone>().eyes=parent.GetComponentInChildren<Camera>().transform;
+        root.GetComponent<ProtagonistArticulation>().eyes=parent.GetComponentInChildren<Camera>().transform;
         var camera=parent.GetComponentInChildren<Camera>();if(camera!=null)camera.cullingMask &= ~(1<<31);
         return root;
     }
@@ -33,6 +36,7 @@ public static class ProtagonistInstaller
         var importer=(ModelImporter)AssetImporter.GetAtPath(Model);
         importer.animationType=ModelImporterAnimationType.Legacy;importer.importAnimation=true;
         importer.animationCompression=ModelImporterAnimationCompression.Off;
+        importer.isReadable=true;
         importer.SaveAndReimport();
         var clips=importer.defaultClipAnimations;
         foreach(var c in clips)
@@ -78,10 +82,13 @@ public static class ProtagonistInstaller
                 else AssetDatabase.CreateAsset(copy,path);
                 animation.AddClip(copy,state);if(state=="Idle")animation.clip=copy;
             }
-            var driver=root.AddComponent<RuralCharacterAnimator>();driver.clips=animation;
+            var driver=root.AddComponent<RuralCharacterAnimator>();driver.clips=animation;driver.articulatedPlayer=true;
+            root.AddComponent<ProtagonistArticulation>();root.AddComponent<ProtagonistFingers>();
             driver.gestureBone=root.GetComponentsInChildren<Transform>().Single(t=>t.name=="ForearmR");
             animation["Idle"].clip.SampleAnimation(root,0);
             HomeExperienceUpgrade.DressPlayer(root);
+            var lining=root.GetComponentsInChildren<Transform>().FirstOrDefault(t=>t.name=="Forro fechado da camisa");
+            if(lining!=null)Object.DestroyImmediate(lining.gameObject);
             PrefabUtility.SaveAsPrefabAsset(root,PrefabPath);
         }
         finally{Object.DestroyImmediate(root);}
@@ -95,7 +102,7 @@ public static class ProtagonistInstaller
         game.player.GetComponent<PlayerMovement>().alturaAgachado=1.4f;
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
         VerifyAndCapture();
-        Debug.Log("PROTAGONIST INSTALLED: original texture, skinned mesh and nine gameplay clips.");
+        Debug.Log("PROTAGONIST INSTALLED: new model, 30 finger joints, retargeted package and action clips.");
     }
     static void VerifyAndCapture()
     {
@@ -103,6 +110,7 @@ public static class ProtagonistInstaller
         var root=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
         root.transform.position=new Vector3(0,1000,0);
         var driver=root.GetComponent<RuralCharacterAnimator>();
+        driver.clips.enabled=false;
         foreach(var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>())
             if(skin.sharedMaterial.GetTexture("_BaseMap")==null)throw new Exception("Missing protagonist paint");
         results.Add("PASS Original base-color texture is assigned to body and head");

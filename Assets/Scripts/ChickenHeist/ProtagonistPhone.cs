@@ -41,14 +41,14 @@ public class ProtagonistPhone : MonoBehaviour
     void OnDisable(){SetOpen(false);if(Instance==this)Instance=null;}
     void OnGUI()
     {
-        if(GameMenu.IsOpen)return;
+        if(GameMenu.IsOpen || StoryDirector.Active || HomeNextNight.IsResting)return;
         if(!IsOpen && economy!=null && economy.Account.newsUnread)
         {
             var notice=new GUIStyle(GUI.skin.box){fontSize=17,wordWrap=true};
             GUI.Box(new Rect(Screen.width-350,90,330,66),"VALE NOTICIAS\nAssalto na regiao. TAB para ler.",notice);
         }
-        var hand=HeistGameManager.Instance?.player?.GetComponentInChildren<HandheldPhone>();
-        if(IsOpen && (hand==null || hand.ScreenReady))DrawScreen(economy.Account,economy.Message,hand!=null?hand.ScreenRect:(Rect?)null);
+        
+        if(IsOpen && economy!=null && economy.Ready)DrawScreen(economy.Account,economy.Message);
     }
     public void DrawScreen(HouseholdAccount account,string message,Rect? phoneRect=null)
     {
@@ -64,23 +64,23 @@ public class ProtagonistPhone : MonoBehaviour
         }
         Matrix4x4 previous=GUI.matrix;Color old=GUI.color,oldBackground=GUI.backgroundColor;int depth=GUI.depth;GUI.depth=-100;
         GUI.backgroundColor=green;
-        float scale=Mathf.Min(Screen.height/900f,Screen.width/450f,1.2f);
-        Rect frame=phoneRect??new Rect((Screen.width-450*scale)*.5f,(Screen.height-900*scale)*.5f,450*scale,900*scale);
-        GUI.matrix=Matrix4x4.TRS(new Vector3(frame.x,frame.y),Quaternion.identity,new Vector3(frame.width/450f,frame.height/900f,1));
+        
+        Rect frame=phoneRect??TabletRect(Screen.width,Screen.height);
+        GUI.matrix=Matrix4x4.TRS(new Vector3(frame.x,frame.y),Quaternion.identity,new Vector3(frame.width/1180f,frame.height/800f,1));
         EnsureRoundedTextures();
-        GUI.DrawTexture(new Rect(0,0,450,900),roundedOuter,ScaleMode.StretchToFill);
-        GUI.DrawTexture(new Rect(9,16,432,866),roundedScreen,ScaleMode.StretchToFill);
-        Fill(new Rect(190,27,70,4),new Color(.25f,.27f,.27f));
-        GUILayout.BeginArea(new Rect(30,48,390,815));
-        GUILayout.BeginHorizontal();GUILayout.Label("VALE MOBILE   /   DIA "+account.day,small);GUILayout.FlexibleSpace();
-        if(GUILayout.Button("Fechar",button,GUILayout.Width(76)))SetOpen(false);GUILayout.EndHorizontal();
+        GUI.DrawTexture(new Rect(0,0,1180,800),roundedOuter,ScaleMode.StretchToFill);
+        GUI.DrawTexture(new Rect(14,14,1152,772),roundedScreen,ScaleMode.StretchToFill);
+        Fill(new Rect(6,376,4,48),new Color(.25f,.27f,.27f));
+        GUILayout.BeginArea(new Rect(48,36,1084,716));
+        GUILayout.BeginHorizontal();GUILayout.Label("VALE TABLET   /   DIA "+account.day,small);GUILayout.FlexibleSpace();
+        if(GUILayout.Button("Fechar",button,GUILayout.Width(96)))SetOpen(false);GUILayout.EndHorizontal();
         GUILayout.Label(new[]{"Meu banco","Minhas contas","Fazendas","Cooperativa","Vale Noticias"}[tab],title);
         GUILayout.Label("Sitio do Recomeco",small);GUILayout.Space(8);
         GUILayout.BeginHorizontal();
         string[] tabs={"Banco","Dividas","Fotos","Loja","Jornal"};
         for(int i=0;i<tabs.Length;i++){GUI.backgroundColor=i==tab?green:new Color(.42f,.46f,.45f);if(GUILayout.Button(tabs[i],button)){tab=i;scroll=Vector2.zero;confirmProduct=-1;if(i==4)economy?.ReadNews();}}
         GUI.backgroundColor=green;GUILayout.EndHorizontal();GUILayout.Space(12);
-        scroll=GUILayout.BeginScrollView(scroll,GUILayout.Height(585));
+        scroll=GUILayout.BeginScrollView(scroll,GUILayout.Height(488));
         if(tab==0)
         {
             GUILayout.Label("SALDO DISPONIVEL",small);GUILayout.Label("R$ "+account.balance+",00",title);
@@ -109,20 +109,20 @@ public class ProtagonistPhone : MonoBehaviour
             else
             {
                 photoIndex=Mathf.Clamp(photoIndex,0,count-1);
-                Rect rect=GUILayoutUtility.GetRect(350,262,GUILayout.ExpandWidth(true));
+                Rect rect=GUILayoutUtility.GetRect(1000,300,GUILayout.ExpandWidth(true));
                 if(farmPhotos[photoIndex]!=null)GUI.DrawTexture(rect,farmPhotos[photoIndex],ScaleMode.ScaleToFit);
                 GUILayout.Label(farmNames[photoIndex],heading);GUILayout.Label("Foto de reconhecimento  |  "+(photoIndex+1)+" / "+count,small);
                 GUILayout.BeginHorizontal();if(GUILayout.Button("Anterior",button))photoIndex=(photoIndex+count-1)%count;
                 if(GUILayout.Button("Proxima",button))photoIndex=(photoIndex+1)%count;GUILayout.EndHorizontal();
                 var game=HeistGameManager.Instance;
                 bool active=game!=null && game.MissionActive;
-                GUI.enabled=game!=null && !active && !game.missionEnded && game.backpack.chickensCarried==0;
+                GUI.enabled=game!=null && game.MissionStartBlocker.Length==0;
                 if(GUILayout.Button(active && game.MissionFarm==photoIndex?"Missao em andamento":"Iniciar missao",button))
                 {
                     if(game.StartMission(photoIndex))SetOpen(false);
                 }
                 GUI.enabled=true;
-                GUILayout.Label(active?"Retorne ao sitio para concluir a missao.":game!=null && game.backpack.chickensCarried>0?"Entregue ou venda as galinhas da mochila antes de iniciar.":"",small);
+                GUILayout.Label(game!=null?game.MissionStartBlocker:"",small);
             }
         }
         else if(tab==4)
@@ -146,7 +146,7 @@ public class ProtagonistPhone : MonoBehaviour
             for(int i=0;i<HouseholdAccount.ProductCount;i++)
             {
                 GUILayout.Label(HouseholdAccount.ProductName(i),heading);GUILayout.Label("R$ "+HouseholdAccount.ProductPrice(i)+",00",small);
-                if(i==3)GUILayout.Label("Precisao +75%  |  Equipamento permanente",small);
+                if(i==3)GUILayout.Label("Maior tolerancia de pressao | Equipamento permanente",small);
                 if(i==4)GUILayout.Label("3 aplicacoes  |  60 s por camera",small);
                 if(i==5)GUILayout.Label("2 galinhas por gaiola | "+account.truckCages+"/4 instaladas | Maximo 8 galinhas",small);
                 GUI.enabled=economy!=null && economy.Ready && account.CanBuy(i);
@@ -154,24 +154,39 @@ public class ProtagonistPhone : MonoBehaviour
                 {if(confirmProduct==i){economy.Buy(i);confirmProduct=-1;}else confirmProduct=i;}GUI.enabled=true;GUILayout.Space(8);
             }
             GUILayout.Space(8);GUILayout.Label("Estoque do sitio",heading);
-            GUILayout.Label("Racao: "+account.feed+"  |  Kits: "+account.boards+"  |  Reparos: "+account.repairs+"/3",small);
+            GUILayout.Label("Racao: "+account.feed+"  |  Kits de tabuas e pregos: "+account.boards,small);
+            GUILayout.Label("Galinheiro — nivel "+account.CoopLevel+"/3",heading);
+            GUILayout.Label(account.CoopBenefit,small);
+            if(account.CoopLevel<3)
+            {
+                int required=account.NextCoopBoards;
+                GUILayout.Label("Proximo: "+(account.CoopLevel==0?"estrutura reforcada":account.CoopLevel==1?"cobertura e tela":"ninhos e comedouro"),small);
+                GUILayout.Label("Kits de tabuas e pregos: "+account.boards+"/"+required+" — faltam "+Mathf.Max(0,required-account.boards),small);
+                GUILayout.Label("Beneficio: "+(account.FeedPortions+1)+" porcoes por racao e R$ "+(account.EggIncome+2)+" por galinha alimentada.",small);
+            }
             GUI.enabled=economy!=null && economy.AtHome;
             if(GUILayout.Button("Abastecer comedouro",button))economy.UseFeed();
-            if(GUILayout.Button("Reparar galinheiro",button))economy.Repair();GUI.enabled=true;
+            GUI.enabled=economy!=null && economy.AtHome && account.CoopLevel<3 && account.boards>=account.NextCoopBoards;
+            if(GUILayout.Button(account.CoopLevel==3?"Galinheiro completo":"Aplicar melhoria",button))economy.Repair();GUI.enabled=true;
         }
         GUILayout.EndScrollView();GUILayout.Space(8);GUILayout.Label(message,small);GUILayout.EndArea();
-        Fill(new Rect(176,872,98,4),new Color(.6f,.61f,.6f));
+        Fill(new Rect(540,775,100,4),new Color(.6f,.61f,.6f));
         GUI.matrix=previous;GUI.color=old;GUI.backgroundColor=oldBackground;GUI.depth=depth;GUI.enabled=true;
+    }
+    public static Rect TabletRect(float width,float height)
+    {
+        float scale=Mathf.Min(width*.90f/1180f,height*.92f/800f);
+        return new Rect((width-1180*scale)*.5f,(height-800*scale)*.5f,1180*scale,800*scale);
     }
     void EnsureRoundedTextures()
     {
         if(roundedOuter!=null)return;
-        roundedOuter=RoundedTexture(450,900,28,new Color(.035f,.043f,.045f));
-        roundedScreen=RoundedTexture(432,866,22,new Color(.94f,.95f,.93f));
+        roundedOuter=RoundedTexture(1180,800,28,new Color(.035f,.043f,.045f));
+        roundedScreen=RoundedTexture(1152,772,22,new Color(.94f,.95f,.93f));
     }
     static Texture2D RoundedTexture(int width,int height,int radius,Color color)
     {
-        var texture=new Texture2D(width,height,TextureFormat.RGBA32,false,true);texture.name="Phone UI rounded surface";
+        var texture=new Texture2D(width,height,TextureFormat.RGBA32,false,true);texture.name="Tablet UI rounded surface";
         var pixels=new Color[width*height];
         for(int y=0;y<height;y++)for(int x=0;x<width;x++)
         {
@@ -182,3 +197,4 @@ public class ProtagonistPhone : MonoBehaviour
     }
     static void Fill(Rect r,Color c){Color old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
 }
+

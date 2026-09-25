@@ -24,10 +24,25 @@ public class HeistGameManager : MonoBehaviour
     public bool NightSettled => nightSettled;
     public bool HasMessage => Time.time < messageUntil;
 
+    public string MissionStartBlocker
+    {
+        get
+        {
+            if(MissionActive)return "Retorne ao sitio para concluir a missao atual.";
+            if(missionEnded)return "Carregue o jogo ou inicie um novo jogo apos a captura.";
+            if(backpack==null)return "Aguarde o personagem ficar pronto.";
+            if(backpack.chickensCarried>0)return "Entregue ou venda as galinhas no colo antes de iniciar.";
+            if(!restoringSession && (HouseholdEconomy.Instance?.Account.truckChickens??0)>0)
+                return "Entregue as galinhas da caminhonete no ponto de retorno do sitio antes de iniciar.";
+            return "";
+        }
+    }
+
     public bool StartMission(int index)
     {
         var phone=ProtagonistPhone.Instance;
-        if(MissionActive || missionEnded || backpack==null || backpack.chickensCarried>0 || (!restoringSession && (HouseholdEconomy.Instance?.Account.truckChickens??0)>0) || phone==null ||
+        if(MissionStartBlocker.Length>0){ShowMessage(MissionStartBlocker,5);return false;}
+        if(phone==null ||
             index<0 || index>=phone.farmNames.Length || index>=phone.farmPositions.Length)return false;
         FarmLayoutInfo target=null;
         foreach(var farm in FindObjectsByType<FarmLayoutInfo>())
@@ -38,6 +53,7 @@ public class HeistGameManager : MonoBehaviour
         missionWon=false;nightSettled=false;phone.selectedFarm=index;
         owner.RestoreSleep(owner.startingSleep);
         ShowMessage("Missao iniciada: "+MissionName+". Retorne ao sitio com as galinhas.",5);
+        MissionNavigation.Instance?.Refresh();
         return true;
     }
     public bool IsMissionFarmer(FarmerSleepSystem farmer)=>MissionActive && farmer==farmerSleep;
@@ -48,6 +64,7 @@ public class HeistGameManager : MonoBehaviour
     }
     public void EndActiveMission()
     {
+        MissionNavigation.Instance?.Clear();
         MissionActive=false;MissionFarm=-1;MissionName="";
         if(farmerSleep!=null)farmerSleep.RestoreSleep(farmerSleep.minimumSleep);
         farmerSleep=null;
@@ -66,6 +83,9 @@ public class HeistGameManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        if(GetComponent<InteractionFocusHUD>()==null)gameObject.AddComponent<InteractionFocusHUD>();
+        if(GetComponent<MissionNavigation>()==null)gameObject.AddComponent<MissionNavigation>();
+        if(player!=null && player.GetComponent<PlayerHealth>()==null)player.gameObject.AddComponent<PlayerHealth>();
     }
 
     private void Update()
@@ -80,7 +100,7 @@ public class HeistGameManager : MonoBehaviour
         if (MissionActive && Time.time > messageUntil && missionEnded == false && backpack != null)
         {
             if (backpack.IsFull)
-                statusMessage = "Mochila cheia. Volte ao ponto de retorno.";
+                statusMessage = "Galinha no colo. Leve-a a uma gaiola ou ao sitio.";
             else if (backpack.chickensCarried >= targetChickens)
                 statusMessage = "Voce ja tem o suficiente. Extrair agora seria inteligente.";
         }
@@ -104,12 +124,18 @@ public class HeistGameManager : MonoBehaviour
         messageUntil = Time.time + duration;
     }
 
+    public bool CanDeliverHere => player!=null && DeliveryFlock!=null && Vector3.Distance(player.position,DeliveryFlock.DeliveryPoint)<=2.5f;
+    public HomeFlockView DeliveryFlock => HouseholdEconomy.Instance?.home?.GetComponentInChildren<HomeFlockView>();
     public void CompleteMission()
     {
         if (missionEnded) return;
         if(backpack==null)return;
+        var home=HouseholdEconomy.Instance?.home;
+        var flock=home!=null?home.GetComponentInChildren<HomeFlockView>():null;
+        if(player==null || flock==null || Vector3.Distance(player.position,flock.DeliveryPoint)>2.5f){ShowMessage("Leve as galinhas ate a entrada do seu galinheiro para entregar (G).",4);return;}
         int cargo=HouseholdEconomy.Instance?.Account.truckChickens??0;
-        if(cargo>0 && OldPickupTruck.Instance?.AtHome!=true){ShowMessage("Traga a caminhonete ao sitio para entregar as galinhas.",4);return;}
+        if(cargo>0 && (OldPickupTruck.Instance==null || Vector3.Distance(OldPickupTruck.Instance.cargoPoint.position,flock.DeliveryPoint)>7))
+        {if(backpack.chickensCarried==0){ShowMessage("Traga a caminhonete para perto do galinheiro.",4);return;}cargo=0;}
         int total=backpack.chickensCarried+cargo;
         if(total<1)
         {
@@ -120,11 +146,12 @@ public class HeistGameManager : MonoBehaviour
         if (HouseholdEconomy.Instance!=null && !HouseholdEconomy.Instance.DepositChickens(total,!nightSettled,cargo>0))
         { ShowMessage("Nao foi possivel salvar a entrega. Tente novamente.",4); return; }
         int delivered=total;
+        flock.AnimateDelivery(player.position+player.forward*.5f+Vector3.up*.6f);
         backpack.RemoveChickens(backpack.chickensCarried);
         nightSettled=true;
         missionEnded = false;
         missionWon = true;
-        EndActiveMission();
+        if((HouseholdEconomy.Instance?.Account.truckChickens??0)==0)EndActiveMission();
         ShowMessage("Entrega concluida: "+delivered+" galinhas no sitio. A venda do vale esta aberta.",7);
     }
 
@@ -142,6 +169,8 @@ public class HeistGameManager : MonoBehaviour
         if(!nightSettled && HouseholdEconomy.Instance!=null && !HouseholdEconomy.Instance.CompleteHeist(0))return false;
         nightSettled=true;
         if(HouseholdEconomy.Instance==null || !HouseholdEconomy.Instance.RestUntilMorning())return false;
+        player.GetComponent<PlayerHealth>()?.RecoverAfterRest();
         restPrepared=true;EndActiveMission();return true;
     }
 }
+

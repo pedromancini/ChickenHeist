@@ -112,6 +112,7 @@ public partial class ProceduralFarmGenerator
         farmer.GetComponent<FarmerStateMachine>().patrolPoints = patrol.ToArray();
         farmers.Add(farmer.GetComponent<FarmerSleepSystem>());
         CreateMountedSecurity(coopRect, index, player, parent);
+        CreatePhaseTwoWires(info);
         PlantFarmEdges(lot, index, parent);
     }
 
@@ -293,6 +294,15 @@ public partial class ProceduralFarmGenerator
             ai.player = player;
             ai.viewDistance = 12f;
         }
+    }
+
+    public static void CreatePhaseTwoWires(FarmLayoutInfo farm)
+    {
+        if(farm.GetComponentInChildren<TrapSystem>()!=null)return;
+        // Across the open entry lane, away from fences and building walls.
+        var wire=new GameObject("Fio de alarme - entrada");wire.transform.SetParent(farm.transform,false);
+        wire.transform.position=farm.entrance+Vector3.forward*2.5f;
+        wire.AddComponent<TrapSystem>();
     }
 
     private void PlantFarmEdges(Rect lot, int index, Transform parent)

@@ -8,7 +8,11 @@ public class PlayerMovement : MonoBehaviour
     public float velocidadeSprint = 6f;
     public float velocidadeAgachado = 1.5f;
     public float DeveloperSpeedMultiplier { get; private set; } = 1f;
-    public float CurrentMoveSpeed => (estaAgachado?velocidadeAgachado:estaSprinting?velocidadeSprint:velocidadeNormal)*DeveloperSpeedMultiplier;
+    float trapSlowUntil;
+    public float TrapSlowRemaining=>Mathf.Max(0,trapSlowUntil-Time.time);
+    public void ApplyTrapSlow(float seconds){trapSlowUntil=Mathf.Max(trapSlowUntil,Time.time+Mathf.Max(0,seconds));}
+    public void RestoreTrapSlow(float seconds){trapSlowUntil=Time.time+Mathf.Clamp(seconds,0,30);}
+    public float CurrentMoveSpeed => (estaAgachado?velocidadeAgachado:estaSprinting?velocidadeSprint:velocidadeNormal)*DeveloperSpeedMultiplier*(TrapSlowRemaining>0?.35f:1)*(GetComponent<PlayerHealth>()?.SpeedMultiplier??1);
     public bool SetDeveloperSpeed(int multiplier)
     {
         if(multiplier<1 || multiplier>20)return false;
@@ -25,6 +29,7 @@ public class PlayerMovement : MonoBehaviour
     public float velocidadeAgachar = 8f;
 
     private CharacterController controller;
+    bool groundedBeforeMove;
     private Transform eyes;
     private Vector3 velocidadeVertical;
     private float proximoPassoBarulhento = 0f;
@@ -57,6 +62,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if(GameMenu.BlocksInput){estaMovendo=false;estaSprinting=false;MoveInput=Vector2.zero;return;}
         if (ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true) { estaMovendo=false; estaSprinting=false; nivelRuido=0; HandleGravity(); return; }
+        groundedBeforeMove=controller.isGrounded;
         HandleMovement();
         HandleCrouch();
         HandleGravity();
@@ -92,12 +98,17 @@ public class PlayerMovement : MonoBehaviour
 
     void HandleGravity()
     {
-        if (controller.isGrounded && velocidadeVertical.y < 0)
+        if ((controller.isGrounded || groundedBeforeMove) && velocidadeVertical.y < 0)
             velocidadeVertical.y = -2f;
-        if (!ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && HeistGameManager.Instance?.missionEnded!=true && Input.GetButtonDown("Jump") && controller.isGrounded && !estaAgachado)
-            velocidadeVertical.y = Mathf.Sqrt(alturaDoSalto * -2f * gravidade);
+        if(Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space))TryJump();
         velocidadeVertical.y += gravidade * Time.deltaTime;
         controller.Move(velocidadeVertical * Time.deltaTime);
+    }
+
+    public bool TryJump()
+    {
+        if(controller==null || !controller.enabled || GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true || estaAgachado || velocidadeVertical.y>0 || !(controller.isGrounded || groundedBeforeMove))return false;
+        velocidadeVertical.y=Mathf.Sqrt(alturaDoSalto*-2f*gravidade);groundedBeforeMove=false;return true;
     }
 
     void CalcularRuido()

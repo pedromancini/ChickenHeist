@@ -31,7 +31,7 @@ public class ChickenHeistHUD : MonoBehaviour
                 GUI.Label(new Rect(24,120,width,28),Mathf.RoundToInt(Vector3.Distance(game.player.position,phone.farmPositions[game.MissionFarm]))+" m",caption);
         }
         if(game.backpack!=null && (game.MissionActive || game.backpack.chickensCarried>0))
-            GUI.Label(new Rect(24,Screen.height-50,width,28),"Mochila  "+game.backpack.chickensCarried+" / "+game.backpack.capacity,caption);
+            GUI.Label(new Rect(24,Screen.height-50,width,28),"No colo  "+game.backpack.chickensCarried+" / "+game.backpack.capacity,caption);
         if(game.HasMessage)
             GUI.Label(new Rect(Screen.width*.25f,Screen.height-110,Screen.width*.5f,65),game.statusMessage,caption);
     }

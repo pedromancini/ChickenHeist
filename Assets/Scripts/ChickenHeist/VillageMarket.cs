@@ -25,7 +25,7 @@ public class VillageMarket : MonoBehaviour
             return;
         }
         if(ProtagonistPhone.IsOpen || !PlayerInRange || HeistGameManager.Instance.missionEnded)return;
-        if(Input.GetKeyDown(KeyCode.E))Open();
+        if(WorldInteraction.Pressed(this))Open();
     }
     public void Open()
     {
@@ -81,7 +81,7 @@ public class VillageMarket : MonoBehaviour
         tab=GUILayout.Toolbar(tab,new[]{"Vender galinhas","Suprimentos"},button);GUILayout.Space(18);
         if(tab==0)
         {
-            int selected=GUILayout.Toolbar(backpack?0:1,new[]{"Na mochila","Retirada no sitio"},button);
+            int selected=GUILayout.Toolbar(backpack?0:1,new[]{"No colo","Retirada no sitio"},button);
             if(backpack!=(selected==0)){backpack=selected==0;quantity=1;}
             int available=backpack?HeistGameManager.Instance.backpack.chickensCarried:economy.Account.flock;
             GUILayout.Label("Disponiveis: "+available+"   |   R$ 45 por galinha",label);
@@ -100,6 +100,7 @@ public class VillageMarket : MonoBehaviour
         {
             for(int i=0;i<HouseholdAccount.ProductCount;i++)
             {
+                if(i==2)continue;
                 GUI.enabled=economy.Ready && economy.Account.CanBuy(i);
                 if(GUILayout.Button("Comprar "+HouseholdAccount.ProductName(i)+"  |  R$ "+HouseholdAccount.ProductPrice(i),button)){economy.Buy(i);feedback=economy.Message;merchant?.Gesture();}
             }

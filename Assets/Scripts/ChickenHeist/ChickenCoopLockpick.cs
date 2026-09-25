@@ -1,236 +1,145 @@
-using System.Collections;
 using UnityEngine;
 
 [DefaultExecutionOrder(-90)]
 public class ChickenCoopLockpick : MonoBehaviour
 {
-    public static ChickenCoopLockpick Active { get; private set; }
-    public static int ClosedFrame { get; private set; }=-1;
+    public static ChickenCoopLockpick Active {get;private set;}
+    public static int ClosedFrame {get;private set;}=-1;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics(){Active=null;ClosedFrame=-1;}
-    public Transform door;
-    public Transform lockAnchor;
-    public Transform scareChicken;
-    public float interactionDistance = 3.8f;
-    public float pickSpeed = 0.72f;
-    public float sweetSpotWidth = 0.12f;
-    public float EffectiveSweetSpotWidth => Mathf.Min(.24f,sweetSpotWidth*(HouseholdEconomy.Instance?.Account.professionalEquipped==true?1.75f:1f));
-    public float EffectivePickSpeed => pickSpeed*(HouseholdEconomy.Instance?.Account.professionalEquipped==true ? .75f : 1f);
-
-    private Transform player;
-    private PlayerMovement playerMovement;
-    private bool challengeActive;
-    private bool doorOpened;
-    bool movementWasEnabled;
-    public bool IsOpen => doorOpened;
-    public bool ChallengeActive => challengeActive;
-    public void RestoreOpen(bool open)
-    {
-        ReleaseMovement();doorOpened=open;
-        if(door!=null){foreach(var r in door.GetComponentsInChildren<Renderer>())r.enabled=!open;foreach(var c in door.GetComponentsInChildren<Collider>())c.enabled=!open;}
-    }
-    private float pickPosition = 0.5f;
-    private float sweetSpot;
-    private int mistakes;
-    private float messageUntil;
-    public Vector3 InteractionPoint => lockAnchor!=null?lockAnchor.position:door!=null?door.position:transform.position;
+    public Transform door,lockAnchor,scareChicken;
+    public float interactionDistance=3.8f;
+    public float pickSpeed=.72f,sweetSpotWidth=.12f;
+    public float EffectiveSweetSpotWidth=>Latch.Tolerance(Professional);
+    public float EffectivePickSpeed=>pickSpeed*(Professional?.75f:1);
+    bool Professional=>HouseholdEconomy.Instance?.Account.professionalEquipped==true;
+    public bool IsOpen {get;private set;}
+    public bool ChallengeActive {get;private set;}
+    public int PinsSet=>IsOpen?3:Latch.Completed;
+    public const int RequiredPins=3;
+    public float PickPosition=>Latch.Pressure;
+    public CoopPressureLatch Latch {get;private set;}=new CoopPressureLatch(0);
+    public ChickenScare Scare {get;private set;}
+    public Vector3 InteractionPoint=>lockAnchor!=null?lockAnchor.position:door!=null?door.position:transform.position;
+    Transform player;PlayerMovement movement;bool movementWasEnabled;
+    int mistakes,selected;float jamUntil,nextScare;
+    bool jamPending;
+    CoopLatchPresentation presentation;
     void Awake()
     {
         if(lockAnchor==null)lockAnchor=transform.Find("Cadeado do Galinheiro");
-        CoopPadlockModel.Apply(lockAnchor);
+        Scare=gameObject.AddComponent<ChickenScare>();
+        presentation=gameObject.AddComponent<CoopLatchPresentation>();presentation.owner=this;
     }
+    void Start(){player=HeistGameManager.Instance?.player;movement=player!=null?player.GetComponent<PlayerMovement>():null;}
+    int Seed=>GetComponentInParent<FarmLayoutInfo>()?.layoutIndex??0;
     public bool CanReachLock()
     {
         var game=HeistGameManager.Instance;var camera=Camera.main;
-        if(game==null || game.player==null || camera==null || doorOpened)return false;
+        if(game==null || game.player==null || camera==null)return false;
         Vector3 delta=InteractionPoint-camera.transform.position;
         if(delta.magnitude>interactionDistance || Vector3.Dot(camera.transform.forward,delta.normalized)<.5f)return false;
         var hits=Physics.RaycastAll(camera.transform.position,delta.normalized,delta.magnitude,~0,QueryTriggerInteraction.Ignore);
         System.Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
-        foreach(var hit in hits)
-            if(!hit.transform.IsChildOf(game.player))return hit.transform.IsChildOf(transform);
+        foreach(var hit in hits)if(!hit.transform.IsChildOf(game.player))return hit.transform.IsChildOf(transform);
         return true;
     }
     public bool TryBeginChallenge()
     {
         var game=HeistGameManager.Instance;
-        if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || game==null || game.missionEnded || Active!=null || !CanReachLock())return false;
-        if(!game.IsMissionTarget(this))
-        {game.ShowMessage(game.MissionActive?"Este cadeado pertence a outra fazenda.":"Inicie a missao desta fazenda nas fotos do celular.",4);return false;}
-        player=game.player;playerMovement=player.GetComponent<PlayerMovement>();
-        BeginChallenge();return true;
+        if(IsOpen || GameMenu.BlocksInput || OldPickupTruck.IsDriving || Time.time<jamUntil || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || game==null || game.missionEnded || Active!=null || !CanReachLock())return false;
+        if(!game.IsMissionTarget(this)){game.ShowMessage("Escolha esta fazenda nas fotos do tablet.",3);return false;}
+        player=game.player;movement=player.GetComponent<PlayerMovement>();BeginChallenge();return true;
     }
-    void ReleaseMovement()
+    void BeginChallenge()
     {
-        if(challengeActive && playerMovement!=null)playerMovement.enabled=movementWasEnabled;
+        if(ChallengeActive || Active!=null)return;
+        Active=this;ChallengeActive=true;mistakes=0;selected=0;jamPending=false;Latch=new CoopPressureLatch(Seed);
+        presentation?.BeginView();
+        if(movement!=null){movementWasEnabled=movement.enabled;movement.enabled=false;movement.estaMovendo=false;movement.estaSprinting=false;movement.nivelRuido=0;}
+        HeistGameManager.Instance?.ShowMessage("",0);
+    }
+    public void CancelInteraction()
+    {
+        Scare?.Cancel();
+        presentation?.EndView();
+        if(ChallengeActive && movement!=null)movement.enabled=movementWasEnabled;
         if(Active==this){Active=null;ClosedFrame=Time.frameCount;}
-        challengeActive=false;
+        ChallengeActive=false;
+        jamPending=false;
     }
-    void OnDisable(){ReleaseMovement();}
-
-    private void Start()
+    void EndChallenge(){CancelInteraction();HeistGameManager.Instance?.ShowMessage("Trava interrompida.",1.5f);}
+    void OnDisable(){CancelInteraction();}
+    public void RestoreOpen(bool open){SetDoorOpen(open,true);}
+    public void SetDoorOpen(bool open,bool immediate=false)
     {
-        if (HeistGameManager.Instance != null)
-        {
-            player = HeistGameManager.Instance.player;
-            playerMovement = player != null ? player.GetComponent<PlayerMovement>() : null;
-        }
-        sweetSpot = Random.Range(0.18f, 0.82f);
+        CancelInteraction();IsOpen=open;Latch=new CoopPressureLatch(Seed);
+        if(door!=null){var hinge=door.GetComponent<HingedBarrier>();if(hinge==null)hinge=door.gameObject.AddComponent<HingedBarrier>();hinge.SetOpen(open,immediate);foreach(var r in door.GetComponentsInChildren<Renderer>())r.enabled=true;foreach(var c in door.GetComponentsInChildren<Collider>())c.enabled=true;}
     }
-
-    private void Update()
+    void Update()
     {
-        if(challengeActive && HeistGameManager.Instance?.IsMissionTarget(this)!=true){EndChallenge();return;}
-        if(GameMenu.BlocksInput)return;
-        if (ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true) return;
-        if (doorOpened || player == null)
-            return;
-
-        if (!challengeActive && Input.GetKeyDown(KeyCode.E))
-        {
-            TryBeginChallenge();
-            return;
-        }
-
-        if (!challengeActive)
-            return;
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            EndChallenge();
-            return;
-        }
-
-        pickPosition += Input.GetAxisRaw("Horizontal") * EffectivePickSpeed * Time.deltaTime;
-        pickPosition = Mathf.Clamp01(pickPosition);
-
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.E))
-            TryPick();
+        var game=HeistGameManager.Instance;
+        if(ChallengeActive && (game==null || game.missionEnded || !game.IsMissionTarget(this))){CancelInteraction();return;}
+        if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || game?.missionEnded==true)return;
+        if(player==null)return;
+        if(jamPending){if(Scare?.IsActive!=true)Jam();return;}
+        if(IsOpen){if(WorldInteraction.Pressed(this) && CanReachLock())SetDoorOpen(false);return;}
+        if(!ChallengeActive){if(WorldInteraction.Pressed(this))TryBeginChallenge();return;}
+        if(Input.GetKeyDown(KeyCode.Escape)){EndChallenge();return;}
+        if(Input.GetKeyDown(KeyCode.Alpha1))selected=0;
+        if(Input.GetKeyDown(KeyCode.Alpha2))selected=1;
+        if(Input.GetKeyDown(KeyCode.Alpha3))selected=2;
+        float axis=(Input.GetKey(KeyCode.W)?1:0)-(Input.GetKey(KeyCode.S)?1:0);
+        Manipulate(Time.deltaTime,selected,axis,Input.GetKey(KeyCode.Space));
     }
-
-    private void BeginChallenge()
+    public void Manipulate(float dt,int piece,float pressureAxis,bool pull)
     {
-        if(challengeActive || Active!=null)return;
-        Active=this;
-        challengeActive = true;
-        mistakes = 0;
-        pickPosition = 0.5f;
-        sweetSpot = Random.Range(0.15f, 0.85f);
-        if (playerMovement != null)
+        if(!ChallengeActive || jamPending || GameMenu.BlocksInput || Scare?.IsActive==true)return;
+        int result=Latch.Step(dt,piece,pressureAxis,pull,Professional);
+        presentation?.SetFriction(pull && !Latch.CanSlide(Professional)?Latch.Stress:0);
+        if(result>0)
         {
-            movementWasEnabled=playerMovement.enabled;playerMovement.enabled=false;
-            playerMovement.estaMovendo=false;playerMovement.estaSprinting=false;playerMovement.nivelRuido=0;
+            presentation?.Click(false);
+            if(PinsSet==3){SetDoorOpen(true);HeistGameManager.Instance?.ShowMessage("Trinco liberado. Entre devagar.",3);}
         }
-        ShowMessage("Lockpick: mova com A/D e pressione ESPACO no ponto certo.", 3f);
-    }
-
-    private void TryPick()
-    {
-        if (Mathf.Abs(pickPosition - sweetSpot) <= EffectiveSweetSpotWidth)
+        if(result<0)
         {
-            OpenDoor();
+            mistakes++;presentation?.Click(true);NoiseEmitter.EmitGlobal(NoiseSource.CoopLockpickFail,InteractionPoint);
+            HeistGameManager.Instance?.ShowMessage("O trinco bateu! Alivie a pressao antes de forcar.",3);
+            if(Time.time>=nextScare && TryScare())nextScare=Time.time+18;
+            if(mistakes>=3){if(Scare?.IsActive==true)jamPending=true;else Jam();}
+        }
+    }
+    bool TryScare()
+    {
+        if(scareChicken==null || !scareChicken.gameObject.activeInHierarchy)
+        {
+            scareChicken=null;
+            var farm=GetComponentInParent<FarmLayoutInfo>();
+            if(farm!=null)foreach(var candidate in farm.GetComponentsInChildren<InteractableChicken>())
+                if(candidate.coop==this && candidate.gameObject.activeInHierarchy){scareChicken=candidate.transform;break;}
+        }
+        return Scare!=null && scareChicken!=null && Scare.Begin(scareChicken,Camera.main);
+    }
+    void Jam(){jamUntil=Time.time+4;CancelInteraction();HeistGameManager.Instance?.ShowMessage("Trinco emperrado. Espere 4 segundos.",4);}
+    void OnGUI()
+    {
+        if(GameMenu.IsOpen || DeveloperConsole.IsOpen || BackpackPanel.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || Scare?.IsActive==true)return;
+        if(!ChallengeActive)
+        {
+            if(Active==null && CanReachLock())GUI.Box(new Rect((Screen.width-360)*.5f,Screen.height*.8f,360,42),"E  |  Inspecionar trinco");
             return;
         }
-
-        mistakes++;
-        sweetSpot = Random.Range(0.12f, 0.88f);
-        pickPosition = 0.5f;
-        NoiseEmitter.EmitGlobal(NoiseSource.CoopLockpickFail, transform.position);
-        ShowMessage("A galinha ouviu o cadeado...", 2f);
-        if (mistakes == 1 && scareChicken != null)
-            StartCoroutine(ChickenJumpscare());
-    }
-
-    private void OpenDoor()
-    {
-        doorOpened = true;
-        ReleaseMovement();
-        if (door != null)
-        {
-            foreach(var renderer in door.GetComponentsInChildren<Renderer>())renderer.enabled=false;
-            foreach(var collider in door.GetComponentsInChildren<Collider>())collider.enabled=false;
-        }
-        ShowMessage("Cadeado aberto. Entre devagar no galinheiro.", 3f);
-    }
-
-    private void EndChallenge()
-    {
-        ReleaseMovement();
-        ShowMessage("Lockpick interrompido.", 1.5f);
-    }
-
-    private IEnumerator ChickenJumpscare()
-    {
-        InteractableChicken chicken = scareChicken.GetComponent<InteractableChicken>();
-        bool wasSleeping=chicken!=null && chicken.sleeping;
-        if (chicken != null)
-            chicken.sleeping = true;
-
-        Transform originalParent = scareChicken.parent;
-        Vector3 originalPosition = scareChicken.position;
-        Quaternion originalRotation = scareChicken.rotation;
-        scareChicken.SetParent(null, true);
-
-        Vector3 facePosition = player.position + player.forward * 0.9f + Vector3.up * 1.15f;
-        float duration = 0.26f;
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            float bounce = Mathf.Sin(t * Mathf.PI);
-            scareChicken.position = Vector3.Lerp(originalPosition, facePosition, t) + Vector3.up * bounce * 0.35f;
-            scareChicken.LookAt(player.position + Vector3.up * 0.8f);
-            yield return null;
-        }
-
-        yield return new WaitForSeconds(0.22f);
-        scareChicken.SetParent(originalParent, true);
-        scareChicken.position = originalPosition;
-        scareChicken.rotation = originalRotation;
-        if (chicken != null)
-            chicken.sleeping = wasSleeping;
-    }
-
-    private void ShowMessage(string message, float duration)
-    {
-        messageUntil = Time.time + duration;
-        if (HeistGameManager.Instance != null)
-            HeistGameManager.Instance.ShowMessage(message, duration);
-    }
-
-    private void OnGUI()
-    {
-        if(GameMenu.IsOpen || DeveloperConsole.IsOpen || BackpackPanel.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return;
-        if (!challengeActive)
-        {
-            if(Active==null && CanReachLock())
-            {
-                string text=HeistGameManager.Instance.IsMissionTarget(this)?"E  |  Abrir cadeado":"Missao desta fazenda necessaria no celular";
-                var style=new GUIStyle(GUI.skin.box){fontSize=16,wordWrap=true};
-                float w=Mathf.Min(420,Screen.width-32);
-                GUI.Box(new Rect((Screen.width-w)*.5f,Screen.height*.8f,w,48),text,style);
-            }
-            return;
-        }
-
-        float width = Mathf.Min(560f, Screen.width * 0.72f);
-        float left = (Screen.width - width) * 0.5f;
-        float top = Screen.height * 0.72f;
-        GUI.Box(new Rect(left, top - 52f, width, 112f), HouseholdEconomy.Instance?.Account.professionalEquipped==true?"LOCKPICK PROFISSIONAL":"LOCKPICK BASICO");
-        GUI.Label(new Rect(left + 18f, top - 24f, width - 36f, 22f), "A/D move o pino    ESPACO tenta abrir    ESC sai");
-
-        GUI.Box(new Rect(left + 18f, top + 7f, width - 36f, 18f), string.Empty);
-        float minimum=Mathf.Clamp01(sweetSpot-EffectiveSweetSpotWidth),maximum=Mathf.Clamp01(sweetSpot+EffectiveSweetSpotWidth);
-        float sweetLeft = left + 18f + (width - 36f) * minimum;
-        float sweetWidth = (width - 36f) * (maximum-minimum);
-        Color previous = GUI.color;
-        GUI.color = new Color(0.35f, 0.8f, 0.38f, 1f);
-        GUI.DrawTexture(new Rect(sweetLeft, top + 7f, sweetWidth, 18f), Texture2D.whiteTexture);
-        GUI.color = new Color(1f, 0.75f, 0.2f, 1f);
-        GUI.DrawTexture(new Rect(left + 18f + (width - 36f) * pickPosition - 3f, top + 2f, 6f, 28f), Texture2D.whiteTexture);
-        GUI.color = previous;
-        GUI.Label(new Rect(left + 18f, top + 32f, width - 36f, 22f), "Erros: " + mistakes + "   Um erro assusta as galinhas e aumenta o alerta.");
+        int depth=GUI.depth;GUI.depth=-100;Color oldColor=GUI.color;
+        float width=Mathf.Min(680,Screen.width-32);float x=(Screen.width-width)*.5f,y=Screen.height-126;
+        GUI.color=new Color(.035f,.035f,.03f,1);GUI.DrawTexture(new Rect(x,y,width,110),Texture2D.whiteTexture);GUI.color=Color.white;
+        var label=new GUIStyle(GUI.skin.label){fontSize=Mathf.Clamp(Screen.width/70,13,18),alignment=TextAnchor.MiddleCenter,wordWrap=true};
+        string state=Latch.Stress>.65f?"RANGENDO — solte ESPAÇO":Latch.CanSlide(Professional)?"CEDENDO — mantenha a pressão":Latch.HasSlack?"COM FOLGA — ajuste a pressão":"PRESA — experimente outra peça";
+        GUI.Label(new Rect(x+10,y+6,width-20,28),"PEÇA "+(Latch.Selected+1)+" / 3    •    "+state,label);
+        GUI.color=new Color(.2f,.2f,.18f);GUI.DrawTexture(new Rect(x+24,y+44,width-48,6),Texture2D.whiteTexture);
+        GUI.color=Color.Lerp(new Color(.85f,.69f,.36f),new Color(.95f,.23f,.13f),Latch.Stress);GUI.DrawTexture(new Rect(x+24,y+44,(width-48)*Latch.Pressure,6),Texture2D.whiteTexture);GUI.color=Color.white;
+        GUI.Label(new Rect(x+10,y+55,width-20,23),"Pressão "+Mathf.RoundToInt(Latch.Pressure*100)+"%    |    "+PinsSet+" de 3 peças liberadas",label);
+        GUI.Label(new Rect(x+10,y+80,width-20,24),"1 / 2 / 3  peça     W / S  pressão     ESPAÇO  deslizar     ESC  sair",label);
+        GUI.color=oldColor;GUI.depth=depth;
     }
 }
-

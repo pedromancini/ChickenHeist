@@ -1830,6 +1830,8 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
 
         Material material = new Material(shader);
         material.color = color;
+        // URP Lit defaults to 0.5, which makes grass and wood read as wet plastic under the moon.
+        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.1f);
         return material;
     }
 

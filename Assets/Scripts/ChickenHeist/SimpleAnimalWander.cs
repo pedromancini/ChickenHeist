@@ -21,6 +21,7 @@ public class SimpleAnimalWander : MonoBehaviour
 
     private void Update()
     {
+        if(GameMenu.BlocksInput)return;
         if (Time.time >= nextPickTime)
             PickTarget();
 

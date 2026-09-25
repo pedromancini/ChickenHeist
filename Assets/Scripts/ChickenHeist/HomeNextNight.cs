@@ -6,17 +6,35 @@ public class HomeNextNight : MonoBehaviour
     public static bool IsResting {get;private set;}
     float fade;
     public float distance=1.7f;
+    bool prepared;
     bool Near=>HeistGameManager.Instance?.player!=null && Vector3.Distance(transform.position,HeistGameManager.Instance.player.position+Vector3.up)<distance;
     void Update()
     {
-        if(GameMenu.BlocksInput)return;
-        if(!Near || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || !Input.GetKeyDown(KeyCode.E))return;
-        if(HeistGameManager.Instance.backpack.chickensCarried>0 || (HouseholdEconomy.Instance?.Account.truckChickens??0)>0){HeistGameManager.Instance.ShowMessage("Entregue ou venda as galinhas da mochila e da caminhonete antes de dormir.");return;}
-        if(HeistGameManager.Instance.PrepareNextNight())StartCoroutine(Rest());
+        if(WorldInteraction.Pressed(this))TryRest();
+    }
+    public bool TryRest()
+    {
+        if(GameMenu.BlocksInput || !Near || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return false;
+        if(HeistGameManager.Instance.backpack.chickensCarried>0 || (HouseholdEconomy.Instance?.Account.truckChickens??0)>0){HeistGameManager.Instance.ShowMessage("Entregue ou venda as galinhas no colo e da caminhonete antes de dormir.");return false;}
+        if(prepared || HeistGameManager.Instance.PrepareNextNight())
+        {
+            prepared=true;
+            var checkpoint=Object.FindAnyObjectByType<GameCheckpoint>();
+            if(checkpoint==null || !checkpoint.Save(out _)){HeistGameManager.Instance.ShowMessage("Falha ao salvar. Pressione E para tentar novamente antes de descansar.",6);return false;}
+            StartCoroutine(Rest());return true;
+        }
+        return false;
     }
     System.Collections.IEnumerator Rest()
     {
         IsResting=true;
+        if(HouseholdEconomy.Instance.Account.pendingVision)
+        {
+            StoryDirector.Instance.Begin(true);
+            while(StoryDirector.Active)yield return null;
+            var checkpoint=Object.FindAnyObjectByType<GameCheckpoint>();
+            if(checkpoint==null || !checkpoint.Save(out _)){IsResting=false;HeistGameManager.Instance.ShowMessage("Falha ao salvar. Pressione E para tentar novamente.",6);yield break;}
+        }
         while(fade<1){fade=Mathf.Min(1,fade+Time.unscaledDeltaTime);yield return null;}
         yield return new WaitForSecondsRealtime(.65f);
         SceneManager.LoadScene(SceneManager.GetActiveScene().path);

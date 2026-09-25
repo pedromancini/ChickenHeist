@@ -7,7 +7,7 @@ public class HomePhoneDock : MonoBehaviour
         if(GameMenu.BlocksInput)return;
         if(ProtagonistPhone.IsOpen || ProtagonistPhone.Instance==null || Camera.main==null)return;
         Vector3 delta=transform.position-Camera.main.transform.position;
-        if(delta.magnitude<2 && Vector3.Dot(delta.normalized,Camera.main.transform.forward)>.75f && Input.GetKeyDown(KeyCode.E))
+        if(delta.magnitude<2 && Vector3.Dot(delta.normalized,Camera.main.transform.forward)>.75f && WorldInteraction.Pressed(this))
             ProtagonistPhone.Instance.SetOpen(true);
     }
 }

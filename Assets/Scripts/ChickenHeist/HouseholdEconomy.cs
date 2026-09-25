@@ -38,6 +38,7 @@ public class HouseholdEconomy : MonoBehaviour
             {
                 Account=JsonUtility.FromJson<HouseholdAccount>(File.ReadAllText(SavePath));
                 if(Account==null || !Account.IsValid())throw new InvalidDataException("Invalid household save");
+                if(Account.truckCages==0){Account.truckCages=1;SaveAccount(SavePath,Account);}
             }
             Ready=true;
         }
@@ -52,8 +53,10 @@ public class HouseholdEconomy : MonoBehaviour
         if(!action(next)){Message="Operacao indisponivel. Confira saldo, estoque e quantidade.";return false;}
         try
         {
+            bool completed=next.CampaignComplete && !next.campaignCelebrated;
+            if(completed){next.campaignCelebrated=true;next.Record("Sitio recuperado: contas quitadas e galinheiro restaurado.");}
             SaveAccount(SavePath,next);
-            Account=next;Message=success;ApplyUpgrades();return true;
+            Account=next;Message=completed?"Voce recuperou o sitio! Contas quitadas e galinheiro restaurado. O vale continua aberto para jogar.":success;ApplyUpgrades();if(completed)HeistGameManager.Instance?.ShowMessage(Message,12);return true;
         }
         catch(Exception e){Message="Nao foi possivel salvar. Nenhum valor foi descontado.";Debug.LogException(e);return false;}
     }
@@ -76,7 +79,7 @@ public class HouseholdEconomy : MonoBehaviour
             if(game.IsMissionTarget(bird)){emptied=false;break;}
         account.RegisterRaid(game.MissionName,chickens,emptied);
     }
-    public bool RestUntilMorning()=>Commit(a=>{a.RestUntilMorning();return true;},"Uma nova manha. Confira as noticias no celular.");
+    public bool RestUntilMorning()=>Commit(a=>{a.RestUntilMorning();return true;},"Uma nova manha. Confira as noticias no tablet.");
     public bool ReadNews()=>!Account.newsUnread || Commit(a=>{a.newsUnread=false;return true;},"Noticiario atualizado.");
     public static void SaveAccount(string path,HouseholdAccount account)
     {
@@ -92,7 +95,7 @@ public class HouseholdEconomy : MonoBehaviour
     public bool RestoreAccount(HouseholdAccount saved)
     {
         if(saved==null || !saved.IsValid())return false;
-        try{SaveAccount(SavePath,saved);Account=saved;Ready=true;ApplyUpgrades();return true;}
+        try{if(saved.truckCages==0)saved.truckCages=1;SaveAccount(SavePath,saved);Account=saved;Ready=true;ApplyUpgrades();return true;}
         catch(Exception e){Message="Nao foi possivel restaurar o progresso.";Debug.LogWarning(e.Message);return false;}
     }
     public void Pay(int id)=>Commit(a=>a.Pay(id),"Conta quitada. Uma preocupacao a menos.");
@@ -117,7 +120,8 @@ public class HouseholdEconomy : MonoBehaviour
     {
         FarmSecurityProgression.Apply();
         var pack=HeistGameManager.Instance?.backpack;
-        if(pack!=null && baseBackpackCapacity>0)pack.capacity=baseBackpackCapacity+(Account.backpackUpgrade?3:0);
+        if(pack!=null)pack.capacity=1;
         if(repairStages!=null)for(int i=0;i<repairStages.Length;i++)if(repairStages[i]!=null)repairStages[i].SetActive(i<Account.repairs);
     }
 }
+

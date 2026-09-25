@@ -41,14 +41,17 @@ public static class BackpackEquipmentTests
             coop=Object.FindObjectsByType<ChickenCoopLockpick>().First(c=>game.IsMissionTarget(c));
             scare=coop.scareChicken;coop.scareChicken=null;
             economy.EquipLockpick(false);float basic=coop.EffectiveSweetSpotWidth;
-            typeof(ChickenCoopLockpick).GetField("sweetSpot",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(coop,.5f);
-            typeof(ChickenCoopLockpick).GetField("pickPosition",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(coop,.5f+basic*1.35f);
-            coop.RestoreOpen(false);coop.SendMessage("TryPick");Check(!coop.IsOpen,"basic tool fails outside normal margin");
+            coop.RestoreOpen(false);coop.SendMessage("BeginChallenge");
+            CoopPressureTests.SolvePiece(coop,basic*1.35f);
+            Check(!coop.IsOpen && coop.PinsSet==0,"basic tool cannot slide outside pressure tolerance");
+            coop.RestoreOpen(false);coop.SendMessage("BeginChallenge");
             economy.EquipLockpick(true);
-            Check(coop.EffectiveSweetSpotWidth>basic && coop.EffectivePickSpeed<coop.pickSpeed,"professional widens margin and slows pin");
-            typeof(ChickenCoopLockpick).GetField("sweetSpot",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(coop,.5f);
-            typeof(ChickenCoopLockpick).GetField("pickPosition",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(coop,.5f+basic*1.35f);
-            coop.SendMessage("TryPick");Check(coop.IsOpen,"same attempt succeeds with professional tool");
+            Check(coop.EffectiveSweetSpotWidth>basic,"professional widens pressure tolerance");
+            for(int pin=0;pin<3;pin++)
+            {
+                CoopPressureTests.SolvePiece(coop,basic*1.35f);
+                Check(coop.IsOpen==(pin==2),"professional tool still requires all three pins: "+pin);
+            }
             // Place only the test player near a real camera, above surrounding fence geometry.
             var cc=game.player.GetComponent<CharacterController>();cc.enabled=false;
             game.player.position=camera.transform.position+Vector3.up*.8f+Vector3.back*1.7f-Vector3.up*1.65f;

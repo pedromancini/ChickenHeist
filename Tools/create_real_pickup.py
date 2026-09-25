@@ -72,8 +72,12 @@ box('Cab floor',(0,.58,.41),(1.63,.1,1.22),paint)
 for side in [-1,1]:
     wheel_panel(side,-2.18,-.27,-1.25,1.10)
     wheel_panel(side,.84,2.16,1.40,1.055)
+    panel('Hood side closure',side,[(.91,.98),(2.17,.96),(2.14,1.065),(1.05,1.15),(.91,1.15)],paint,x=.828,thick=.06)
     box('Bed top rail',(side*.86,1.13,-1.22),(.12,.065,1.98),paint2)
     panel('Door skin',side,[(-.24,.45),(.83,.45),(.94,1.12),(-.24,1.14)],paint)
+    panel('Inner door lining',side,[(-.25,.53),(.91,.53),(1.01,1.18),(-.25,1.20)],trim,x=.824,thick=.035)
+    box('Door sill',(side*.82,.54,.34),(.13,.12,1.25),paint)
+    box('Bed inner wall',(side*.79,.94,-1.22),(.055,.38,1.89),paint)
     # Door outlines and belt line are fine seams, not separate oversized blocks.
     for a,b in [((-.22,.50),(.81,.50)),((.81,.50),(.93,1.12)),((-.22,.50),(-.22,1.80))]:
         beam('Door seam',(side*.892,a[1],a[0]),(side*.892,b[1],b[0]),.009,trim)
@@ -84,7 +88,9 @@ for side in [-1,1]:
     panel('Rear cabin pillar',side,[(-.27,1.10),(-.13,1.10),(-.11,1.89),(-.26,1.88)],paint,x=.82)
     beam('A pillar',(side*.82,1.12,1.035),(side*.755,1.87,.77),.075,paint)
     beam('Roof side rail',(side*.755,1.88,-.20),(side*.755,1.89,.78),.067,paint)
-    mesh('Side window',[(side*.822,1.17,-.115),(side*.819,1.17,.937),(side*.746,1.824,.75),(side*.749,1.824,-.11)],[(0,1,2,3)],glass,'Glass')
+    window=[(side*.822,1.15,-.16),(side*.819,1.15,1.01),(side*.746,1.875,.78),(side*.749,1.875,-.16)]
+    mesh('Side window',window,[(0,1,2,3)],glass,'Glass')
+    for i in range(4):beam('Side window rubber seal',window[i],window[(i+1)%4],.035,trim)
     beam('Mirror stalk',(side*.87,1.25,.87),(side*1.00,1.36,.96),.025,steel)
     box('Mirror housing',(side*1.065,1.41,.96),(.17,.17,.075),trim,.028)
     box('Mirror surface',(side*1.065,1.41,.916),(.145,.14,.008),steel,.02)
@@ -103,13 +109,17 @@ verts=[(-.83,1.08,1.04),(.83,1.08,1.04),(.82,.98,2.17),(-.82,.98,2.17),
 mesh('Tapered hood',verts,[(0,3,2,1),(4,5,6,7),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7)],paint,bevel=.035)
 for x in [-.44,.44]:beam('Hood pressing',(x,1.153,1.16),(x,1.082,2.03),.014,paint2)
 box('Cab back lower',(0,.95,-.25),(1.62,.53,.07),paint)
+box('Cab firewall',(0,.88,1.01),(1.65,.55,.10),trim)
+for side in [-1,1]:box('Rear window side surround',(side*.755,1.54,-.24),(.14,.67,.09),paint)
 box('Cab rear roof header',(0,1.86,-.225),(1.53,.095,.09),paint)
 mesh('Rear glass',[(-.71,1.29,-.262),(.71,1.29,-.262),(.70,1.78,-.232),(-.70,1.78,-.232)],[(0,1,2,3)],glass,'Glass')
 box('Rear window lower frame',(0,1.245,-.245),(1.54,.08,.08),paint)
 box('Roof',(0,1.92,.29),(1.60,.095,1.14),paint,bevel=.055)
 beam('Front windshield upper frame',(-.77,1.86,.78),(.77,1.86,.78),.064,paint)
 beam('Front windshield lower frame',(-.83,1.15,1.03),(.83,1.15,1.03),.055,trim)
-mesh('Windshield',[(-.77,1.20,1.016),(.77,1.20,1.016),(.713,1.813,.794),(-.713,1.813,.794)],[(0,1,2,3)],glass,'Glass')
+windshield=[(-.81,1.17,1.03),(.81,1.17,1.03),(.755,1.86,.78),(-.755,1.86,.78)]
+mesh('Windshield',windshield,[(0,1,2,3)],glass,'Glass')
+for i in range(4):beam('Windshield rubber seal',windshield[i],windshield[(i+1)%4],.032,trim)
 for x in [-.35,.33]:
     beam('Wiper arm',(x,1.175,1.055),(x-.10,1.37,.997),.014,trim)
     beam('Wiper rubber',(x-.26,1.38,.998),(x+.10,1.38,.998),.018,trim)

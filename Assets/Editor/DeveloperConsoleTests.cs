@@ -44,13 +44,13 @@ public static class DeveloperConsoleTests
             Check(!console.ExecuteCommand("/sono -1") && !console.ExecuteCommand("/sono 101"),"invalid alert rejected");
             Check(console.ExecuteCommand("/abrir") && Object.FindObjectsByType<ChickenCoopLockpick>().Where(c=>game.IsMissionTarget(c)).All(c=>c.IsOpen),"open active mission coop");
             Check(console.ExecuteCommand("/fechar") && Object.FindObjectsByType<ChickenCoopLockpick>().Where(c=>game.IsMissionTarget(c)).All(c=>!c.IsOpen),"close active mission coop");
-            Check(console.ExecuteCommand("/mochila 3") && game.backpack.chickensCarried==3,"test inventory set");
+            Check(console.ExecuteCommand("/mochila 1") && game.backpack.chickensCarried==1,"test inventory set");
             int phase=game.MissionFarm;
-            Check(!console.ExecuteCommand("/fase 1") && game.MissionFarm==phase && game.backpack.chickensCarried==3,"phase switch preserves carried loot");
-            Check(!console.ExecuteCommand("/mochila 999") && game.backpack.chickensCarried==3,"inventory capacity enforced");
+            Check(!console.ExecuteCommand("/fase 1") && game.MissionFarm==phase && game.backpack.chickensCarried==1,"phase switch preserves carried loot");
+            Check(!console.ExecuteCommand("/mochila 999") && game.backpack.chickensCarried==1,"inventory capacity enforced");
             Check(console.ExecuteCommand("/mercado") && Object.FindAnyObjectByType<VillageMarket>().PlayerInRange,"market teleport reaches trading range");
             Check(console.ExecuteCommand("/casa") && HouseholdEconomy.Instance.AtHome && game.MissionFarm==phase,"home teleport preserves mission");
-            Check(console.ExecuteCommand("/cancelar") && !game.MissionActive && game.backpack.chickensCarried==3,"cancel preserves inventory without paying out");
+            Check(console.ExecuteCommand("/cancelar") && !game.MissionActive && game.backpack.chickensCarried==1,"cancel preserves inventory without paying out");
             Check(!console.ExecuteCommand("/abrir") && !console.ExecuteCommand("/sono 50"),"mission-only commands guarded");
             Check(console.ExecuteCommand("/mochila 0") && console.ExecuteCommand("/salvar"),"clear inventory and save");
             Check(!console.ExecuteCommand("/qualquer") && !console.ExecuteCommand("/casa extra"),"unknown commands and extra arguments rejected");

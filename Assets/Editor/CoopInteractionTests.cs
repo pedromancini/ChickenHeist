@@ -25,11 +25,15 @@ public static class CoopInteractionTests
                 Check(!coop.TryBeginChallenge() && !coop.ChallengeActive,"free exploration explains required mission without starting it");
                 int index=System.Array.IndexOf(ProtagonistPhone.Instance.farmNames,coop.GetComponentInParent<FarmLayoutInfo>().identity);
                 Check(game.StartMission(index),"phone mission selects padlock owner");
+                var returnZone=Object.FindFirstObjectByType<ExtractionZone>();
+                returnZone.SendMessage("OnTriggerEnter",controller);
+                Check(!returnZone.PlayerInside && !returnZone.TryReturn() && game.MissionActive,"stale return trigger cannot end mission at farm");
                 wall=GameObject.CreatePrimitive(PrimitiveType.Cube);
                 wall.transform.position=Vector3.Lerp(Camera.main.transform.position,coop.InteractionPoint,.5f);wall.transform.localScale=Vector3.one*.5f;
                 Physics.SyncTransforms();Check(!coop.TryBeginChallenge(),"solid obstacle prevents interaction through walls");
                 Object.DestroyImmediate(wall);wall=null;Physics.SyncTransforms();
                 Check(coop.TryBeginChallenge() && ChickenCoopLockpick.Active==coop && !movement.enabled,"real entry method starts challenge and captures movement");
+                Check(!returnZone.TryReturn() && game.MissionActive,"lockpick input cannot end mission");
                 Check(!BackpackPanel.Instance.Open() && !DeveloperConsole.Instance.Open(),"inventory and dev chat cannot steal challenge");
                 coop.SendMessage("EndChallenge");Check(!coop.ChallengeActive && ChickenCoopLockpick.Active==null && movement.enabled,"cancel releases character movement");
             }

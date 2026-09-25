@@ -11,7 +11,7 @@ public class BackpackPanel : MonoBehaviour
     bool open,oldAudio,oldCursor;
     float oldTime;
     CursorLockMode oldLock;
-    string feedback="";
+    string feedback=""; int selected,context=-1; bool pendingSpray;
     GUIStyle heading,label,small,button;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics(){Instance=null;closedFrame=-1;}
@@ -35,16 +35,18 @@ public class BackpackPanel : MonoBehaviour
     void Update()
     {
         if(open && GameMenu.IsOpen){Close();return;}
+        if(pendingSpray && !GameMenu.BlocksInput){pendingSpray=false;Spray();}
         if(Input.GetKeyDown(KeyCode.B)){if(open)Close();else Open();}
         if(open && Input.GetKeyDown(KeyCode.Escape))Close();
-        if(!GameMenu.BlocksInput && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && Input.GetKeyDown(KeyCode.F))Spray();
+        if(!GameMenu.BlocksInput && !OldPickupTruck.IsDriving && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && Input.GetMouseButtonDown(1) && selected==2)Spray();
     }
     void LateUpdate(){if(open){Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}}
     public static bool Spray()
     {
         var game=HeistGameManager.Instance;
-        if(GameMenu.BlocksInput || game==null || game.missionEnded || !game.MissionActive || ProtagonistPhone.IsOpen || VillageMarket.IsOpen ||
+        if(GameMenu.BlocksInput || OldPickupTruck.IsDriving || game==null || game.missionEnded || !game.MissionActive || ProtagonistPhone.IsOpen || VillageMarket.IsOpen ||
             FindObjectsByType<ChickenCoopLockpick>().Any(c=>c.ChallengeActive))return false;
+        if(game.backpack.chickensCarried>0){game.ShowMessage("Guarde a galinha na gaiola para liberar as maos.",2);return false;}
         var target=FindObjectsByType<SecurityCamera>().Where(c=>c.CanPaintNow())
             .OrderBy(c=>(c.transform.position-Camera.main.transform.position).sqrMagnitude).FirstOrDefault();
         if(target==null){game.ShowMessage("Nenhuma camera ao alcance da tinta.",2);return false;}
@@ -73,18 +75,40 @@ public class BackpackPanel : MonoBehaviour
         Fill(new Rect(0,0,690,546),new Color(.04f,.055f,.048f,.98f));
         GUI.Label(new Rect(26,20,420,40),"MOCHILA",heading);
         if(GUI.Button(new Rect(550,22,114,38),"Fechar",button))Close();
-        GUI.Label(new Rect(26,69,630,30),"Galinhas  "+pack.chickensCarried+" / "+pack.capacity+"                         R$ "+account.balance,label);
-        Fill(new Rect(26,109,638,5),new Color(.16f,.21f,.18f));
-        Fill(new Rect(26,109,638*Mathf.Clamp01((float)pack.chickensCarried/Mathf.Max(1,pack.capacity)),5),new Color(.52f,.66f,.47f));
-        GUI.Label(new Rect(26,137,600,26),"EQUIPAMENTOS",small);
-        ToolRow(176,"Lockpick basico","Margem padrao  |  Permanente",!account.professionalEquipped,true,false);
-        ToolRow(264,"Lockpick profissional","Margem de acerto +75%  |  Pino mais lento",account.professionalEquipped,account.professionalLockpick,true);
-        GUI.Label(new Rect(26,364,400,30),"Tinta spray",label);
-        GUI.Label(new Rect(26,395,470,26),"3 aplicacoes por lata  |  60 s por camera",small);
-        GUI.Label(new Rect(505,364,159,30),account.paintUses+" usos",label);
-        GUI.Label(new Rect(26,444,638,28),"Lockpick equipado: "+(account.professionalEquipped?"profissional":"basico"),small);
-        GUI.Label(new Rect(26,488,638,44),feedback,small);
+        GUI.Label(new Rect(26,69,630,30),"Ferramentas e consumiveis  |  R$ "+account.balance,label);
+        string[] names={"Lockpick\nbasico", "Lockpick\nprofissional", "Spray", "Racao", "Reparos"};
+        int[] quantities={1,account.professionalLockpick?1:0,account.paintUses,account.feed,account.boards};
+        int slots=account.backpackUpgrade?9:6;
+        for(int i=0;i<9;i++)
+        {
+            var rect=new Rect(26+(i%3)*212,120+(i/3)*88,196,76);
+            bool owned=i<5 && quantities[i]>0;
+            Fill(rect,selected==i?new Color(.27f,.36f,.23f):new Color(.10f,.13f,.11f));
+            string title=i>=slots?"Bloqueado":owned?names[i]+"  x"+quantities[i]:"Vazio";
+            GUI.Box(rect,title,button);
+            if(i<slots && owned && Event.current.type==EventType.MouseDown && rect.Contains(Event.current.mousePosition))
+            {
+                selected=i;if(Event.current.button==1)context=i;else context=-1;Event.current.Use();
+            }
+        }
+        GUI.Label(new Rect(26,395,638,44),"Clique para selecionar. Botao direito no slot para usar.\nUma galinha por vez, no colo — fora da mochila.",small);
+        if(context>=0)
+        {
+            if(GUI.Button(new Rect(26,451,196,38),"Usar item selecionado",button))UseSelected();
+            if(GUI.Button(new Rect(235,451,130,38),"Cancelar",button))context=-1;
+        }
+        GUI.Label(new Rect(26,498,638,42),feedback,small);
         GUI.enabled=true;GUI.matrix=matrix;GUI.color=color;GUI.depth=depth;
+    }
+    public bool UseSelected()
+    {
+        var economy=HouseholdEconomy.Instance;
+        if(economy==null)return false;
+        context=-1;
+        if(selected==0 || selected==1){bool result=Equip(selected==1);if(result)Close();return result;}
+        if(selected==2){if(economy.Account.paintUses<1)return false;Close();pendingSpray=true;return true;}
+        if(selected==3)economy.UseFeed();else if(selected==4)economy.Repair();
+        feedback=economy.Message;return selected==3 || selected==4;
     }
     void ToolRow(float y,string name,string description,bool equipped,bool owned,bool professional)
     {
