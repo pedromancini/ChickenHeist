@@ -11,6 +11,7 @@ public sealed class ProtagonistArticulation : MonoBehaviour
     public float ContactError {get;private set;}
     public string ActionState {get;private set;}="Idle";
     Transform player,head,neck;
+    float groundOffset;
     PlayerMovement movement;
     HandheldPhone phone;
     readonly Transform[] arms=new Transform[6];
@@ -37,6 +38,8 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         if(head==null || neck==null || System.Array.Exists(arms,b=>b==null)){enabled=false;return;}
         bodyYaw=player.eulerAngles.y;
         standingPosition=transform.localPosition;standingScale=transform.localScale;
+        // A grounded CharacterController rests skinWidth above the ground; standing, the body follows the ground.
+        var controller=player.GetComponent<CharacterController>();groundOffset=controller!=null?controller.skinWidth:0;
         for(int i=0;i<2;i++)grip[i]=new HandGripPose(arms[i*3+2],transform);
         metal=new Material(Shader.Find("Universal Render Pipeline/Lit"));metal.color=new Color(.28f,.3f,.32f);metal.SetFloat("_Metallic",.8f);
         pick=Tool("Gazua",new Vector3(.005f,.005f,.11f));
@@ -88,7 +91,7 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         else if(movement.estaMovendo || Mathf.Abs(Mathf.DeltaAngle(bodyYaw,target))>45)
             bodyYaw=Mathf.SmoothDampAngle(bodyYaw,target,ref yawVelocity,.16f,360,dt);
         transform.rotation=driving?player.rotation:Quaternion.Euler(0,bodyYaw,0);
-        transform.localPosition=Vector3.Lerp(transform.localPosition,standingPosition+(driving?Vector3.up*.50f:Vector3.zero),1-Mathf.Exp(-10*dt));
+        transform.localPosition=Vector3.Lerp(transform.localPosition,standingPosition+(driving?Vector3.up*.50f:Vector3.down*groundOffset),1-Mathf.Exp(-10*dt));
         transform.localScale=Vector3.Lerp(transform.localScale,standingScale*(driving?.90f:1),1-Mathf.Exp(-10*dt));
         Vector3 direction=coop!=null?coop.InteractionPoint-head.position:eyes.forward;
         var local=transform.InverseTransformDirection(direction.normalized);

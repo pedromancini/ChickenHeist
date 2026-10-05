@@ -72,7 +72,7 @@ public static class EliasNativeInstall
             finally{Object.DestroyImmediate(source);}
         }
         log.Add("Baked "+clips.Count+" Elias clips");
-        var material=CastPalette.Material("eliasNative");
+        var material=EliasMaterial();
         void Apply(GameObject root,string where)
         {
             foreach(var body in root.GetComponentsInChildren<Animation>(true).Where(a=>a.transform.Find(ModelChild)!=null).ToArray())
@@ -117,8 +117,11 @@ public static class EliasNativeInstall
         var points=baked.vertices.Select(v=>character.transform.InverseTransformPoint(full.transform.TransformPoint(v))).ToArray();Object.DestroyImmediate(baked);
         int head=Array.FindIndex(full.bones,b=>b.name=="Head"),neck=Array.FindIndex(full.bones,b=>b.name=="Neck");
         var weights=source.boneWeights;
+        // Elias v3 ships the head as its own mesh and closes the neck on the body: nothing is cut, so the collar stays whole.
+        bool cutHead=!File.Exists(Folder+"EliasV3_Palette.png");
         bool Hidden(int i)
         {
+            if(!cutHead)return false;
             // Only the head (and the cap on it) is removed: shoulders, collar and neck stay closed, so looking
             // down never reveals an open garment; the camera near plane handles the rest.
             var w=weights[i];float headWeight=0;
@@ -156,6 +159,21 @@ public static class EliasNativeInstall
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();Debug.Log("FIRST PERSON REBUILT");
     }
 
+    // The playable body keeps the view 22 cm in front of the shoulder line (PlayerFirstPersonView); an earlier
+    // scene rebuild dropped the component, leaving the camera straight above the neck.
+    static void EnsureFirstPersonView(GameObject body)
+    {
+        if(body.GetComponentInParent<PlayerMovement>()!=null && body.GetComponent<PlayerFirstPersonView>()==null)body.AddComponent<PlayerFirstPersonView>();
+    }
+    public static void RestoreFirstPersonView()
+    {
+        var scene=EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);int added=0;
+        foreach(var go in scene.GetRootGameObjects())
+            foreach(var a in go.GetComponentsInChildren<Animation>(true).Where(a=>a.transform.Find(ModelChild)!=null))
+            {bool had=a.GetComponent<PlayerFirstPersonView>()!=null;EnsureFirstPersonView(a.gameObject);if(!had && a.GetComponent<PlayerFirstPersonView>()!=null)added++;}
+        EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);Debug.Log("FIRST PERSON VIEW RESTORED "+added);
+    }
+
     // Serialized bone references on the protagonist components point at the new skeleton by name.
     static void Rebind(GameObject body)
     {
@@ -171,6 +189,21 @@ public static class EliasNativeInstall
         {var root=PrefabUtility.LoadPrefabContents(path);try{Apply(root);PrefabUtility.SaveAsPrefabAsset(root,path);}finally{PrefabUtility.UnloadPrefabContents(root);}}
         var scene=EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);foreach(var go in scene.GetRootGameObjects())Apply(go);
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);Debug.Log("ELIAS REBOUND");
+    }
+
+    // Elias v3 (Tools/SourceArt/ProtagonistV3) ships its own flat palette; earlier builds use the cast atlas.
+    static Material EliasMaterial()
+    {
+        const string palette=Folder+"EliasV3_Palette.png",path=Folder+"EliasV3.mat";
+        if(!File.Exists(palette))return CastPalette.Material("eliasNative");
+        AssetDatabase.ImportAsset(palette,ImportAssetOptions.ForceSynchronousImport);
+        var importer=(TextureImporter)AssetImporter.GetAtPath(palette);
+        if(importer.filterMode!=FilterMode.Point || importer.mipmapEnabled || importer.textureCompression!=TextureImporterCompression.Uncompressed)
+        {importer.filterMode=FilterMode.Point;importer.mipmapEnabled=false;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.SaveAndReimport();}
+        var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+        if(material==null){material=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Elias v3"};AssetDatabase.CreateAsset(material,path);}
+        material.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(palette));material.SetFloat("_Smoothness",.07f);
+        EditorUtility.SetDirty(material);return material;
     }
 
     static void Import(string path,ModelImporterAnimationType type)
@@ -237,6 +270,7 @@ public static class EliasNativeInstall
         foreach(var state in clips.Keys){if(body.GetClip(state)!=null)body.RemoveClip(state);body.AddClip(clips[state],state);}
         body.clip=clips["Idle"];
         Rebind(body.gameObject);
+        EnsureFirstPersonView(body.gameObject);
         clips["Idle"].SampleAnimation(body.gameObject,0);
         // First-person arms and legs are cut from the new body, torso hidden under the camera.
         var full=model.GetComponentsInChildren<SkinnedMeshRenderer>().First(s=>s.name=="ProtagonistBody");
