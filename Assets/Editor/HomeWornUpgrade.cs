@@ -196,7 +196,7 @@ public static class HomeWornUpgrade
             var mats=r.sharedMaterials;
             for(int i=0;i<mats.Length;i++)
             {
-                var m=mats[i];if(m==null)continue;
+                var m=mats[i];if(m==null || m.name.StartsWith("Gasto - "))continue; // already faded on an earlier run
                 if(!cache.TryGetValue(m,out var worn))
                 {
                     string path=MaterialFolder+"/Gasto - "+m.name.Replace("/","_")+".mat";worn=AssetDatabase.LoadAssetAtPath<Material>(path);
