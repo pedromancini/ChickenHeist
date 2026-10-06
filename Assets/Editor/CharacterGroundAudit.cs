@@ -43,7 +43,7 @@ public static class CharacterGroundAudit
     static float Lowest(Transform root)
     {
         float low=float.MaxValue;var mesh=new Mesh();
-        foreach(var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>().Where(s=>s.name!="Corpo em primeira pessoa" && s.enabled))
+        foreach(var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>().Where(s=>!s.name.Contains("em primeira pessoa") && s.enabled))
         {
             skin.BakeMesh(mesh,true);
             foreach(var v in mesh.vertices)low=Mathf.Min(low,skin.transform.TransformPoint(v).y);

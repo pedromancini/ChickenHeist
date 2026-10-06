@@ -58,7 +58,9 @@ public static class EliasV3Review
         if(fp!=null)
         {
             int tris=fp.sharedMesh.triangles.Length/3;
-            Check(fp.enabled && fp.gameObject.activeInHierarchy && fp.gameObject.layer==30,"first-person body enabled on layer 30 (tris "+tris+", bones "+fp.bones.Length+")");
+            var legs=Player.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(s=>s.name=="Pernas em primeira pessoa");
+            Check(legs!=null && legs.gameObject.layer==30,"legs-only first-person copy present on layer 30");
+            Check(fp.gameObject.layer==30 && (fp.enabled || (legs!=null && legs.enabled)),"one first-person copy visible (tris "+tris+", bones "+fp.bones.Length+")");
             Check((eyes.cullingMask & (1<<30))!=0 && (eyes.cullingMask & (1<<31))==0,"player camera renders layer 30 and hides layer 31");
             Check(tris>1000,"first-person body keeps torso, arms and legs");
             Check(fp.sharedMaterial!=null && fp.sharedMaterial.mainTexture!=null,"first-person material has the palette ("+(fp.sharedMaterial!=null && fp.sharedMaterial.mainTexture!=null?fp.sharedMaterial.mainTexture.name:"none")+")");
@@ -86,7 +88,7 @@ public static class EliasV3Review
         var body=player.GetComponentsInChildren<Animation>().First(a=>a.transform.Find("Protagonist_Rigged(Clone)")!=null).transform;
         var moved=new List<(Transform t,Vector3 p,Quaternion r)>();
         var layers=new Dictionary<GameObject,int>();
-        SkinnedMeshRenderer[] Skins(Transform root)=>root.GetComponentsInChildren<SkinnedMeshRenderer>().Where(r=>r.name!="Corpo em primeira pessoa").ToArray();
+        SkinnedMeshRenderer[] Skins(Transform root)=>root.GetComponentsInChildren<SkinnedMeshRenderer>().Where(r=>!r.name.Contains("em primeira pessoa")).ToArray();
         Bounds Measure(Transform root){var skins=Skins(root);var b=skins[0].bounds;foreach(var r in skins)b.Encapsulate(r.bounds);return b;}
         void Layer(Transform root){foreach(var r in Skins(root)){layers[r.gameObject]=r.gameObject.layer;r.gameObject.layer=28;}}
         Layer(body);

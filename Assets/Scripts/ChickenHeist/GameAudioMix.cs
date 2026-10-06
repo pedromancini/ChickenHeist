@@ -75,7 +75,7 @@ public class GameAudioMix : MonoBehaviour
     public AudioClip Clip(string kind)
     {
         if(clips.TryGetValue(kind,out var existing))return existing;
-        const int rate=22050;float duration=kind=="engine"?2:kind=="spray"?1.2f:kind=="starter"?1.5f:kind=="cow"?1.4f:kind=="sleep"?1:.4f;
+        const int rate=22050;float duration=kind=="engine"?2:kind=="spray"?1.2f:kind=="starter"?1.5f:kind=="cow"?1.4f:kind=="sleep"?1:kind=="bell"?1.15f:kind=="creak"?.75f:.4f;
         var data=new float[(int)(duration*rate)];var random=new System.Random(72);float phase=0,previous=0;
         for(int i=0;i<data.Length;i++)
         {
@@ -89,6 +89,12 @@ public class GameAudioMix : MonoBehaviour
             if(kind=="starter")sound=(sound+previous*.2f)*(.25f+.75f*Mathf.Max(0,Mathf.Sin(t*2*Mathf.PI*7)));
             if(kind=="start")sound=Mathf.Sin(2*Mathf.PI*(40*t+90*t*t))*.4f+previous*.12f;
             if(kind=="stall")sound=(Mathf.Sin(2*Mathf.PI*(95*t-80*t*t))*.35f+previous*.18f)*Mathf.Max(0,Mathf.Sin(t*40));
+            // Old doorbell: two-tone buzzer struck by its hammer, cutting out on tired wiring.
+            if(kind=="bell"){float hammer=Mathf.Sin(2*Mathf.PI*31*t)>0?1:.35f;float cut=(t%.41f)<.31f?1:.12f;
+                sound=(Mathf.Sin(2*Mathf.PI*880*t)*.42f+Mathf.Sin(2*Mathf.PI*1176*t)*.28f+previous*.18f)*hammer*cut;envelope=Mathf.Min(1,t*60)*Mathf.Clamp01((duration-t)*8);}
+            // Gate hinge: stick-slip squeal sliding in pitch.
+            if(kind=="creak"){float f=210+130*Mathf.Sin(t*6.5f);float slip=Mathf.Max(0,Mathf.Sin(2*Mathf.PI*19*t));
+                sound=(Mathf.Sin(2*Mathf.PI*f*t)*.38f*slip+previous*.22f)*(.6f+.4f*Mathf.Sin(t*11));envelope=Mathf.Min(1,t*25)*Mathf.Clamp01((duration-t)*5);}
             data[i]=Mathf.Clamp(sound*envelope,-.8f,.8f);
         }
         var clip=AudioClip.Create("Original synthesized "+kind,data.Length,1,rate,false);clip.SetData(data,0);clips[kind]=clip;return clip;

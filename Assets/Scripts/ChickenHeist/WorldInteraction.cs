@@ -30,6 +30,8 @@ public static class WorldInteraction
             else if(item is ChickenCoopLockpick coop){point=coop.InteractionPoint;range=coop.interactionDistance;}
             else if(item is RuralGate gate){point=gate.InteractionPoint;range=3.2f;}
             else if(item is HomeDoor){range=2.6f;point+=Vector3.up;}
+            else if(item is HomeCoopGate coopGate){point=coopGate.InteractionPoint;range=2.4f;}
+            else if(item is HomeDoorbell bell){point=bell.InteractionPoint;range=1.6f;}
             else if(item is HomeNextNight rest){range=rest.distance;}
             else if(item is ReceivedTabletDock tablet){if(!tablet.Available)continue;point=tablet.InteractionPoint;range=2;}
             else if(item is HomePhoneDock){if(HouseholdEconomy.Instance?.Account.introSeen==true)continue;range=2;}

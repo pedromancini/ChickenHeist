@@ -124,7 +124,7 @@ public class HeistGameManager : MonoBehaviour
         messageUntil = Time.time + duration;
     }
 
-    public bool CanDeliverHere => player!=null && DeliveryFlock!=null && Vector3.Distance(player.position,DeliveryFlock.DeliveryPoint)<=2.5f;
+    public bool CanDeliverHere => player!=null && DeliveryFlock!=null && DeliveryFlock.CanReceive(player.position);
     public HomeFlockView DeliveryFlock => HouseholdEconomy.Instance?.home?.GetComponentInChildren<HomeFlockView>();
     public void CompleteMission()
     {
@@ -132,7 +132,7 @@ public class HeistGameManager : MonoBehaviour
         if(backpack==null)return;
         var home=HouseholdEconomy.Instance?.home;
         var flock=home!=null?home.GetComponentInChildren<HomeFlockView>():null;
-        if(player==null || flock==null || Vector3.Distance(player.position,flock.DeliveryPoint)>2.5f){ShowMessage("Leve as galinhas ate a entrada do seu galinheiro para entregar (G).",4);return;}
+        if(player==null || flock==null || !flock.CanReceive(player.position)){ShowMessage("Leve as galinhas ate a portinhola do seu galinheiro (ou entre nele) para soltar (G).",4);return;}
         int cargo=HouseholdEconomy.Instance?.Account.truckChickens??0;
         if(cargo>0 && (OldPickupTruck.Instance==null || Vector3.Distance(OldPickupTruck.Instance.cargoPoint.position,flock.DeliveryPoint)>7))
         {if(backpack.chickensCarried==0){ShowMessage("Traga a caminhonete para perto do galinheiro.",4);return;}cargo=0;}

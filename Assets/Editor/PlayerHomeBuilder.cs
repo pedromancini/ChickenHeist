@@ -85,6 +85,8 @@ public static partial class PlayerHomeBuilder
         if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets/ChickenHeistGenerated","PlayerHome");
         PrefabUtility.SaveAsPrefabAsset(root,folder+"/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
+        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
+        HomeWornUpgrade.Install();
         Capture(root,Output+"/home-front.png",new Vector3(-22,12,-29),new Vector3(0,2,1));
         Capture(root,Output+"/home-yard.png",new Vector3(26,17,-25),new Vector3(1,1,1));
         File.WriteAllText(Output+"/home-notes.txt","Source: MarpaStudio House + OldShed. Exterior home set near the existing player spawn.\nOriginal farms preserved. No new downloads. Interior and economy interactions are not implemented.\nScene: "+scene.path+"\nHome position: "+origin+"\n");
@@ -146,6 +148,8 @@ public static partial class PlayerHomeBuilder
         RuralWorldReview.PersistGeneratedAssets(scene);
         PrefabUtility.SaveAsPrefabAsset(root,"Assets/ChickenHeistGenerated/PlayerHome/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
+        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
+        HomeWornUpgrade.Install();
         Capture(root,Output+"/home-front.png",new Vector3(-22,12,-29),new Vector3(0,2,1));
         Capture(root,Output+"/home-yard.png",new Vector3(26,17,-25),new Vector3(1,1,1));
         Capture(root,Output+"/worn-coop.png",new Vector3(21,5,-14),new Vector3(12,1,-3));

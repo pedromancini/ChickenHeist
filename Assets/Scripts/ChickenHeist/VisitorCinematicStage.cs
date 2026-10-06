@@ -183,7 +183,9 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         eliasSteps.transform.position=elias.position;visitorSteps.transform.position=visitor.position;
         if(line==1)
         {
-            float[] times={.2f,.54f,.88f,2.25f};
+            // The old doorbell stutters first; then the visitor knocks.
+            if(previousLocal<.05f && time>=.05f)HomeDoorbell.Instance?.Ring();
+            float[] times={.75f,1.09f,1.43f,2.8f};
             while(knockIndex<times.Length && time>=times[knockIndex]){effects.PlayOneShot(knock,knockIndex==3?.8f:.6f);knockIndex++;}
         }
         if(walking && edistance>.06f && playedSounds.Add(line*1000+(int)(edistance/.525f)))eliasSteps.PlayOneShot(footstep,.18f);

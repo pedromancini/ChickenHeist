@@ -132,6 +132,8 @@ public static partial class PlayerHomeBuilder
         RuralWorldReview.PersistGeneratedAssets(scene);
         PrefabUtility.SaveAsPrefabAsset(home,"Assets/ChickenHeistGenerated/PlayerHome/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
+        HomeWornUpgrade.Install();
         CaptureInterior();
         Debug.Log("HOME INTERIOR: scene and phone saved.");
     }
@@ -206,6 +208,8 @@ public static partial class PlayerHomeBuilder
         RuralWorldReview.PersistGeneratedAssets(scene);
         PrefabUtility.SaveAsPrefabAsset(home,"Assets/ChickenHeistGenerated/PlayerHome/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
+        HomeWornUpgrade.Install();
         CaptureInterior();HomeInteriorTests.ProbePassage();HomeInteriorTests.Run();
     }
     static void HomeLamp(Transform parent,Vector3 p,Color color,float intensity)

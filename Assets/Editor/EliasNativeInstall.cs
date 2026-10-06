@@ -99,7 +99,8 @@ public static class EliasNativeInstall
             var root=PrefabUtility.LoadPrefabContents(path);
             try
             {
-                foreach(var fp in root.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Corpo em primeira pessoa").ToArray())Object.DestroyImmediate(fp.gameObject);
+                foreach(var fp in root.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Corpo em primeira pessoa" || t.name=="Pernas em primeira pessoa").ToArray())Object.DestroyImmediate(fp.gameObject);
+                foreach(var arms in root.GetComponentsInChildren<FirstPersonArms>(true))Object.DestroyImmediate(arms);
                 foreach(var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(s=>s.name=="ProtagonistBody" || s.name.StartsWith("ProtagonistHead")))skin.gameObject.layer=0;
                 PrefabUtility.SaveAsPrefabAsset(root,path);
             }
@@ -128,22 +129,68 @@ public static class EliasNativeInstall
             if(w.boneIndex0==head)headWeight+=w.weight0;if(w.boneIndex1==head)headWeight+=w.weight1;
             return headWeight>.4f;
         }
-        var copy=new Mesh{name="First person body",indexFormat=source.indexFormat};
-        copy.vertices=source.vertices;copy.normals=source.normals;copy.uv=source.uv;copy.boneWeights=weights;copy.bindposes=source.bindposes;copy.subMeshCount=source.subMeshCount;
-        for(int sub=0;sub<copy.subMeshCount;sub++)
-        {var tri=source.GetTriangles(sub);var keep=new List<int>();for(int i=0;i<tri.Length;i+=3)if(!Hidden(tri[i]) && !Hidden(tri[i+1]) && !Hidden(tri[i+2]))keep.AddRange(new[]{tri[i],tri[i+1],tri[i+2]});copy.SetTriangles(keep,sub);}
-        copy.RecalculateBounds();
-        string path=Folder+"FirstPersonBody.asset";var asset=AssetDatabase.LoadAssetAtPath<Mesh>(path);
-        if(asset==null){AssetDatabase.CreateAsset(copy,path);asset=copy;}
-        else{asset.Clear();asset.vertices=copy.vertices;asset.normals=copy.normals;asset.uv=copy.uv;asset.boneWeights=copy.boneWeights;asset.bindposes=copy.bindposes;asset.subMeshCount=copy.subMeshCount;for(int sub=0;sub<copy.subMeshCount;sub++)asset.SetTriangles(copy.GetTriangles(sub),sub);asset.RecalculateBounds();EditorUtility.SetDirty(asset);Object.DestroyImmediate(copy);}
-        var go=new GameObject("Corpo em primeira pessoa");go.layer=30;go.transform.SetParent(character.transform,false);
-        go.transform.SetPositionAndRotation(full.transform.position,full.transform.rotation);go.transform.localScale=full.transform.lossyScale;
         // Two-sided copy of the body material: the cut at the neckline must not read as a hole.
         string twoSidedPath=Folder+"EliasFirstPerson.mat";var twoSided=AssetDatabase.LoadAssetAtPath<Material>(twoSidedPath);
         if(twoSided==null){twoSided=new Material(full.sharedMaterial){name="Elias first person"};AssetDatabase.CreateAsset(twoSided,twoSidedPath);}
         twoSided.CopyPropertiesFromMaterial(full.sharedMaterial);twoSided.SetFloat("_Cull",0);twoSided.doubleSidedGI=true;EditorUtility.SetDirty(twoSided);
-        var renderer=go.AddComponent<SkinnedMeshRenderer>();renderer.sharedMesh=asset;renderer.bones=full.bones;renderer.rootBone=full.rootBone;renderer.sharedMaterial=twoSided;
-        renderer.updateWhenOffscreen=true;renderer.shadowCastingMode=ShadowCastingMode.Off;
+        SkinnedMeshRenderer Copy(string objectName,string meshName,string path,Func<int,bool> hidden,float capAbove=float.PositiveInfinity)
+        {
+            var stale=character.transform.Find(objectName);if(stale!=null)Object.DestroyImmediate(stale.gameObject);
+            var copy=new Mesh{name=meshName,indexFormat=source.indexFormat};
+            var vertices=source.vertices.ToList();var normals=source.normals.ToList();var uvs=source.uv.ToList();var boneWeights=weights.ToList();
+            var kept=new List<int>[source.subMeshCount];
+            for(int sub=0;sub<source.subMeshCount;sub++)
+            {var tri=source.GetTriangles(sub);var keep=new List<int>();for(int i=0;i<tri.Length;i+=3)if(!hidden(tri[i]) && !hidden(tri[i+1]) && !hidden(tri[i+2]))keep.AddRange(new[]{tri[i],tri[i+1],tri[i+2]});kept[sub]=keep;}
+            if(!float.IsPositiveInfinity(capAbove))
+            {
+                // Close the openings left by the cut (the waist, seen from straight above) with a fan per boundary
+                // loop; vertices are welded by position because flat shading splits them per face.
+                var all=kept.SelectMany(k=>k).ToList();
+                var key=new Dictionary<Vector3Int,int>();int Weld(int i){var p=Vector3Int.RoundToInt(vertices[i]*10000);if(!key.TryGetValue(p,out int w)){w=i;key[p]=i;}return w;}
+                var edges=new Dictionary<(int,int),int>();
+                for(int i=0;i<all.Count;i+=3)for(int e=0;e<3;e++){int x=Weld(all[i+e]),y=Weld(all[i+(e+1)%3]);var k=x<y?(x,y):(y,x);edges[k]=edges.TryGetValue(k,out int n)?n+1:1;}
+                var next=new Dictionary<int,List<int>>();
+                foreach(var kv in edges.Where(kv=>kv.Value==1)){var (x,y)=kv.Key;if(!next.ContainsKey(x))next[x]=new List<int>();if(!next.ContainsKey(y))next[y]=new List<int>();next[x].Add(y);next[y].Add(x);}
+                var seen=new HashSet<int>();
+                foreach(int start in next.Keys.ToList())
+                {
+                    if(seen.Contains(start))continue;
+                    var loop=new List<int>();int prev=-1,cur=start;
+                    while(cur>=0 && !seen.Contains(cur))
+                    {
+                        seen.Add(cur);loop.Add(cur);int nxt=-1;
+                        foreach(int n in next[cur])if(n!=prev && !seen.Contains(n)){nxt=n;break;}
+                        prev=cur;cur=nxt;
+                    }
+                    if(loop.Count<6)continue;
+                    // Height is read in character space (the mesh space may carry the FBX axis conversion).
+                    if(loop.Average(i=>points[i].y)<capAbove)continue;
+                    var centre=loop.Aggregate(Vector3.zero,(acc,i)=>acc+vertices[i])/loop.Count;
+                    int c=vertices.Count;vertices.Add(centre);normals.Add(full.transform.InverseTransformDirection(character.transform.up).normalized);uvs.Add(uvs[loop[0]]);
+                    boneWeights.Add(boneWeights[loop[0]]);
+                    for(int i=0;i<loop.Count;i++){kept[0].AddRange(new[]{c,loop[i],loop[(i+1)%loop.Count]});}
+                }
+            }
+            copy.SetVertices(vertices);copy.SetNormals(normals);copy.SetUVs(0,uvs);copy.boneWeights=boneWeights.ToArray();copy.bindposes=source.bindposes;copy.subMeshCount=source.subMeshCount;
+            for(int sub=0;sub<source.subMeshCount;sub++)copy.SetTriangles(kept[sub],sub);
+            copy.RecalculateBounds();
+            var asset=AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if(asset==null){AssetDatabase.CreateAsset(copy,path);asset=copy;}
+            else{asset.Clear();asset.vertices=copy.vertices;asset.normals=copy.normals;asset.uv=copy.uv;asset.boneWeights=copy.boneWeights;asset.bindposes=copy.bindposes;asset.subMeshCount=copy.subMeshCount;for(int sub=0;sub<copy.subMeshCount;sub++)asset.SetTriangles(copy.GetTriangles(sub),sub);asset.RecalculateBounds();EditorUtility.SetDirty(asset);Object.DestroyImmediate(copy);}
+            var go=new GameObject(objectName);go.layer=30;go.transform.SetParent(character.transform,false);
+            go.transform.SetPositionAndRotation(full.transform.position,full.transform.rotation);go.transform.localScale=full.transform.lossyScale;
+            var renderer=go.AddComponent<SkinnedMeshRenderer>();renderer.sharedMesh=asset;renderer.bones=full.bones;renderer.rootBone=full.rootBone;renderer.sharedMaterial=twoSided;
+            renderer.updateWhenOffscreen=true;renderer.shadowCastingMode=ShadowCastingMode.Off;
+            return renderer;
+        }
+        var whole=Copy("Corpo em primeira pessoa","First person body",Folder+"FirstPersonBody.asset",Hidden);
+        // Legs-only copy: walking, running and standing show hips, legs and boots; the swinging arms would
+        // otherwise pop in at the screen edge as loose hands (FirstPersonArms switches between the two).
+        var legBones=new HashSet<int>(Enumerable.Range(0,full.bones.Length).Where(i=>{var n=full.bones[i].name;return n=="Hips" || n.StartsWith("Thigh") || n.StartsWith("Shin") || n.StartsWith("Foot") || n.StartsWith("Toe");}));
+        bool NotLeg(int i){var w=weights[i];float l=(legBones.Contains(w.boneIndex0)?w.weight0:0)+(legBones.Contains(w.boneIndex1)?w.weight1:0)+(legBones.Contains(w.boneIndex2)?w.weight2:0)+(legBones.Contains(w.boneIndex3)?w.weight3:0);return l<.5f;}
+        var legs=Copy("Pernas em primeira pessoa","First person legs",Folder+"FirstPersonLegs.asset",NotLeg,.75f);
+        var arms=character.GetComponent<FirstPersonArms>();if(arms==null)arms=character.AddComponent<FirstPersonArms>();
+        arms.full=whole;arms.legs=legs;legs.enabled=false;
         full.gameObject.layer=31;
     }
     public static void RebuildFirstPerson()
