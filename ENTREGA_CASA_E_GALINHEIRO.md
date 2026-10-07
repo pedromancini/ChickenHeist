@@ -33,3 +33,13 @@ Nenhuma build nova foi gerada.
 ## Backups
 
 `output/scene-backups/ChickenHeistRuralWorld-before-home-worn.unity`.
+
+## Revisão de assets e erros
+
+- **Campainha atravessando a porta (corrigido):** a caixa do sino e o fio estavam sobre a folha da porta (a dobradiça fica à esquerda e a folha abre para a varanda). A campainha foi refeita inteira à direita do batente: espelho de latão arredondado com aro escuro, botão de baquelite creme que afunda ao ser apertado e parafusos; campainha de sino com base de madeira, bobina, cúpula de latão e martelo que vibra ao tocar; dois fios presos com grampos e fita isolante.
+- **Lanterna da varanda (defeito anterior):** a porta aberta passava pela lanterna; ela foi movida para além do arco da folha.
+- **Portinhola do galinheiro:** a travessa entrava até 3,4 cm no mourão ao girar e a última tábua 0,5 cm no mourão da tranca. Portinhola refeita (quatro tábuas, duas travessas, diagonal, tiras de dobradiça, tramela), com a dobradiça fora do mourão e abertura de 88°.
+- **Varredura de interseções** (`HomeGeometryProbe`, com penetração exata dos colisores): 0 interseções entre o desgaste e os móveis, entre a porta e a campainha/lanterna em qualquer ângulo, e entre a portinhola e o galinheiro.
+- **Saúde do projeto** (`ProjectHealthScan`): 0 scripts ausentes, 0 materiais nulos ou com shader de erro, 0 malhas vazias, 0 áudios sem clipe (cena + 42 prefabs); 0 avisos ou erros numa visita de 30 s à casa, ao galinheiro, à vila e a uma fazenda. Log do executável sem erros.
+- **Desempenho:** as ~230 peças de desgaste são estáticas (static batching).
+- Validação: galinheiro e campainha 16/16, regressão 579/579, abertura 70/70, casa e celular 24/24 + 3/3.

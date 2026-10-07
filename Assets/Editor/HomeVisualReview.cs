@@ -24,6 +24,9 @@ public static class HomeVisualReview
         ("interior-porta",new Vector3(-3.6f,2.2f,6.4f),new Vector3(-3.2f,1.4f,2.4f)),
         ("fachada-porta",new Vector3(-3.0f,1.75f,-1.2f),new Vector3(-3.22f,1.6f,2.3f)),
         ("fachada",new Vector3(-1f,3.2f,-9f),new Vector3(-3f,1.6f,3f)),
+        ("campainha-botao",new Vector3(-2.05f,1.45f,1.75f),new Vector3(-2.17f,1.38f,2.25f)),
+        ("campainha-sino",new Vector3(-1.85f,2.35f,1.6f),new Vector3(-1.98f,2.5f,2.25f)),
+        ("porta-aberta",new Vector3(-1.2f,2.0f,-.6f),new Vector3(-3.6f,1.5f,1.8f)),
         ("galinheiro-frente",new Vector3(11.0f,1.9f,-8.5f),new Vector3(12f,.7f,-3f)),
         ("galinheiro-portinhola",new Vector3(10.4f,1.6f,-6.2f),new Vector3(10.6f,.6f,-5.2f)),
         ("galinheiro-dentro",new Vector3(14.6f,1.7f,-4.9f),new Vector3(11f,.5f,-2.4f)),
@@ -53,6 +56,7 @@ public static class HomeVisualReview
             // hide the player so the body never blocks a view
             var player=HeistGameManager.Instance.player;foreach(var r in player.GetComponentsInChildren<Renderer>())r.forceRenderingOff=true;
             var main=Camera.main;
+            if(Environment.GetEnvironmentVariable("HOME_REVIEW_DOOR_OPEN")=="1")home.GetComponentInChildren<HomeDoor>().RestoreOpen(true);
             foreach(var v in Views)
             {
                 var go=new GameObject("review cam");var cam=go.AddComponent<Camera>();cam.CopyFrom(main);cam.cullingMask=main.cullingMask;

@@ -5,7 +5,8 @@ using UnityEngine;
 public class HomeDoorbell : MonoBehaviour
 {
     public static HomeDoorbell Instance {get;private set;}
-    public Transform button,chime;
+    public Transform button,chime,hammer;
+    Vector3 buttonRest;bool rested;
     public Light porchLight;
     float ringUntil,baseIntensity=-1,cooldown;
     public bool Ringing=>Time.time<ringUntil;
@@ -21,7 +22,9 @@ public class HomeDoorbell : MonoBehaviour
     void Update()
     {
         if(!GameMenu.BlocksInput && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && WorldInteraction.Pressed(this))Ring();
-        if(button!=null)button.localScale=new Vector3(button.localScale.x,button.localScale.y,Ringing?.45f:1f);
+        // the button sinks while held down; the striker hammers the gong
+        if(button!=null){if(!rested){buttonRest=button.localPosition;rested=true;}button.localPosition=buttonRest+(Ringing?new Vector3(0,0,.004f):Vector3.zero);}
+        if(hammer!=null)hammer.localRotation=Ringing?Quaternion.Euler(0,0,Mathf.Sin(Time.time*2*Mathf.PI*31)>0?11:-3):Quaternion.identity;
         if(porchLight!=null)
         {
             if(baseIntensity<0)baseIntensity=porchLight.intensity;

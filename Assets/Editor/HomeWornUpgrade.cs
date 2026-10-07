@@ -219,6 +219,8 @@ public static class HomeWornUpgrade
             string n=r.sharedMaterial.name;
             if(n.StartsWith("Reboco antigo") || n=="Reboco encardido"){r.sharedMaterial=r.name.StartsWith("Forro")?ceilingMat:grime;walls++;}
         }
+        // The wear never moves: static batching folds ~230 small pieces into a handful of draw calls.
+        foreach(Transform t in root.GetComponentsInChildren<Transform>(true))GameObjectUtility.SetStaticEditorFlags(t.gameObject,StaticEditorFlags.BatchingStatic|StaticEditorFlags.ContributeGI);
         log.Add("worn interior pieces "+root.childCount+", furniture renderers faded "+tinted+", plaster surfaces "+walls);
     }
 
@@ -236,33 +238,67 @@ public static class HomeWornUpgrade
     }
 
     // ---------------------------------------------------------------- doorbell beside the front door
+    // Everything stays right of the door frame (frame post ends at x -2.36; the leaf hinges on the left at x -3.96
+    // and swings out over the porch), so nothing sits in the door's path.
     static void Doorbell(Transform home)
     {
         var root=Fresh(home,"Desgaste - campainha velha");
-        Vector3 Wall(Vector3 local,out Vector3 normal)
-        {
-            Vector3 from=home.TransformPoint(new Vector3(local.x,local.y,.6f));normal=-home.forward;
-            foreach(var hit in Physics.RaycastAll(from,home.forward,3f).OrderBy(h=>h.distance))
-            {if(hit.collider.transform.IsChildOf(root))continue;normal=hit.normal;return hit.point;}
-            return home.TransformPoint(new Vector3(local.x,local.y,1.955f));
-        }
-        var plateMat=Mat("Baquelite amarelada",new Color(.66f,.60f,.44f),.3f);
-        var buttonMat=Mat("Botao de latao gasto",new Color(.42f,.33f,.16f),.45f);
-        var boxMat=Mat("Caixa da campainha oxidada",new Color(.30f,.24f,.17f),.2f);
-        var wireMat=Mat("Fio velho da campainha",new Color(.09f,.08f,.07f));
+        float wallZ=2.253f;
+        foreach(var hit in Physics.RaycastAll(home.TransformPoint(new Vector3(-2.1f,1.6f,.4f)),home.forward,3f).OrderBy(h=>h.distance))
+        {if(hit.collider.transform.IsChildOf(root))continue;wallZ=home.InverseTransformPoint(hit.point).z;break;}
+        root.localPosition=new Vector3(0,0,0);root.localRotation=Quaternion.identity;
+        // home-local helpers: a point on the wall face, offset out toward the porch by d
+        Vector3 W(float x,float y,float d)=>new Vector3(x,y,wallZ-d);
+        var brass=Mat("Latao envelhecido",new Color(.46f,.36f,.18f),.45f);
+        var brassDark=Mat("Latao escurecido",new Color(.27f,.21f,.11f),.35f);
+        var ivory=Mat("Baquelite creme",new Color(.74f,.68f,.52f),.4f);
+        var screw=Mat("Parafuso oxidado",new Color(.16f,.14f,.12f),.3f);
+        var baseWood=Mat("Base de madeira da campainha",new Color(.24f,.17f,.11f));
+        var coil=Mat("Bobina preta",new Color(.06f,.06f,.06f),.35f);
+        var gong=Mat("Cupula de latao gasta",new Color(.52f,.40f,.20f),.55f);
+        var wire=Mat("Fio velho da campainha",new Color(.09f,.08f,.07f));
+        var clip=Mat("Grampo de fio",new Color(.55f,.53f,.48f),.2f);
         var tape=Mat("Fita isolante",new Color(.05f,.05f,.06f),.3f);
-        var at=Wall(new Vector3(-2.29f,1.42f,0),out var n);
-        root.position=at+n*.006f;root.rotation=Quaternion.LookRotation(-n,Vector3.up);
-        Piece(root,"Espelho da campainha",Vector3.zero,new Vector3(.075f,.115f,.014f),plateMat);
-        var button=Piece(root,"Botao da campainha",new Vector3(0,.012f,-.012f),new Vector3(.03f,.012f,.03f),buttonMat,new Vector3(90,0,0),PrimitiveType.Cylinder);
-        Piece(root,"Fita isolante no fio",new Vector3(0,.075f,-.004f),new Vector3(.03f,.025f,.012f),tape);
-        var chimeAt=Wall(new Vector3(-2.75f,2.62f,0),out var n2);
-        var chime=Piece(root,"Caixa da campainha",root.InverseTransformPoint(chimeAt+n2*.03f),new Vector3(.12f,.09f,.05f),boxMat);
-        Piece(root,"Sino enferrujado",chime.transform.localPosition+new Vector3(0,-.07f,-.01f),new Vector3(.08f,.04f,.08f),Mat("Sino enferrujado",new Color(.38f,.24f,.12f),.35f),new Vector3(0,0,0),PrimitiveType.Sphere);
-        Line(root,"Fio exposto da campainha",new Vector3(0,.06f,.0f),chime.transform.localPosition+new Vector3(.0f,-.03f,.02f),.006f,wireMat);
-        var bell=root.gameObject.AddComponent<HomeDoorbell>();bell.button=button.transform;bell.chime=chime.transform;
-        bell.porchLight=home.Find("Lampada fraca da varanda")?.GetComponentInChildren<Light>();
-        log.Add("doorbell at "+home.InverseTransformPoint(root.position)+" chime "+home.InverseTransformPoint(chimeAt)+" porch light "+(bell.porchLight!=null));
+        // push button: stadium-shaped brass plate, dark bezel, ivory button, two screws
+        float bx=-2.17f,by=1.38f;
+        var station=new GameObject("Botao da campainha - espelho").transform;station.SetParent(root,false);station.localPosition=W(bx,by,0);
+        Piece(station,"Espelho de latao",new Vector3(0,0,-.006f),new Vector3(.07f,.09f,.012f),brass);
+        Piece(station,"Ponta do espelho",new Vector3(0,.045f,-.006f),new Vector3(.07f,.006f,.07f),brass,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(station,"Ponta do espelho",new Vector3(0,-.045f,-.006f),new Vector3(.07f,.006f,.07f),brass,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(station,"Aro do botao",new Vector3(0,0,-.014f),new Vector3(.042f,.004f,.042f),brassDark,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        var button=Piece(station,"Botao de baquelite",new Vector3(0,0,-.02f),new Vector3(.026f,.007f,.026f),ivory,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(station,"Parafuso",new Vector3(0,.052f,-.013f),new Vector3(.008f,.002f,.008f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(station,"Parafuso",new Vector3(0,-.052f,-.013f),new Vector3(.008f,.002f,.008f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        // bell unit high on the wall, right of the frame: wooden base, coil, brass gong, striker
+        float gx=-1.98f,gy=2.5f;
+        var bell=new GameObject("Campainha de sino").transform;bell.SetParent(root,false);bell.localPosition=W(gx,gy,0);
+        Piece(bell,"Base de madeira",new Vector3(0,0,-.011f),new Vector3(.15f,.21f,.022f),baseWood);
+        Piece(bell,"Parafuso da base",new Vector3(.055f,.085f,-.023f),new Vector3(.01f,.002f,.01f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(bell,"Parafuso da base",new Vector3(-.055f,-.085f,-.023f),new Vector3(.01f,.002f,.01f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(bell,"Bobina do eletroima",new Vector3(0,-.055f,-.042f),new Vector3(.075f,.05f,.04f),coil);
+        Piece(bell,"Bobina enrolada",new Vector3(-.018f,-.055f,-.065f),new Vector3(.024f,.022f,.024f),Mat("Cobre oxidado",new Color(.36f,.20f,.10f),.4f),new Vector3(0,0,90),PrimitiveType.Cylinder);
+        Piece(bell,"Bobina enrolada",new Vector3(.018f,-.055f,-.065f),new Vector3(.024f,.022f,.024f),Mat("Cobre oxidado",new Color(.36f,.20f,.10f),.4f),new Vector3(0,0,90),PrimitiveType.Cylinder);
+        Piece(bell,"Haste da cupula",new Vector3(0,.04f,-.03f),new Vector3(.012f,.016f,.012f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
+        Piece(bell,"Cupula de latao",new Vector3(0,.04f,-.05f),new Vector3(.12f,.12f,.045f),gong,default,PrimitiveType.Sphere);
+        var hammer=new GameObject("Martelo da campainha").transform;hammer.SetParent(bell,false);hammer.localPosition=new Vector3(0,-.03f,-.075f);
+        Piece(hammer,"Haste do martelo",new Vector3(0,.03f,0),new Vector3(.006f,.03f,.006f),screw);
+        Piece(hammer,"Bola do martelo",new Vector3(0,.062f,0),new Vector3(.018f,.018f,.018f),brassDark,default,PrimitiveType.Sphere);
+        // two old wires clipped to the wall, from the coil down to the button (all right of the frame)
+        for(int k=0;k<2;k++)
+        {
+            float o=k*.008f;
+            Line(root,"Fio velho da campainha",W(gx-.03f+o,gy-.1f,.005f),W(-2.1f+o,gy-.25f,.005f),.005f,wire);
+            Line(root,"Fio velho da campainha",W(-2.1f+o,gy-.25f,.005f),W(-2.1f+o,by+.12f,.005f),.005f,wire);
+            Line(root,"Fio velho da campainha",W(-2.1f+o,by+.12f,.005f),W(bx+o*.5f,by+.055f,.005f),.005f,wire);
+        }
+        for(float y=gy-.4f;y>by+.2f;y-=.28f)Piece(root,"Grampo de fio",W(-2.096f,y,.008f),new Vector3(.022f,.01f,.008f),clip);
+        Piece(root,"Fita isolante na emenda",W(-2.096f,by+.3f,.009f),new Vector3(.024f,.03f,.012f),tape);
+        var component=root.gameObject.AddComponent<HomeDoorbell>();component.button=button.transform;component.chime=bell;component.hammer=hammer;
+        component.porchLight=home.Find("Lampada fraca da varanda")?.GetComponentInChildren<Light>();
+        // The porch lantern hung where the opening door passes (37 cm from the hinge): move it past the leaf's sweep.
+        var lantern=home.Find("Lanterna da varanda");
+        if(lantern!=null){lantern.localPosition=new Vector3(-4.56f,lantern.localPosition.y,wallZ-.075f);log.Add("porch lantern moved to "+lantern.localPosition);}
+        log.Add("doorbell button at "+W(bx,by,0)+" bell at "+W(gx,gy,0)+" wall z "+wallZ.ToString("F3"));
     }
 
     // ---------------------------------------------------------------- coop gate
@@ -271,13 +307,28 @@ public static class HomeWornUpgrade
         var coop=home.Find("Galinheiro gasto - Ultimo Recurso");if(coop==null){log.Add("coop not found");return;}
         var gate=coop.Find("Portinhola aberta - dobradica gasta")??coop.Find("Portinhola do galinheiro");
         if(gate==null){log.Add("coop gate not found");return;}
+        // Hinge just off the face of the post (not its centre) and an 88 degree swing: the leaf clears the post and the wire.
         gate.name="Portinhola do galinheiro";gate.localRotation=Quaternion.identity;
-        if(gate.GetComponent<HomeCoopGate>()==null)gate.gameObject.AddComponent<HomeCoopGate>();
-        // a latch block on the post, so the closed gate reads as shut
-        var latch=gate.Find("Tramela de madeira");if(latch!=null)Object.DestroyImmediate(latch.gameObject);
-        var wood=Mat("Madeira da tramela",new Color(.30f,.25f,.18f));
-        var t=GameObject.CreatePrimitive(PrimitiveType.Cube).transform;t.name="Tramela de madeira";Object.DestroyImmediate(t.GetComponent<Collider>());
-        t.SetParent(gate,false);t.localPosition=new Vector3(1.04f,.62f,-.04f);t.localScale=new Vector3(.16f,.05f,.04f);t.GetComponent<Renderer>().sharedMaterial=wood;
+        var hinge=gate.GetComponent<HomeCoopGate>();if(hinge==null)hinge=gate.gameObject.AddComponent<HomeCoopGate>();hinge.openAngle=-88;
+        // Rebuilt leaf with clearances: the opening runs between post faces at x -1.45 and -0.45 (coop space);
+        // the hinge sits 2 cm off the post face and every part stays inside the leaf.
+        gate.localPosition=new Vector3(-1.43f,0,-2.2f);
+        var woods=gate.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).Where(m=>m!=null && !m.name.StartsWith("Madeira da tramela") && !m.name.StartsWith("Ferragem")).Distinct().ToList();
+        if(woods.Count==0)woods.Add(Mat("Madeira da portinhola",new Color(.30f,.26f,.19f)));
+        foreach(Transform child in gate.Cast<Transform>().ToArray())Object.DestroyImmediate(child.gameObject);
+        var iron=Mat("Ferragem enferrujada",new Color(.20f,.14f,.10f),.25f);var latchWood=Mat("Madeira da tramela",new Color(.30f,.25f,.18f));
+        GameObject Solid(string name,Vector3 p,Vector3 size,Material m,Vector3 euler=default)
+        {var go=GameObject.CreatePrimitive(PrimitiveType.Cube);go.name=name;go.transform.SetParent(gate,false);go.transform.localPosition=p;go.transform.localScale=size;go.transform.localRotation=Quaternion.Euler(euler);go.GetComponent<Renderer>().sharedMaterial=m;return go;}
+        float[] xs={.12f,.37f,.62f,.86f};float[] hs={1.0f,.96f,1.02f,.94f};
+        for(int i=0;i<4;i++)Solid("Tabua da portinhola",new Vector3(xs[i],.08f+hs[i]*.5f,0),new Vector3(.22f,hs[i],.035f),woods[i%woods.Count],new Vector3(0,0,i==2?1.5f:0));
+        Solid("Travessa de cima",new Vector3(.49f,.86f,-.032f),new Vector3(.9f,.09f,.03f),woods[(1)%woods.Count]);
+        Solid("Travessa de baixo",new Vector3(.49f,.24f,-.032f),new Vector3(.9f,.09f,.03f),woods[(2)%woods.Count]);
+        var a=new Vector3(.14f,.3f,-.032f);var b=new Vector3(.84f,.8f,-.032f);
+        var brace=Solid("Travessa diagonal",(a+b)*.5f,new Vector3(.08f,Vector3.Distance(a,b),.028f),woods[(3)%woods.Count]);brace.transform.localRotation=Quaternion.FromToRotation(Vector3.up,b-a);
+        foreach(float y in new[]{.24f,.86f})
+        {var strap=Solid("Tira de dobradica",new Vector3(.17f,y,-.05f),new Vector3(.3f,.035f,.006f),iron);Object.DestroyImmediate(strap.GetComponent<Collider>());}
+        var latch=Solid("Tramela de madeira",new Vector3(1.0f,.58f,-.055f),new Vector3(.14f,.045f,.03f),latchWood,new Vector3(0,0,8));Object.DestroyImmediate(latch.GetComponent<Collider>());
+        var nail=Solid("Prego da tramela",new Vector3(.95f,.58f,-.072f),new Vector3(.012f,.012f,.01f),iron);Object.DestroyImmediate(nail.GetComponent<Collider>());
         int colliders=gate.GetComponentsInChildren<Collider>().Length;
         log.Add("coop gate ready at "+coop.InverseTransformPoint(gate.position)+" colliders "+colliders);
     }
