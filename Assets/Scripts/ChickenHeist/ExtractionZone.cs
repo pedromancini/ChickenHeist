@@ -40,7 +40,7 @@ public class ExtractionZone : MonoBehaviour
     {
         var game=HeistGameManager.Instance;
         if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || OldPickupTruck.IsDriving || game==null || !game.CanDeliverHere)return;
-        GUI.Box(new Rect(Screen.width*.5f-200,Screen.height*.72f,400,32),"G | Entregar galinhas no galinheiro");
+        GUI.skin=UITheme.Skin;UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.70f,"G","Soltar galinhas no galinheiro");
     }
     private void OnTriggerEnter(Collider other)
     {

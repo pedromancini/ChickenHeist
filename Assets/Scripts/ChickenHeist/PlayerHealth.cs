@@ -31,10 +31,12 @@ public class PlayerHealth : MonoBehaviour
     {
         var game=HeistGameManager.Instance;
         if(game==null || GameMenu.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || !game.MissionActive && Current>=Maximum)return;
-        Color old=GUI.color;float width=Mathf.Min(220,Screen.width*.28f);
-        GUI.color=new Color(.12f,.08f,.07f,.85f);GUI.DrawTexture(new Rect(24,160,width,7),Texture2D.whiteTexture);
-        GUI.color=Injured?new Color(.95f,.31f,.22f):new Color(.62f,.81f,.61f);GUI.DrawTexture(new Rect(24,160,width*Current/Maximum,7),Texture2D.whiteTexture);
-        GUI.color=old;GUI.Label(new Rect(24,172,310,32),"Vida "+Mathf.CeilToInt(Current)+" / 100"+(Injured?"  ·  Ferido — mancando":""));
+        GUI.skin=UITheme.Skin;Color old=GUI.color;float s=UITheme.Scale;
+        var card=ChickenHeistHUD.MissionCard;var r=new Rect(card.x,card.yMax+UITheme.Size(8),UITheme.Size(260),UITheme.Size(50));UITheme.Panel(r,UITheme.PanelSoft);
+        GUI.Label(new Rect(r.x+14*s,r.y+6*s,r.width-28*s,20*s),"Vida",UITheme.Style("hudSmall"));
+        GUI.Label(new Rect(r.x+14*s,r.y+6*s,r.width-28*s,20*s),Injured?"Ferido — mancando":Mathf.CeilToInt(Current)+" / 100",
+            new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.UpperRight,normal={textColor=Injured?UITheme.Danger:UITheme.Muted}});
+        UITheme.Meter(new Rect(r.x+14*s,r.y+31*s,r.width-28*s,8*s),Current/Maximum,Injured?UITheme.Danger:UITheme.Good);
         float flash=Mathf.Clamp01(1-(Time.time-damageTime)/.7f)*.35f;
         if(flash>0){GUI.color=new Color(.8f,.02f,.01f,flash);GUI.DrawTexture(new Rect(0,0,Screen.width,12),Texture2D.whiteTexture);GUI.DrawTexture(new Rect(0,Screen.height-12,Screen.width,12),Texture2D.whiteTexture);GUI.color=old;}
     }

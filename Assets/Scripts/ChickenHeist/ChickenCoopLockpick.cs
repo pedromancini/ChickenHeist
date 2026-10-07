@@ -127,19 +127,24 @@ public class ChickenCoopLockpick : MonoBehaviour
         if(GameMenu.IsOpen || DeveloperConsole.IsOpen || BackpackPanel.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || Scare?.IsActive==true)return;
         if(!ChallengeActive)
         {
-            if(Active==null && CanReachLock())GUI.Box(new Rect((Screen.width-360)*.5f,Screen.height*.8f,360,42),"E  |  Inspecionar trinco");
+            if(Active==null && CanReachLock()){GUI.skin=UITheme.Skin;UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.78f,"E","Inspecionar trinco");}
             return;
         }
-        int depth=GUI.depth;GUI.depth=-100;Color oldColor=GUI.color;
-        float width=Mathf.Min(680,Screen.width-32);float x=(Screen.width-width)*.5f,y=Screen.height-126;
-        GUI.color=new Color(.035f,.035f,.03f,1);GUI.DrawTexture(new Rect(x,y,width,110),Texture2D.whiteTexture);GUI.color=Color.white;
-        var label=new GUIStyle(GUI.skin.label){fontSize=Mathf.Clamp(Screen.width/70,13,18),alignment=TextAnchor.MiddleCenter,wordWrap=true};
+        int depth=GUI.depth;GUI.depth=-100;Color oldColor=GUI.color;GUI.skin=UITheme.Skin;
+        float width=Mathf.Min(UITheme.Size(700),Screen.width-32);float x=(Screen.width-width)*.5f,y=Screen.height-UITheme.Size(170);
+        UITheme.Panel(new Rect(x,y-UITheme.Size(10),width,UITheme.Size(160)));
+        var label=new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.MiddleCenter,wordWrap=true};
         string state=Latch.Stress>.65f?"RANGENDO — solte ESPAÇO":Latch.CanSlide(Professional)?"CEDENDO — mantenha a pressão":Latch.HasSlack?"COM FOLGA — ajuste a pressão":"PRESA — experimente outra peça";
-        GUI.Label(new Rect(x+10,y+6,width-20,28),"PEÇA "+(Latch.Selected+1)+" / 3    •    "+state,label);
-        GUI.color=new Color(.2f,.2f,.18f);GUI.DrawTexture(new Rect(x+24,y+44,width-48,6),Texture2D.whiteTexture);
-        GUI.color=Color.Lerp(new Color(.85f,.69f,.36f),new Color(.95f,.23f,.13f),Latch.Stress);GUI.DrawTexture(new Rect(x+24,y+44,(width-48)*Latch.Pressure,6),Texture2D.whiteTexture);GUI.color=Color.white;
-        GUI.Label(new Rect(x+10,y+55,width-20,23),"Pressão "+Mathf.RoundToInt(Latch.Pressure*100)+"%    |    "+PinsSet+" de 3 peças liberadas",label);
-        GUI.Label(new Rect(x+10,y+80,width-20,24),"1 / 2 / 3  peça     W / S  pressão     ESPAÇO  deslizar     ESC  sair",label);
+        float s=UITheme.Scale;
+        GUI.Label(new Rect(x+10,y,width-20,28*s),"PEÇA "+(Latch.Selected+1)+" / 3    •    "+state,new GUIStyle(label){normal={textColor=Latch.Stress>.65f?UITheme.Danger:UITheme.Ink}});
+        UITheme.Meter(new Rect(x+24*s,y+34*s,width-48*s,10*s),Latch.Pressure,Color.Lerp(UITheme.Accent,UITheme.Danger,Latch.Stress));
+        for(int pin=0;pin<3;pin++)UITheme.Panel(new Rect(Screen.width*.5f-40*s+pin*28*s,y+52*s,20*s,20*s),pin<PinsSet?UITheme.Good:new Color(.12f,.10f,.08f,.95f),pin==Latch.Selected?UITheme.Accent:UITheme.Edge,5);
+        GUI.Label(new Rect(x+10,y+74*s,width-20,22*s),"Pressão "+Mathf.RoundToInt(Latch.Pressure*100)+"%   ·   "+PinsSet+" de 3 peças liberadas",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleCenter});
+        var keys=new[]{"1 2 3","Peça","W/S","Pressão","Espaço","Deslizar","Esc","Sair"};
+        var keyStyle=UITheme.Style("key");var text=new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleLeft,normal={textColor=UITheme.Ink}};
+        float total=0;for(int i=0;i<keys.Length;i+=2)total+=keyStyle.CalcSize(new GUIContent(keys[i])).x+12*s+8*s+text.CalcSize(new GUIContent(keys[i+1])).x+18*s;
+        float cx=Screen.width*.5f-total*.5f,by=y+100*s;
+        for(int i=0;i<keys.Length;i+=2){float kw=keyStyle.CalcSize(new GUIContent(keys[i])).x+12*s;GUI.Label(new Rect(cx,by+6*s,kw,26*s),keys[i],keyStyle);cx+=kw+8*s;float tw=text.CalcSize(new GUIContent(keys[i+1])).x;GUI.Label(new Rect(cx,by,tw+4,40*s),keys[i+1],text);cx+=tw+18*s;}
         GUI.color=oldColor;GUI.depth=depth;
     }
 }

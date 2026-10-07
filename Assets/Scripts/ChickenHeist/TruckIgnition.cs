@@ -44,12 +44,15 @@ public class TruckIgnition : MonoBehaviour
     void OnGUI()
     {
         if(!truck.driving || GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || EngineRunning)return;
-        if(!Active){GUI.Box(new Rect(Screen.width*.5f-230,Screen.height*.62f,460,48),"MOTOR DESLIGADO | E iniciar partida | F sair");return;}
-        float x=Screen.width*.5f-230,y=Screen.height*.6f;
-        GUI.Box(new Rect(x,y,460,100),"PARTIDA | ESPACO na faixa verde | Acertos "+Hits+"/2");
-        GUI.Box(new Rect(x+20,y+40,420,20),"");var c=GUI.color;GUI.color=Color.green;
-        GUI.DrawTexture(new Rect(x+20+(Target-.085f)*420,y+40,.17f*420,20),Texture2D.whiteTexture);
-        GUI.color=Color.yellow;GUI.DrawTexture(new Rect(x+20+CursorPosition*420-3,y+35,6,30),Texture2D.whiteTexture);GUI.color=c;
-        GUI.Label(new Rect(x+20,y+73,420,24),"Errou: o motor nao liga. ESC cancela.");
+        GUI.skin=UITheme.Skin;
+        if(!Active){UITheme.HintBar(Screen.height*.62f,"Motor desligado","E","Dar partida","F","Sair");return;}
+        float s=UITheme.Scale,w=UITheme.Size(480),h=UITheme.Size(128),x=(Screen.width-w)*.5f,y=Screen.height*.58f;
+        UITheme.Panel(new Rect(x,y,w,h));
+        GUI.Label(new Rect(x+16*s,y+10*s,w-32*s,24*s),"PARTIDA",UITheme.Style("caption"));
+        GUI.Label(new Rect(x+16*s,y+10*s,w-32*s,24*s),"Acertos "+Hits+" / 2",new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.UpperRight});
+        var bar=new Rect(x+16*s,y+42*s,w-32*s,26*s);UITheme.Panel(bar,new Color(.02f,.02f,.015f,.9f),UITheme.Edge,6);
+        UITheme.Panel(new Rect(bar.x+(Target-.085f)*bar.width,bar.y+3*s,.17f*bar.width,bar.height-6*s),new Color(.36f,.62f,.30f),new Color(.58f,.85f,.45f),4);
+        UITheme.Panel(new Rect(bar.x+CursorPosition*bar.width-3*s,bar.y-6*s,6*s,bar.height+12*s),UITheme.Accent,new Color(1,.9f,.6f),3);
+        GUI.Label(new Rect(x+16*s,y+78*s,w-32*s,40*s),"<b>Espaço</b> quando a agulha estiver na faixa verde  ·  errar afoga o motor  ·  <b>Esc</b> cancela",new GUIStyle(UITheme.Style("small")){alignment=TextAnchor.MiddleCenter});
     }
 }

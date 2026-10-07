@@ -227,19 +227,28 @@ public class StoryDirector : MonoBehaviour
 
         GUI.color=Color.black;GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height*(vision?.10f:.08f)),Texture2D.whiteTexture);GUI.DrawTexture(new Rect(0,Screen.height*(vision?.78f:.82f),Screen.width,Screen.height*(vision?.22f:.18f)),Texture2D.whiteTexture);
 
-        GUI.color=Color.white;var style=new GUIStyle(GUI.skin.label){fontSize=Mathf.Clamp(Screen.height/35,16,30),wordWrap=true,alignment=TextAnchor.MiddleCenter};
-
-        if(!string.IsNullOrEmpty(Texts[line]))GUI.Label(new Rect(Screen.width*.1f,Screen.height*(vision?.8f:.835f),Screen.width*.8f,Screen.height*.12f),Speakers[line].ToUpperInvariant()+"\n"+Texts[line],style);
-        if(!vision && line==0)GUI.Label(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.5f,60),"UMA ENTREGA",new GUIStyle(style){alignment=TextAnchor.MiddleLeft,fontSize=28});
-
-        GUI.Label(new Rect(Screen.width-410,16,390,30),"ESC — pausar  |  Segure ESPAÇO — pular",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleRight,fontSize=14});
-        if(skipHeld>0){GUI.color=new Color(.85f,.72f,.48f);GUI.DrawTexture(new Rect(Screen.width-200,46,180*Mathf.Clamp01(skipHeld/.9f),3),Texture2D.whiteTexture);GUI.color=Color.white;}
+        GUI.color=Color.white;GUI.skin=UITheme.Skin;
+        var style=new GUIStyle(UITheme.Style("body")){fontSize=Mathf.Clamp(Screen.height/34,17,32),wordWrap=true,alignment=TextAnchor.UpperCenter};
+        if(!string.IsNullOrEmpty(Texts[line]))
+        {
+            float top=Screen.height*(vision?.80f:.835f);
+            GUI.Label(new Rect(Screen.width*.1f,top,Screen.width*.8f,UITheme.Size(24)),Speakers[line].ToUpperInvariant(),new GUIStyle(UITheme.Style("caption")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(15),normal={textColor=UITheme.Accent}});
+            UITheme.Shadowed(new Rect(Screen.width*.1f,top+UITheme.Size(24),Screen.width*.8f,Screen.height*.11f),Texts[line],style);
+        }
+        if(!vision && line==0)UITheme.Shadowed(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.6f,UITheme.Size(70)),"Uma entrega",new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(46)});
+        var hint=new Rect(Screen.width-UITheme.Size(380),UITheme.Size(14),UITheme.Size(360),UITheme.Size(34));
+        GUI.Label(new Rect(hint.x,hint.y+UITheme.Size(4),UITheme.Size(44),UITheme.Size(26)),"Esc",UITheme.Style("key"));
+        GUI.Label(new Rect(hint.x+UITheme.Size(52),hint.y,UITheme.Size(90),hint.height),"pausar",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleLeft});
+        GUI.Label(new Rect(hint.x+UITheme.Size(140),hint.y+UITheme.Size(4),UITheme.Size(70),UITheme.Size(26)),"Espaço",UITheme.Style("key"));
+        GUI.Label(new Rect(hint.x+UITheme.Size(218),hint.y,UITheme.Size(150),hint.height),"segure para pular",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleLeft});
+        if(skipHeld>0)UITheme.Meter(new Rect(hint.x+UITheme.Size(140),hint.yMax+UITheme.Size(4),UITheme.Size(210),UITheme.Size(6)),Mathf.Clamp01(skipHeld/.9f),UITheme.Accent);
         if(Paused)
         {
             GUI.color=new Color(0,0,0,.65f);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);GUI.color=Color.white;
-            GUI.Label(new Rect(0,Screen.height*.32f,Screen.width,45),"CENA PAUSADA",style);
-            if(GUI.Button(new Rect((Screen.width-240)/2,Screen.height*.46f,240,42),"Continuar"))SetPaused(false);
-            if(GUI.Button(new Rect((Screen.width-240)/2,Screen.height*.46f+54,240,42),"Pular cena"))Complete();
+            GUI.Label(new Rect(0,Screen.height*.30f,Screen.width,UITheme.Size(60)),"Cena pausada",new GUIStyle(UITheme.Style("title")){alignment=TextAnchor.MiddleCenter});
+            float bw=UITheme.Size(260),bh=UITheme.Size(50);
+            if(GUI.Button(new Rect((Screen.width-bw)/2,Screen.height*.46f,bw,bh),"Continuar",UITheme.Style("primary")))SetPaused(false);
+            if(GUI.Button(new Rect((Screen.width-bw)/2,Screen.height*.46f+bh+UITheme.Size(12),bw,bh),"Pular cena"))Complete();
         }
         GUI.color=color;GUI.depth=depth;
 

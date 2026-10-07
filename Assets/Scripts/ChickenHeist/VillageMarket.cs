@@ -15,7 +15,6 @@ public class VillageMarket : MonoBehaviour
     bool backpack=true;
     string feedback="Pago R$ 45 por galinha. Sem perguntas.";
     CursorLockMode previousLock;bool previousCursor;
-    GUIStyle label,title,button;
     void Update()
     {
         if(GameMenu.BlocksInput)return;
@@ -52,48 +51,46 @@ public class VillageMarket : MonoBehaviour
     }
     void OnGUI()
     {
-        if(GameMenu.IsOpen)return;
-        if(!ownsPanel)
-        {
-            if(PlayerInRange && !ProtagonistPhone.IsOpen)
-                GUI.Box(new Rect(Screen.width*.5f-135,Screen.height*.75f,270,34),"E  |  Conversar com o comerciante");
-            return;
-        }
+        // The "E" prompt for the counter comes from InteractionFocusHUD; this only draws the open panel.
+        if(GameMenu.IsOpen || !ownsPanel)return;
         var economy=HouseholdEconomy.Instance;if(economy==null)return;
-        if(label==null)
-        {
-            label=new GUIStyle(GUI.skin.label){fontSize=18,wordWrap=true};
-            title=new GUIStyle(label){fontSize=26,fontStyle=FontStyle.Bold};
-            button=new GUIStyle(GUI.skin.button){fontSize=17,wordWrap=true,padding=new RectOffset(12,12,12,12)};
-        }
-        Matrix4x4 previous=GUI.matrix;
-        float scale=Mathf.Min(1f,Screen.width/690f,Screen.height/650f);
-        GUI.matrix=Matrix4x4.TRS(new Vector3((Screen.width-620*scale)*.5f,(Screen.height-580*scale)*.5f),Quaternion.identity,Vector3.one*scale);
-        Color previousColor=GUI.color;
-        GUI.color=new Color(.045f,.06f,.052f,.97f);
-        GUI.DrawTexture(new Rect(0,0,620,580),Texture2D.whiteTexture);
-        GUI.color=previousColor;
-        GUI.Box(new Rect(0,0,620,580),GUIContent.none);
-        GUILayout.BeginArea(new Rect(24,20,572,540));
-        GUILayout.BeginHorizontal();GUILayout.Label("ENTREPOSTO DA MATA",title);GUILayout.FlexibleSpace();
-        if(GUILayout.Button("Fechar",button,GUILayout.Width(90)))Close();GUILayout.EndHorizontal();
-        GUILayout.Label("Seu Anselmo   |   Saldo: R$ "+economy.Account.balance,label);
-        tab=GUILayout.Toolbar(tab,new[]{"Vender galinhas","Suprimentos"},button);GUILayout.Space(18);
+        GUI.skin=UITheme.Skin;
+        var label=UITheme.Style("body");var caption=UITheme.Style("caption");var button=UITheme.Skin.button;var tabStyle=UITheme.Style("tab");var primary=UITheme.Style("primary");
+        float w=Mathf.Min(UITheme.Size(640),Screen.width-UITheme.Size(40)),h=Mathf.Min(UITheme.Size(600),Screen.height-UITheme.Size(40));
+        var panel=new Rect((Screen.width-w)*.5f,(Screen.height-h)*.5f,w,h);
+        UITheme.Panel(panel,UITheme.PanelFill,UITheme.Edge,16);
+        float pad=UITheme.Size(28);
+        GUILayout.BeginArea(new Rect(panel.x+pad,panel.y+UITheme.Size(22),panel.width-pad*2,panel.height-UITheme.Size(44)));
+        GUILayout.BeginHorizontal();
+        GUILayout.BeginVertical();
+        GUILayout.Label("Entreposto da Mata",UITheme.Style("heading"));
+        GUILayout.Label("Seu Anselmo  ·  compra sem perguntas",UITheme.Style("subtitle"));
+        GUILayout.EndVertical();GUILayout.FlexibleSpace();
+        if(GUILayout.Button("Fechar",button,GUILayout.Width(UITheme.Size(100))))Close();GUILayout.EndHorizontal();
+        GUILayout.Space(UITheme.Size(6));
+        GUILayout.Label("SALDO  R$ "+economy.Account.balance+",00",new GUIStyle(caption){normal={textColor=UITheme.Accent}});
+        GUILayout.Space(UITheme.Size(10));
+        tab=GUILayout.Toolbar(tab,new[]{"Vender galinhas","Suprimentos"},tabStyle,GUILayout.Height(UITheme.Size(44)));GUILayout.Space(UITheme.Size(18));
         if(tab==0)
         {
-            int selected=GUILayout.Toolbar(backpack?0:1,new[]{"No colo","Retirada no sitio"},button);
+            GUILayout.Label("DE ONDE SAEM AS GALINHAS",caption);
+            int selected=GUILayout.Toolbar(backpack?0:1,new[]{"No colo","Retirada no sítio"},tabStyle,GUILayout.Height(UITheme.Size(40)));
             if(backpack!=(selected==0)){backpack=selected==0;quantity=1;}
             int available=backpack?HeistGameManager.Instance.backpack.chickensCarried:economy.Account.flock;
-            GUILayout.Label("Disponiveis: "+available+"   |   R$ 45 por galinha",label);
+            GUILayout.Space(UITheme.Size(8));
+            GUILayout.Label("Disponíveis: "+available+"  ·  R$ 45 por galinha",label);
             quantity=Mathf.Clamp(quantity,1,Mathf.Max(1,available));
+            GUILayout.Space(UITheme.Size(6));
             GUILayout.BeginHorizontal();
-            if(GUILayout.Button("-",button,GUILayout.Width(50)))quantity=Mathf.Max(1,quantity-1);
-            GUILayout.Label(quantity.ToString(),title,GUILayout.Width(60));
-            if(GUILayout.Button("+",button,GUILayout.Width(50)))quantity=Mathf.Min(Mathf.Max(1,available),quantity+1);
-            if(GUILayout.Button("Todas",button))quantity=Mathf.Max(1,available);
-            GUILayout.EndHorizontal();GUILayout.Space(12);
+            float cell=UITheme.Size(48);
+            if(GUILayout.Button("−",tabStyle,GUILayout.Width(cell),GUILayout.Height(cell)))quantity=Mathf.Max(1,quantity-1);
+            GUILayout.Label(quantity.ToString(),new GUIStyle(UITheme.Style("heading")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(30)},GUILayout.Width(UITheme.Size(70)),GUILayout.Height(cell));
+            if(GUILayout.Button("+",tabStyle,GUILayout.Width(cell),GUILayout.Height(cell)))quantity=Mathf.Min(Mathf.Max(1,available),quantity+1);
+            GUILayout.Space(UITheme.Size(10));
+            if(GUILayout.Button("Todas",tabStyle,GUILayout.Width(UITheme.Size(100)),GUILayout.Height(cell)))quantity=Mathf.Max(1,available);
+            GUILayout.FlexibleSpace();GUILayout.EndHorizontal();GUILayout.Space(UITheme.Size(14));
             GUI.enabled=available>0 && economy.Ready;
-            if(GUILayout.Button("Confirmar venda  |  R$ "+quantity*45,button))Sell(quantity,backpack);
+            if(GUILayout.Button("Confirmar venda  ·  R$ "+quantity*45,primary,GUILayout.Height(UITheme.Size(50))))Sell(quantity,backpack);
             GUI.enabled=true;
         }
         else
@@ -101,12 +98,16 @@ public class VillageMarket : MonoBehaviour
             for(int i=0;i<HouseholdAccount.ProductCount;i++)
             {
                 if(i==2)continue;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(HouseholdAccount.ProductName(i),new GUIStyle(label){alignment=TextAnchor.MiddleLeft},GUILayout.Height(UITheme.Size(44)));GUILayout.FlexibleSpace();
+                GUILayout.Label("R$ "+HouseholdAccount.ProductPrice(i),new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.MiddleRight,normal={textColor=UITheme.Accent}},GUILayout.Height(UITheme.Size(44)));GUILayout.Space(UITheme.Size(12));
                 GUI.enabled=economy.Ready && economy.Account.CanBuy(i);
-                if(GUILayout.Button("Comprar "+HouseholdAccount.ProductName(i)+"  |  R$ "+HouseholdAccount.ProductPrice(i),button)){economy.Buy(i);feedback=economy.Message;merchant?.Gesture();}
+                if(GUILayout.Button("Comprar",button,GUILayout.Width(UITheme.Size(120)),GUILayout.Height(UITheme.Size(44)))){economy.Buy(i);feedback=economy.Message;merchant?.Gesture();}
+                GUI.enabled=true;
+                GUILayout.EndHorizontal();
             }
-            GUI.enabled=true;
         }
-        GUILayout.Space(22);GUILayout.Label(feedback,label);
-        GUILayout.EndArea();GUI.matrix=previous;
+        GUILayout.FlexibleSpace();GUILayout.Label(feedback,UITheme.Style("small"));
+        GUILayout.EndArea();
     }
 }

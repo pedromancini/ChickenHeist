@@ -123,9 +123,20 @@ public class OldPickupTruck : MonoBehaviour
     void OnGUI()
     {
         if(GameMenu.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || Player==null)return;
-        string prompt=driving?"W/S acelerar e re  |  A/D virar  |  ESPACO frear  |  F sair\n"+Mathf.Abs(Speed*3.6f).ToString("0")+" km/h":
-            NearCargo?"E colocar galinha  |  R retirar"+(HeistGameManager.Instance.CanDeliverHere?"  |  G entregar no galinheiro":"")+"\nGaiolas: "+HouseholdEconomy.Instance.Account.truckCages+"/4  |  Galinhas: "+HouseholdEconomy.Instance.Account.truckChickens+"/"+HouseholdEconomy.Instance.Account.TruckCapacity:
-            Vector3.Distance(Player.position,seat.position)<3?"F  |  Dirigir a velha caminhonete":"";
-        if(prompt.Length>0)GUI.Box(new Rect(Screen.width*.5f-270,Screen.height*.82f,540,60),prompt,new GUIStyle(GUI.skin.box){fontSize=16,wordWrap=true});
+        GUI.skin=UITheme.Skin;float y=Screen.height-UITheme.Size(150);var account=HouseholdEconomy.Instance.Account;
+        if(driving)
+        {
+            UITheme.HintBar(y,null,"W/S","Acelerar e ré","A/D","Virar","Espaço","Frear","F","Sair");
+            var speed=new Rect(Screen.width-UITheme.Size(170),Screen.height-UITheme.Size(110),UITheme.Size(150),UITheme.Size(90));UITheme.Panel(speed,UITheme.PanelSoft);
+            GUI.Label(new Rect(speed.x,speed.y+UITheme.Size(6),speed.width,UITheme.Size(50)),Mathf.Abs(Speed*3.6f).ToString("0"),new GUIStyle(UITheme.Style("title")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(42)});
+            GUI.Label(new Rect(speed.x,speed.y+UITheme.Size(56),speed.width,UITheme.Size(24)),"km/h",new GUIStyle(UITheme.Style("caption")){alignment=TextAnchor.MiddleCenter});
+        }
+        else if(NearCargo)
+        {
+            string info="Gaiolas "+account.truckCages+"/4   ·   Galinhas na carroceria "+account.truckChickens+"/"+account.TruckCapacity;
+            if(HeistGameManager.Instance.CanDeliverHere)UITheme.HintBar(y,info,"E","Colocar galinha","R","Retirar","G","Soltar no galinheiro");
+            else UITheme.HintBar(y,info,"E","Colocar galinha","R","Retirar");
+        }
+        else if(Vector3.Distance(Player.position,seat.position)<3)UITheme.KeyPrompt(Screen.width*.5f,y,"F","Dirigir a velha caminhonete");
     }
 }

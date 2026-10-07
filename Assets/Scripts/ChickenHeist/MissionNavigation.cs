@@ -233,9 +233,11 @@ public class MissionNavigation : MonoBehaviour
     void OnGUI()
     {
         if(Game==null || !Game.MissionActive || Game.missionEnded || GameMenu.IsOpen || ChickenCoopLockpick.Active!=null || ChickenScare.Active!=null || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || roads==null)return;
-        float size=Mathf.Min(230,Screen.width*.25f);Rect area=new Rect(Screen.width-size-24,Screen.height-size-76,size,size);
-        GUI.Box(new Rect(area.x-5,area.y-27,size+10,size+70),"");
-        GUI.Label(new Rect(area.x,area.y-25,size,24),ReturningHome?"N | VOLTAR A FAZENDA":"N | ROTA PARA O SITIO");
+        GUI.skin=UITheme.Skin;float s=UITheme.Scale;
+        float size=Mathf.Min(UITheme.Size(230),Screen.width*.25f);Rect area=new Rect(Screen.width-size-UITheme.Size(28),Screen.height-size-UITheme.Size(84),size,size);
+        UITheme.Panel(new Rect(area.x-10*s,area.y-42*s,size+20*s,size+92*s),UITheme.PanelSoft);
+        GUI.Label(new Rect(area.x,area.y-36*s,26*s,26*s),"N",UITheme.Style("key"));
+        GUI.Label(new Rect(area.x+34*s,area.y-38*s,size-34*s,30*s),ReturningHome?"Voltar à fazenda":"Rota para o sítio",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleLeft,normal={textColor=UITheme.Ink}});
         mapSize=size;GUI.BeginGroup(area);Color previousColor=GUI.color;GUI.color=new Color(.06f,.10f,.10f,.94f);GUI.DrawTexture(new Rect(0,0,size,size),Texture2D.whiteTexture);GUI.color=previousColor;
         Vector3 center=Game.player.position;float scale=size/(driving?190f:120f);
         Vector2 Map(Vector3 p)=>new Vector2(size*.5f+(p.x-center.x)*scale,size*.5f-(p.z-center.z)*scale);
@@ -250,7 +252,7 @@ public class MissionNavigation : MonoBehaviour
         Vector2 marker=Map(Destination);GUI.color=new Color(1,.73f,.22f);GUI.DrawTexture(new Rect(marker.x-4,marker.y-4,8,8),Texture2D.whiteTexture);GUI.color=previousColor;
         Vector2 origin=new Vector2(size*.5f,size*.5f),forward=new Vector2(Game.player.forward.x,-Game.player.forward.z)*10;
         Line(origin-forward*.5f,origin+forward,Color.white,3);
-        GUI.EndGroup();GUI.Label(new Rect(area.x,area.yMax+3,size,42),Status);
+        GUI.EndGroup();GUI.Label(new Rect(area.x,area.yMax+4*s,size,42*s),Status,new GUIStyle(UITheme.Style("hudSmall")){wordWrap=true});
     }
     static float mapSize;
     static void Line(Vector2 a,Vector2 b,Color color,float width)

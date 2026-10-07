@@ -46,11 +46,11 @@ public class HomeNextNight : MonoBehaviour
         {
             var old=GUI.color;GUI.color=new Color(0,0,0,fade);
             GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);GUI.color=old;
-            if(fade>.9f)GUI.Label(new Rect(Screen.width*.5f-150,Screen.height*.5f,300,40),"Na manha seguinte...",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter,fontSize=24});
+            if(fade>.9f){GUI.skin=UITheme.Skin;GUI.Label(new Rect(0,Screen.height*.46f,Screen.width,UITheme.Size(60)),"Na manhã seguinte...",new GUIStyle(UITheme.Style("heading")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(34)});}
             return;
         }
         if(GameMenu.IsOpen)return;
         if(Near && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen)
-            GUI.Box(new Rect(Screen.width*.5f-170,Screen.height*.75f,340,34),"E  |  Descansar e preparar outra saida");
+            {GUI.skin=UITheme.Skin;UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.74f,"E","Descansar e preparar outra saída");}
     }
 }

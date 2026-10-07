@@ -2,7 +2,6 @@ using UnityEngine;
 
 public class InteractionFocusHUD : MonoBehaviour
 {
-    GUIStyle text;
     Component focus;
     void Update()
     {
@@ -11,14 +10,20 @@ public class InteractionFocusHUD : MonoBehaviour
     void OnGUI()
     {
         if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || OldPickupTruck.IsDriving || ChickenCoopLockpick.Active!=null)return;
-        if(text==null)text=new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter,fontSize=16,wordWrap=true};
-        string label=focus is InteractableChicken?"Pegar galinha":focus is RuralGate gate?(gate.IsOpen?"Fechar portao":"Abrir portao"):
+        GUI.skin=UITheme.Skin;
+        string label=focus is InteractableChicken?"Pegar galinha":focus is RuralGate gate?(gate.IsOpen?"Fechar portão":"Abrir portão"):
             focus is ChickenCoopLockpick coop?(coop.IsOpen?"Fechar galinheiro":"Abrir trinco"):focus is HomeDoor door?(door.opened?"Fechar porta":"Abrir porta"):
             focus is HomeCoopGate coopGate?(coopGate.IsOpen?"Fechar portinhola":"Abrir portinhola"):focus is HomeDoorbell?"Tocar campainha":focus is HomeNextNight?"Descansar":focus is HomePhoneDock || focus is ReceivedTabletDock?"Consultar tablet":focus is OldPickupTruck?"Guardar galinha":focus is VillageMarket?"Conversar com vendedor":focus is ExtractionZone?"Concluir entrega":"";
-        float width=Mathf.Min(390,Screen.width-32);
-        if(label.Length>0){GUI.Box(new Rect((Screen.width-width)/2,Screen.height*.60f,width,38),"");GUI.Label(new Rect((Screen.width-width)/2,Screen.height*.60f,width,38),"E | "+label,text);}
+        if(label.Length>0)UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.62f,"E",label);
         var game=HeistGameManager.Instance;var economy=HouseholdEconomy.Instance;
         if(game!=null && economy!=null && !game.MissionActive)
-        {GUI.Box(new Rect(16,20,width,62),"");GUI.Label(new Rect(24,23,width-16,56),economy.Account.CampaignObjective,text);}
+        {
+            // Objective card, top-left (the mission card takes this place during a mission).
+            float s=UITheme.Scale,w=UITheme.Size(380);var body=new GUIStyle(UITheme.Style("body")){fontSize=UITheme.Size(16)};
+            string objective=economy.Account.CampaignObjective;float h=body.CalcHeight(new GUIContent(objective),w-28*s)+UITheme.Size(40);
+            var r=new Rect(UITheme.Size(20),UITheme.Size(20),w,h);UITheme.Panel(r,UITheme.PanelSoft);
+            GUI.Label(new Rect(r.x+14*s,r.y+8*s,w-28*s,20*s),"OBJETIVO  ·  DIA "+economy.Account.day,UITheme.Style("caption"));
+            GUI.Label(new Rect(r.x+14*s,r.y+26*s,w-28*s,h-30*s),objective,body);
+        }
     }
 }

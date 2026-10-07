@@ -174,11 +174,12 @@ public class DeveloperConsole : MonoBehaviour
     void OnGUI()
     {
         if(GameMenu.IsOpen || (!open && !HelpVisible && Time.unscaledTime>=noticeUntil))return;
+        GUI.skin=UITheme.Skin;
         if(text==null)
         {
-            text=new GUIStyle(GUI.skin.label){fontSize=14,wordWrap=true,normal={textColor=new Color(.9f,.94f,.91f)}};
-            heading=new GUIStyle(text){fontSize=18,fontStyle=FontStyle.Bold};
-            field=new GUIStyle(GUI.skin.textField){fontSize=17,padding=new RectOffset(10,10,8,8)};
+            text=new GUIStyle(UITheme.Skin.label){font=UITheme.Body,fontSize=14,wordWrap=true,normal={textColor=UITheme.Ink}};
+            heading=new GUIStyle(text){font=UITheme.BodyBold,fontSize=16,normal={textColor=UITheme.Accent}};
+            field=new GUIStyle(UITheme.Skin.textField){font=UITheme.Body,fontSize=17,padding=new RectOffset(10,10,8,8)};
         }
         var matrix=GUI.matrix;var color=GUI.color;int depth=GUI.depth;GUI.depth=-100;
         float scale=Mathf.Min(1,Screen.width/800f,Screen.height/650f);
@@ -190,7 +191,7 @@ public class DeveloperConsole : MonoBehaviour
             Panel(new Rect(16,y,355,386));
             GUI.Label(new Rect(30,y+10,325,28),"DEV / COMANDOS",heading);
             GUI.Label(new Rect(30,y+44,325,292),Help,text);
-            GUI.Label(new Rect(30,y+340,325,42),"T abre o chat. Comandos alteram o jogo atual; salvar grava as alteracoes.",text);
+            GUI.Label(new Rect(30,y+340,325,42),"T abre o chat. Comandos alteram o jogo atual; salvar grava as alterações.",text);
         }
         if(open)
         {
@@ -220,9 +221,5 @@ public class DeveloperConsole : MonoBehaviour
         }
         GUI.matrix=matrix;GUI.color=color;GUI.depth=depth;
     }
-    static void Panel(Rect rect)
-    {
-        var color=GUI.color;GUI.color=new Color(.035f,.05f,.043f,.96f);
-        GUI.DrawTexture(rect,Texture2D.whiteTexture);GUI.color=color;
-    }
+    static void Panel(Rect rect)=>UITheme.Panel(rect,UITheme.PanelFill,UITheme.Edge,12);
 }

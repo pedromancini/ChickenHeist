@@ -59,7 +59,12 @@ public class MenuVisualReview : MonoBehaviour
         // Exercise the real deadline branch without waiting fifteen seconds for each review.
         Set(menu,"confirmUntil",Time.realtimeSinceStartup+.1f);yield return new WaitForSecondsRealtime(1);
         Check(Screen.width==1280 && Screen.height==800,"Unconfirmed video change restores original resolution");
-        menu.SendMessage("LeaveSettings");menu.SendMessage("BeginGame");
+        menu.SendMessage("LeaveSettings");var oldMenu=menu;menu.SendMessage("BeginGame");
+        // A fresh game reloads the scene and plays the opening; capture its first subtitle, then skip it.
+        float reloadDeadline=Time.realtimeSinceStartup+30;
+        while((GameMenu.Instance==null || GameMenu.Instance==oldMenu || !StoryDirector.Active) && Time.realtimeSinceStartup<reloadDeadline)yield return null;
+        menu=GameMenu.Instance;
+        if(StoryDirector.Active){yield return new WaitForSecondsRealtime(2.5f);yield return Shot("ui-cutscene-subtitle");StoryDirector.Instance.Complete();}
         yield return new WaitForSecondsRealtime(1);
         Check(!GameMenu.IsOpen && !HeistGameManager.Instance.MissionActive,"Start game enters quiet free exploration");
         yield return Shot("07-exploration");
@@ -181,7 +186,7 @@ public class MenuVisualReview : MonoBehaviour
             Check(driver.CurrentState=="CrouchIdle" && carry.HasVisual,"Crouching retains carried chicken");
             yield return Shot("progression-03b-crouched-carry");
             movement.RestorePosture(false);
-            game.CompleteMission();
+            AtHomeCoop(game);game.CompleteMission();
             yield return null;Check(!carry.HasVisual,"Delivery removes carried presentation");
             Check(!FarmSecurityProgression.Installed,"Delivery does not install defenses before sleeping");
             Check(game.PrepareNextNight() && FarmSecurityProgression.Installed,"Sleep installs regional protection");
@@ -241,6 +246,28 @@ public class MenuVisualReview : MonoBehaviour
             dev.Close();yield return Shot("dev-04-phase-2");
             dev.ExecuteCommand("/dev");Check(checkpoint.Restore(baseline,out _),"Developer review restores baseline");
         }
+        if(Array.IndexOf(Environment.GetCommandLineArgs(),"--ui-review")>=0)
+        {
+            var checkpoint=menu.GetComponent<GameCheckpoint>();var baseline=checkpoint.Capture();
+            var tablet=ProtagonistPhone.Instance;string[] tabNames={"bank","debts","farms","shop","news"};
+            for(int t=0;t<5;t++){tablet.ReviewTab=t;tablet.SetOpen(true);yield return new WaitForSecondsRealtime(.4f);yield return Shot("ui-tablet-"+t+"-"+tabNames[t]);}
+            tablet.SetOpen(false);
+            var market=FindAnyObjectByType<VillageMarket>();
+            if(market!=null && market.counter!=null)
+            {
+                var player=HeistGameManager.Instance.player;var cc=player.GetComponent<CharacterController>();
+                cc.enabled=false;player.position=market.counter.position-market.counter.forward*1.6f-Vector3.up;cc.enabled=true;yield return null;
+                market.Open();Check(VillageMarket.IsOpen,"Market panel opens at the counter");
+                yield return Shot("ui-market-sell");Set(market,"tab",1);yield return Shot("ui-market-supplies");
+                Screen.SetResolution(800,600,false);yield return new WaitForSecondsRealtime(1);yield return Shot("ui-market-800");
+                Screen.SetResolution(1280,800,false);yield return new WaitForSecondsRealtime(1);
+                market.Close();
+            }
+            Screen.SetResolution(1920,1080,false);yield return new WaitForSecondsRealtime(1);
+            menu.Pause();yield return Shot("ui-pause-1080");menu.Resume();
+            Screen.SetResolution(1280,800,false);yield return new WaitForSecondsRealtime(1);
+            Check(checkpoint.Restore(baseline,out _),"UI review restores baseline");
+        }
         var phone=ProtagonistPhone.Instance;phone.ReviewTab=2;phone.SetOpen(true);
         yield return new WaitForSecondsRealtime(1);yield return Shot("08-phone-missions");
         Check(HeistGameManager.Instance.StartMission(0),"A farm from phone starts a mission");phone.SetOpen(false);
@@ -260,10 +287,16 @@ public class MenuVisualReview : MonoBehaviour
         Check(Vector2.Distance(new Vector2(restored.player.position.x,restored.player.position.z),new Vector2(saved.position.x,saved.position.z))<.1f,"Async reload restores player location");
         Check(restored.backpack.chickensCarried==saved.carried,"Async reload restores backpack");
         yield return Shot("13-loaded-mission");
-        restored.CompleteMission();Check(!restored.MissionActive,"Return home clears active mission");
+        AtHomeCoop(restored);restored.CompleteMission();Check(!restored.MissionActive,"Return home clears active mission");
         menu=GameMenu.Instance;menu.Pause();menu.SaveProgress();menu.SendMessage("SetPage",Enum.Parse(typeof(GameMenu).GetNestedType("Page",BindingFlags.NonPublic),"Main"));
         yield return Shot("14-main-save-summary");
         Finish();
+    }
+    // Deliveries only count at the protagonist's own coop gate.
+    static void AtHomeCoop(HeistGameManager game)
+    {
+        var flock=HouseholdEconomy.Instance?.home?.GetComponentInChildren<HomeFlockView>();if(flock==null)return;
+        var cc=game.player.GetComponent<CharacterController>();cc.enabled=false;game.player.position=flock.DeliveryPoint;cc.enabled=true;Physics.SyncTransforms();
     }
     void Finish()
     {
