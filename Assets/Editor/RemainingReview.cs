@@ -99,7 +99,7 @@ public static class RemainingReview
                 Check(StoryDirector.Active && GameMenu.BlocksInput,"Opening blocks gameplay inputs");Check(Mathf.Abs(StoryDirector.Instance.GetComponent<AudioSource>().volume-.23f)<.001f,"Cutscene retains configured voice volume across frames");GameAudioMix.Voice=1;
                 Capture("opening-shot",Camera.main.transform.position,Camera.main.transform.position+Camera.main.transform.forward*15);
                 StoryDirector.Instance.Complete();Check(economy.Account.introSeen && !StoryDirector.Active,"Skipping opening records completion");
-                Check(Vector3.Distance(Camera.main.transform.localPosition,cameraPosition)<.001f && Quaternion.Angle(Camera.main.transform.localRotation,cameraRotation)<.01f,"Cutscene restores player camera");
+                Check(Vector3.Distance(Camera.main.transform.localPosition,cameraPosition)<.001f && Quaternion.Angle(Camera.main.transform.localRotation,cameraRotation)<.01f,"Cutscene restores player camera (moved "+Vector3.Distance(Camera.main.transform.localPosition,cameraPosition).ToString("F3")+" m, turned "+Quaternion.Angle(Camera.main.transform.localRotation,cameraRotation).ToString("F2")+"°; now "+Camera.main.transform.localPosition.ToString("F3")+" was "+cameraPosition.ToString("F3")+")");
                 economy.Commit(a=>{a.RegisterRaid("Fazenda de teste",1,false);a.RestUntilMorning();return true;},"Test");
                 Check(StoryDirector.Instance.Begin(true),"Crime vision starts from pending event");next=Time.realtimeSinceStartup+5f;phase++;return;
             }

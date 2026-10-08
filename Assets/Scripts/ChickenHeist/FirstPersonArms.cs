@@ -1,8 +1,8 @@
 using UnityEngine;
 
-// First-person body: while standing, walking or running the swinging arms only reach the screen edge as loose
-// hands, so the legs-only copy is shown; when the hands do something (carry, lockpick, drive, ignition,
-// phone, picking up a bird, trading) the full copy with arms is shown instead.
+// First-person body: nothing is drawn while standing, walking or running (no legs when looking down, no loose
+// hands at the screen edge); when the hands do something (carry, lockpick, drive, ignition, phone, picking up
+// a bird, trading) the upper-body copy with arms is shown. `legs` is a leftover from older installs.
 [DefaultExecutionOrder(460)]
 public sealed class FirstPersonArms : MonoBehaviour
 {
@@ -20,9 +20,9 @@ public sealed class FirstPersonArms : MonoBehaviour
     }
     void LateUpdate()
     {
-        if(full==null || legs==null)return;
+        if(full==null)return;
         bool hands=HandsInView;
         if(full.enabled!=hands)full.enabled=hands;
-        if(legs.enabled==hands)legs.enabled=!hands;
+        if(legs!=null && legs.enabled)legs.enabled=false;
     }
 }

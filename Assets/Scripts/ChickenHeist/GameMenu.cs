@@ -301,9 +301,10 @@ public class GameMenu : MonoBehaviour
         else
         {
             Slider("Sensibilidade do mouse",ref settings.sensitivity,20,300);
-            settings.invertY=UITheme.Check(settings.invertY,"Inverter eixo vertical");GUILayout.Space(UITheme.Size(16));
+            settings.invertY=UITheme.Check(settings.invertY,"Inverter eixo vertical");
+            settings.sprintToggle=UITheme.Check(settings.sprintToggle,"Shift liga/desliga a corrida (sem segurar)");GUILayout.Space(UITheme.Size(16));
             GUILayout.Label("Comandos",UITheme.Style("caption"));
-            string[,] keys={{"W A S D","Andar"},{"Shift","Correr"},{"C","Agachar"},{"Espaço","Pular"},{"E","Interagir"},{"Tab","Tablet"},{"B","Mochila de itens"},
+            string[,] keys={{"W A S D","Andar"},{"Shift","Correr (segurar ou alternar)"},{"C","Agachar"},{"Espaço","Pular"},{"E","Interagir"},{"Tab","Tablet"},{"B","Mochila de itens"},
                 {"Botão direito","Usar spray selecionado"},{"Esc","Pausa"},{"F","Dirigir / sair da caminhonete"},{"E / R","Carga: colocar / retirar"},{"G","Soltar galinhas no galinheiro"},{"N","Alternar rota fazenda / sítio"}};
             var keyStyle=UITheme.Style("key");
             for(int i=0;i<keys.GetLength(0);i++)

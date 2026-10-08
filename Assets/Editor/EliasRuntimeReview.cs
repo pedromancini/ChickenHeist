@@ -66,7 +66,7 @@ public static class EliasRuntimeReview
             if(phase==2 && Time.realtimeSinceStartup>=next)
             {
                 var arms=player.GetComponentInChildren<FirstPersonArms>();var rig=player.GetComponentInChildren<ProtagonistArticulation>();
-                report.Add((arms!=null && arms.full.enabled && !arms.legs.enabled?"PASS":"FAIL")+" carrying a bird shows arms (state "+rig.ActionState+")");
+                report.Add((arms!=null && arms.full.enabled && (arms.legs==null || !arms.legs.enabled)?"PASS":"FAIL")+" carrying a bird shows arms (state "+rig.ActionState+")");
                 Capture("carry-0");player.GetComponent<BackpackInventory>().RestoreCount(0);
                 File.WriteAllLines(Folder+"/report.txt",report);EditorApplication.isPlaying=false;return;
             }
@@ -89,7 +89,7 @@ public static class EliasRuntimeReview
                 if(scenario>=Scenarios.Length)
                 {
                     var arms=player.GetComponentInChildren<FirstPersonArms>();
-                    report.Add((arms!=null && !arms.full.enabled && arms.legs.enabled?"PASS":"FAIL")+" walking/idle shows the legs copy only");
+                    report.Add((arms!=null && !arms.full.enabled && (arms.legs==null || !arms.legs.enabled)?"PASS":"FAIL")+" walking/idle shows no first-person body (no legs)");
                     SetInput(Vector2.zero,false,false);player.GetComponent<BackpackInventory>().RestoreCount(1);
                     phase=2;next=Time.realtimeSinceStartup+.8f;
                 }

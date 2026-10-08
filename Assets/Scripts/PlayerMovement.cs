@@ -22,6 +22,10 @@ public class PlayerMovement : MonoBehaviour
     [Header("Pulo e Gravidade")]
     public float alturaDoSalto = 1.2f;
     public float gravidade = -9.81f;
+    // A jump pressed shortly before landing, or shortly after stepping off an edge, still counts.
+    const float JumpGrace=.15f;
+    public static bool SprintToggle;bool sprintLatched;
+    float lastGrounded=-1,jumpQueuedUntil;
 
     [Header("Agachar")]
     public float alturaEmPe = 2f;
@@ -75,10 +79,19 @@ public class PlayerMovement : MonoBehaviour
         float z = Input.GetAxis("Vertical");
         MoveInput = Vector2.ClampMagnitude(new Vector2(x,z),1);
         estaMovendo = (x != 0 || z != 0);
-        estaSprinting = Input.GetKey(KeyCode.LeftShift) && !estaAgachado && estaMovendo;
+        if(SprintToggle)
+        {
+            if(Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))sprintLatched=!sprintLatched;
+            if(!estaMovendo || estaAgachado)sprintLatched=false;
+        }
+        bool sprintKey=SprintToggle?sprintLatched:Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        estaSprinting = sprintKey && !estaAgachado && estaMovendo;
         Vector3 movimento = transform.right * x + transform.forward * z;
-        movimento=Vector3.ClampMagnitude(movimento,1);
-        controller.Move(movimento * CurrentMoveSpeed * Time.deltaTime);
+        movimento=Vector3.ClampMagnitude(movimento,1)*CurrentMoveSpeed*Time.deltaTime;
+        // While grounded, press into the ground so running downhill does not leave it every few frames.
+        if(groundedBeforeMove && velocidadeVertical.y<=0)movimento.y=-controller.stepOffset;
+        controller.Move(movimento);
+        if(controller.isGrounded)lastGrounded=Time.time;
     }
 
     void HandleCrouch()
@@ -100,15 +113,17 @@ public class PlayerMovement : MonoBehaviour
     {
         if ((controller.isGrounded || groundedBeforeMove) && velocidadeVertical.y < 0)
             velocidadeVertical.y = -2f;
-        if(Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space))TryJump();
+        if(Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space))jumpQueuedUntil=Time.time+JumpGrace;
+        if(Time.time<=jumpQueuedUntil && TryJump())jumpQueuedUntil=0;
         velocidadeVertical.y += gravidade * Time.deltaTime;
         controller.Move(velocidadeVertical * Time.deltaTime);
+        if(controller.isGrounded)lastGrounded=Time.time;
     }
 
     public bool TryJump()
     {
-        if(controller==null || !controller.enabled || GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true || estaAgachado || velocidadeVertical.y>0 || !(controller.isGrounded || groundedBeforeMove))return false;
-        velocidadeVertical.y=Mathf.Sqrt(alturaDoSalto*-2f*gravidade);groundedBeforeMove=false;return true;
+        if(controller==null || !controller.enabled || GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || HeistGameManager.Instance?.missionEnded==true || estaAgachado || velocidadeVertical.y>0 || !(controller.isGrounded || groundedBeforeMove || Time.time-lastGrounded<=JumpGrace))return false;
+        velocidadeVertical.y=Mathf.Sqrt(alturaDoSalto*-2f*gravidade);groundedBeforeMove=false;lastGrounded=-1;return true;
     }
 
     void CalcularRuido()

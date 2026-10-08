@@ -49,8 +49,6 @@ public class HomeNextNight : MonoBehaviour
             if(fade>.9f){GUI.skin=UITheme.Skin;GUI.Label(new Rect(0,Screen.height*.46f,Screen.width,UITheme.Size(60)),"Na manhã seguinte...",new GUIStyle(UITheme.Style("heading")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(34)});}
             return;
         }
-        if(GameMenu.IsOpen)return;
-        if(Near && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen)
-            {GUI.skin=UITheme.Skin;UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.74f,"E","Descansar e preparar outra saída");}
+        // The "E  Descansar" prompt comes from InteractionFocusHUD, like every other interaction.
     }
 }

@@ -11,6 +11,8 @@ public class GamePreferences
     public int quality=1,width=1920,height=1080,frameLimit=144;
     public int performanceVersion;
     public bool fullscreen=true,vsync=false,invertY;
+    // Shift switches running on and off instead of being held (keyboards that drop W + Shift + Space together).
+    public bool sprintToggle;
     const string Key="ChickenHeist.Settings.v1";
     static UniversalRenderPipelineAsset runtimePipeline;
     public static GamePreferences Defaults()=>new GamePreferences{width=Screen.width,height=Screen.height,fullscreen=Screen.fullScreen};
@@ -51,6 +53,7 @@ public class GamePreferences
         GameAudioMix.Effects=Mathf.Clamp01(effectsVolume);GameAudioMix.Ambience=Mathf.Clamp01(ambienceVolume);GameAudioMix.Voice=Mathf.Clamp01(voiceVolume);
         foreach(var look in UnityEngine.Object.FindObjectsByType<PlayerLook>())
         {look.sensibilidade=sensitivity;look.invertY=invertY;}
+        PlayerMovement.SprintToggle=sprintToggle;
         if(Camera.main!=null)Camera.main.fieldOfView=fov;
         if(display)Screen.SetResolution(Mathf.Clamp(width,800,7680),Mathf.Clamp(height,600,4320),fullscreen?FullScreenMode.FullScreenWindow:FullScreenMode.Windowed);
     }

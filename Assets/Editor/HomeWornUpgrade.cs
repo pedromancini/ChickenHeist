@@ -160,9 +160,10 @@ public static class HomeWornUpgrade
         // clutter: boxes against the bedroom wall, bottles, dirty dishes on the stove, old newspaper on the floor
         for(int i=0;i<3;i++)Piece(root,"Caixa de papelao",new Vector3(.5f-i*.05f,floor+.21f+i*.38f,2.85f+i*.04f),new Vector3(.62f-i*.08f,.42f-i*.04f,.48f-i*.06f),card,new Vector3(0,i*9-6,0));
         Piece(root,"Caixa de papelao aberta",new Vector3(-.15f,floor+.15f,2.9f),new Vector3(.5f,.3f,.4f),card,new Vector3(0,22,0));
-        for(int i=0;i<4;i++){var b=Piece(root,"Garrafa vazia",new Vector3(-6.95f+i*.11f,floor+.13f,6.55f-(i%2)*.1f),new Vector3(.07f,.13f,.07f),i%2==0?bottleGreen:bottleBrown,default,PrimitiveType.Cylinder);if(i==3)b.transform.localRotation=Quaternion.Euler(90,30,0);}
-        for(int i=0;i<4;i++)Piece(root,"Prato sujo empilhado",new Vector3(-4.32f,1.565f+i*.018f,6.38f),new Vector3(.24f,.008f,.24f),plate,default,PrimitiveType.Cylinder);
-        Piece(root,"Caneca lascada",new Vector3(-5.05f,1.42f,3.95f),new Vector3(.08f,.05f,.08f),plate,default,PrimitiveType.Cylinder);
+        for(int i=0;i<4;i++){var b=Piece(root,"Garrafa vazia",new Vector3(-6.95f+i*.11f,i==3?floor+.035f:floor+.13f,6.55f-(i%2)*.1f),new Vector3(.07f,.13f,.07f),i%2==0?bottleGreen:bottleBrown,default,PrimitiveType.Cylinder);if(i==3)b.transform.localRotation=Quaternion.Euler(90,30,0);}
+        for(int i=0;i<4;i++)Piece(root,"Prato sujo empilhado",new Vector3(-4.32f,1.54f+i*.018f,6.38f),new Vector3(.24f,.008f,.24f),plate,default,PrimitiveType.Cylinder);
+        // on the table top (1.41), clear of the phone
+        Piece(root,"Caneca lascada",new Vector3(-5.75f,1.46f,3.22f),new Vector3(.08f,.05f,.08f),plate,default,PrimitiveType.Cylinder);
         for(int i=0;i<3;i++)Piece(root,"Jornal velho no chao",new Vector3(-2.2f+i*.18f,floor+.004f+i*.002f,6.0f-i*.12f),new Vector3(.42f,.004f,.55f),paper,new Vector3(0,i*27-15,0));
         // the fridge: yellowed enamel with rust at the hinges and the base
         bool Fridge(Transform t){for(var x=t;x!=null && x!=interior;x=x.parent)if(x.name.ToLowerInvariant().Contains("geladeira"))return true;return false;}
@@ -260,7 +261,7 @@ public static class HomeWornUpgrade
         var clip=Mat("Grampo de fio",new Color(.55f,.53f,.48f),.2f);
         var tape=Mat("Fita isolante",new Color(.05f,.05f,.06f),.3f);
         // push button: stadium-shaped brass plate, dark bezel, ivory button, two screws
-        float bx=-2.17f,by=1.38f;
+        float bx=-2.17f,by=1.98f; // 1.39 m above the porch floor (home-local y 0.59)
         var station=new GameObject("Botao da campainha - espelho").transform;station.SetParent(root,false);station.localPosition=W(bx,by,0);
         Piece(station,"Espelho de latao",new Vector3(0,0,-.006f),new Vector3(.07f,.09f,.012f),brass);
         Piece(station,"Ponta do espelho",new Vector3(0,.045f,-.006f),new Vector3(.07f,.006f,.07f),brass,new Vector3(90,0,0),PrimitiveType.Cylinder);
@@ -270,7 +271,7 @@ public static class HomeWornUpgrade
         Piece(station,"Parafuso",new Vector3(0,.052f,-.013f),new Vector3(.008f,.002f,.008f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
         Piece(station,"Parafuso",new Vector3(0,-.052f,-.013f),new Vector3(.008f,.002f,.008f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
         // bell unit high on the wall, right of the frame: wooden base, coil, brass gong, striker
-        float gx=-1.98f,gy=2.5f;
+        float gx=-1.98f,gy=2.62f;
         var bell=new GameObject("Campainha de sino").transform;bell.SetParent(root,false);bell.localPosition=W(gx,gy,0);
         Piece(bell,"Base de madeira",new Vector3(0,0,-.011f),new Vector3(.15f,.21f,.022f),baseWood);
         Piece(bell,"Parafuso da base",new Vector3(.055f,.085f,-.023f),new Vector3(.01f,.002f,.01f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);

@@ -150,6 +150,14 @@ public class MenuVisualReview : MonoBehaviour
                 vehicle.ExternalControl=false;
             }
             Check(truck.ExitDriver(),"Parked truck has safe exit beside cabin");
+            // Truck deliveries count only with the cargo bed parked by the home coop gate.
+            var coopView=economy.home.GetComponentInChildren<HomeFlockView>();
+            if(coopView!=null)
+            {
+                var shift=coopView.DeliveryPoint+Vector3.right*4-truck.cargoPoint.position;
+                if(truck.vehicle.Body!=null){truck.vehicle.Body.linearVelocity=Vector3.zero;truck.vehicle.Body.position+=shift;}
+                truck.transform.position+=shift;Physics.SyncTransforms();AtHomeCoop(game);
+            }
             game.CompleteMission();Check(economy.Account.flock==8 && economy.Account.truckChickens==0,"All eight transported chickens delivered once");
             checkpoint.Restore(baseline,out _);movement.enabled=true;look.enabled=true;
         }
