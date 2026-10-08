@@ -59,10 +59,16 @@ public static class EliasV3Review
         {
             int tris=fp.sharedMesh.triangles.Length/3;
             var legs=Player.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(s=>s.name=="Pernas em primeira pessoa");
-            Check(legs!=null && legs.gameObject.layer==30,"legs-only first-person copy present on layer 30");
-            Check(fp.gameObject.layer==30 && (fp.enabled || (legs!=null && legs.enabled)),"one first-person copy visible (tris "+tris+", bones "+fp.bones.Length+")");
+            Check(legs==null,"no legs-only first-person copy (legs are never drawn in first person)");
+            Check(fp.gameObject.layer==30,"first-person body on layer 30 (tris "+tris+", bones "+fp.bones.Length+")");
+            // only vertices used by triangles (the copy keeps the source vertex list and drops the leg triangles),
+            // ignoring arms and hands, which hang below the waist in the idle pose
+            var posed=new Mesh();fp.BakeMesh(posed,true);var pv=posed.vertices;var bw=fp.sharedMesh.boneWeights;
+            bool Arm(int i){var n=fp.bones[bw[i].boneIndex0].name;return n.StartsWith("Hand") || n.StartsWith("Forearm") || n.StartsWith("Thumb") || n.StartsWith("Index") || n.StartsWith("Middle") || n.StartsWith("Ring") || n.StartsWith("Little");}
+            float lowest=posed.triangles.Distinct().Where(i=>!Arm(i)).Min(i=>Player.InverseTransformPoint(fp.transform.TransformPoint(pv[i])).y);Object.DestroyImmediate(posed);
+            Check(lowest>.6f,"first-person body has no legs (lowest vertex "+lowest.ToString("F2")+" m)");
             Check((eyes.cullingMask & (1<<30))!=0 && (eyes.cullingMask & (1<<31))==0,"player camera renders layer 30 and hides layer 31");
-            Check(tris>1000,"first-person body keeps torso, arms and legs");
+            Check(tris>500,"first-person body keeps torso and arms");
             Check(fp.sharedMaterial!=null && fp.sharedMaterial.mainTexture!=null,"first-person material has the palette ("+(fp.sharedMaterial!=null && fp.sharedMaterial.mainTexture!=null?fp.sharedMaterial.mainTexture.name:"none")+")");
         }
         foreach(var skin in Player.GetComponentsInChildren<SkinnedMeshRenderer>(true))

@@ -16,8 +16,8 @@ using Object=UnityEngine.Object;
 // Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EliasNativeInstall.Install
 public static class EliasNativeInstall
 {
-    const string Folder="Assets/ChickenHeistGenerated/Characters/EliasNative/";
-    const string Model=Folder+"Elias_Rigged.fbx",HumanoidCopy=Folder+"EliasHumanoid.fbx";
+    internal const string Folder="Assets/ChickenHeistGenerated/Characters/EliasNative/";
+    internal const string Model=Folder+"Elias_Rigged.fbx",HumanoidCopy=Folder+"EliasHumanoid.fbx";
     const string OldFolder="Assets/ChickenHeistGenerated/Characters/ProtagonistV2/",OldHumanoid=OldFolder+"Retarget/ProtagonistHumanoid.fbx";
     const string Takes="Assets/ThirdParty/HumanBasicMotions/";
     const string ModelChild="Protagonist_Rigged(Clone)";
@@ -109,8 +109,7 @@ public static class EliasNativeInstall
         Debug.Log("ELIAS STAGES CLEANED");
     }
 
-    // First-person copy of the full body: only the head, neck and top of the chest (the volume around the
-    // camera) are removed, so looking down shows torso, arms and legs like a full-body first-person game.
+    // First-person copy of the upper body: torso and arms (the head is cut on older models; legs never show).
     static void FirstPersonBody(GameObject character,SkinnedMeshRenderer full)
     {
         var old=character.transform.Find("Corpo em primeira pessoa");if(old!=null)Object.DestroyImmediate(old.gameObject);
@@ -183,14 +182,14 @@ public static class EliasNativeInstall
             renderer.updateWhenOffscreen=true;renderer.shadowCastingMode=ShadowCastingMode.Off;
             return renderer;
         }
-        var whole=Copy("Corpo em primeira pessoa","First person body",Folder+"FirstPersonBody.asset",Hidden);
-        // Legs-only copy: walking, running and standing show hips, legs and boots; the swinging arms would
-        // otherwise pop in at the screen edge as loose hands (FirstPersonArms switches between the two).
+        // The first-person copy has no legs: looking down never shows hips, legs or boots. It is only shown while
+        // the hands do something (FirstPersonArms); the waist opening left by the cut is closed with caps.
         var legBones=new HashSet<int>(Enumerable.Range(0,full.bones.Length).Where(i=>{var n=full.bones[i].name;return n=="Hips" || n.StartsWith("Thigh") || n.StartsWith("Shin") || n.StartsWith("Foot") || n.StartsWith("Toe");}));
-        bool NotLeg(int i){var w=weights[i];float l=(legBones.Contains(w.boneIndex0)?w.weight0:0)+(legBones.Contains(w.boneIndex1)?w.weight1:0)+(legBones.Contains(w.boneIndex2)?w.weight2:0)+(legBones.Contains(w.boneIndex3)?w.weight3:0);return l<.5f;}
-        var legs=Copy("Pernas em primeira pessoa","First person legs",Folder+"FirstPersonLegs.asset",NotLeg,.75f);
+        bool Leg(int i){var w=weights[i];float l=(legBones.Contains(w.boneIndex0)?w.weight0:0)+(legBones.Contains(w.boneIndex1)?w.weight1:0)+(legBones.Contains(w.boneIndex2)?w.weight2:0)+(legBones.Contains(w.boneIndex3)?w.weight3:0);return l>=.5f;}
+        var whole=Copy("Corpo em primeira pessoa","First person body",Folder+"FirstPersonBody.asset",i=>Hidden(i) || Leg(i),.75f);
+        var staleLegs=character.transform.Find("Pernas em primeira pessoa");if(staleLegs!=null)Object.DestroyImmediate(staleLegs.gameObject);
         var arms=character.GetComponent<FirstPersonArms>();if(arms==null)arms=character.AddComponent<FirstPersonArms>();
-        arms.full=whole;arms.legs=legs;legs.enabled=false;
+        arms.full=whole;arms.legs=null;whole.enabled=false;
         full.gameObject.layer=31;
     }
     public static void RebuildFirstPerson()
@@ -241,6 +240,19 @@ public static class EliasNativeInstall
     // Elias v3 (Tools/SourceArt/ProtagonistV3) ships its own flat palette; earlier builds use the cast atlas.
     static Material EliasMaterial()
     {
+        // Elias v4 (Tools/SourceArt/ProtagonistV4) keeps its painted texture: eyes, brows and beard live there.
+        const string albedo=Folder+"EliasV4_Albedo.png";
+        if(File.Exists(albedo))
+        {
+            AssetDatabase.ImportAsset(albedo,ImportAssetOptions.ForceSynchronousImport);
+            var ti=(TextureImporter)AssetImporter.GetAtPath(albedo);
+            if(ti.filterMode!=FilterMode.Bilinear || !ti.mipmapEnabled || ti.maxTextureSize!=2048 || !ti.sRGBTexture)
+            {ti.filterMode=FilterMode.Bilinear;ti.mipmapEnabled=true;ti.maxTextureSize=2048;ti.sRGBTexture=true;ti.textureCompression=TextureImporterCompression.CompressedHQ;ti.SaveAndReimport();}
+            var v4=AssetDatabase.LoadAssetAtPath<Material>(Folder+"EliasV4.mat");
+            if(v4==null){v4=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Elias v4"};AssetDatabase.CreateAsset(v4,Folder+"EliasV4.mat");}
+            v4.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(albedo));v4.SetColor("_BaseColor",Color.white);v4.SetFloat("_Smoothness",.08f);
+            EditorUtility.SetDirty(v4);return v4;
+        }
         const string palette=Folder+"EliasV3_Palette.png",path=Folder+"EliasV3.mat";
         if(!File.Exists(palette))return CastPalette.Material("eliasNative");
         AssetDatabase.ImportAsset(palette,ImportAssetOptions.ForceSynchronousImport);
@@ -262,11 +274,12 @@ public static class EliasNativeInstall
         if(path==Model && (importer.importAnimation || !importer.isReadable)){importer.importAnimation=false;importer.isReadable=true;dirty=true;}
         if(dirty)importer.SaveAndReimport();
     }
-    static Avatar Avatar(string path){var a=AssetDatabase.LoadAllAssetsAtPath(path).OfType<Avatar>().FirstOrDefault();return a!=null && a.isHuman && a.isValid?a:null;}
+    internal static Avatar Avatar(string path){var a=AssetDatabase.LoadAllAssetsAtPath(path).OfType<Avatar>().FirstOrDefault();return a!=null && a.isHuman && a.isValid?a:null;}
     static AnimationClip Take(string take)=>AssetDatabase.LoadAllAssetsAtPath(Takes+"HumanM@"+take+".fbx").OfType<AnimationClip>().First(c=>!c.name.StartsWith("__preview__"));
 
     // Bakes one state onto the Elias hierarchy used in game: holder / Protagonist_Rigged(Clone) / ProtagonistRig / ...
-    static AnimationClip Bake(string state,Avatar avatar,Action<GameObject,float> poseAt,float length)
+    // asset: where to save (default: the game clip of that state, overwritten in place so references keep working).
+    internal static AnimationClip Bake(string state,Avatar avatar,Action<GameObject,float> poseAt,float length,string asset=null,bool? loop=null)
     {
         var holder=new GameObject("bake");
         var model=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Model),holder.transform);model.name=ModelChild;
@@ -287,13 +300,13 @@ public static class EliasNativeInstall
                 var p=hips.localPosition;pos[0].AddKey(t,p.x);pos[1].AddKey(t,p.y);pos[2].AddKey(t,p.z);
                 if(root!=null){var r=root.localPosition;rootPos[0].AddKey(t,r.x);rootPos[1].AddKey(t,r.y);rootPos[2].AddKey(t,r.z);}
             }
-            bool once=OneShot.Contains(state);
+            bool once=loop.HasValue?!loop.Value:OneShot.Contains(state);
             var clip=new AnimationClip{name=state,legacy=true,frameRate=30,wrapMode=once?WrapMode.ClampForever:WrapMode.Loop};
             foreach(var kv in rot){string path=AnimationUtility.CalculateTransformPath(kv.Key,holder.transform);for(int c=0;c<4;c++)clip.SetCurve(path,typeof(Transform),"localRotation."+"xyzw"[c],kv.Value[c]);}
             string hipPath=AnimationUtility.CalculateTransformPath(hips,holder.transform);for(int c=0;c<3;c++)clip.SetCurve(hipPath,typeof(Transform),"localPosition."+"xyz"[c],pos[c]);
             if(root!=null){string rootPath=AnimationUtility.CalculateTransformPath(root,holder.transform);for(int c=0;c<3;c++)clip.SetCurve(rootPath,typeof(Transform),"localPosition."+"xyz"[c],rootPos[c]);}
             clip.EnsureQuaternionContinuity();
-            string asset=Folder+state+".anim";var existing=AssetDatabase.LoadAssetAtPath<AnimationClip>(asset);
+            asset=asset??Folder+state+".anim";var existing=AssetDatabase.LoadAssetAtPath<AnimationClip>(asset);
             if(existing!=null){EditorUtility.CopySerialized(clip,existing);existing.name=state;EditorUtility.SetDirty(existing);Object.DestroyImmediate(clip);return existing;}
             AssetDatabase.CreateAsset(clip,asset);return clip;
         }
