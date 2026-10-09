@@ -148,8 +148,12 @@ public static class EliasNativeInstall
                 var key=new Dictionary<Vector3Int,int>();int Weld(int i){var p=Vector3Int.RoundToInt(vertices[i]*10000);if(!key.TryGetValue(p,out int w)){w=i;key[p]=i;}return w;}
                 var edges=new Dictionary<(int,int),int>();
                 for(int i=0;i<all.Count;i+=3)for(int e=0;e<3;e++){int x=Weld(all[i+e]),y=Weld(all[i+(e+1)%3]);var k=x<y?(x,y):(y,x);edges[k]=edges.TryGetValue(k,out int n)?n+1:1;}
+                // Only openings made by the cut: the source mesh may have open edges of its own (the generated fingers are
+                // open shells), and fanning those adds stray faces.
+                var sourceEdges=new Dictionary<(int,int),int>();
+                for(int sub=0;sub<source.subMeshCount;sub++){var tri=source.GetTriangles(sub);for(int i=0;i<tri.Length;i+=3)for(int e=0;e<3;e++){int x=Weld(tri[i+e]),y=Weld(tri[i+(e+1)%3]);var k=x<y?(x,y):(y,x);sourceEdges[k]=sourceEdges.TryGetValue(k,out int n)?n+1:1;}}
                 var next=new Dictionary<int,List<int>>();
-                foreach(var kv in edges.Where(kv=>kv.Value==1)){var (x,y)=kv.Key;if(!next.ContainsKey(x))next[x]=new List<int>();if(!next.ContainsKey(y))next[y]=new List<int>();next[x].Add(y);next[y].Add(x);}
+                foreach(var kv in edges.Where(kv=>kv.Value==1 && sourceEdges.TryGetValue(kv.Key,out int full) && full>1)){var (x,y)=kv.Key;if(!next.ContainsKey(x))next[x]=new List<int>();if(!next.ContainsKey(y))next[y]=new List<int>();next[x].Add(y);next[y].Add(x);}
                 var seen=new HashSet<int>();
                 foreach(int start in next.Keys.ToList())
                 {

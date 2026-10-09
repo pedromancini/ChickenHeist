@@ -69,7 +69,58 @@ public static class ProtagonistActionReview
         camera.cullingMask=1<<28;
         var lightObj=new GameObject("Review light");var light=lightObj.AddComponent<Light>();light.type=LightType.Directional;light.intensity=2;light.cullingMask=1<<28;lightObj.transform.rotation=Quaternion.Euler(40,-30,0);
         Save(camera,"-body");foreach(var t in layers)t.Key.gameObject.layer=t.Value;Object.DestroyImmediate(lightObj);
-        Save(eyes,"-eyes");texture.Release();Object.DestroyImmediate(texture);Object.DestroyImmediate(go);
+        Save(eyes,"-eyes");
+        // What the player sees when looking down at the hands, and close-ups of each hand on the body the player sees
+        // (the first-person copy while the hands are busy, otherwise the full body).
+        Transform Bone(string n)=>rig.GetComponentsInChildren<Transform>(true).First(t=>t.name==n);
+        var hl=Bone("HandL");var hr=Bone("HandR");var mid=(hl.position+hr.position)*.5f;
+        var eyeRot=eyes.transform.rotation;eyes.transform.rotation=Quaternion.LookRotation(mid-eyes.transform.position,game.player.up);
+        Save(eyes,"-eyes-hands");
+        // the same view split into what is body and what is world
+        var eyeMask=eyes.cullingMask;eyes.cullingMask=eyeMask&(1<<30);var eyeClear=eyes.clearFlags;var eyeBg=eyes.backgroundColor;
+        eyes.clearFlags=CameraClearFlags.SolidColor;eyes.backgroundColor=new Color(.9f,.2f,.8f);Save(eyes,"-eyes-hands-bodyonly");
+        eyes.cullingMask=eyeMask&~(1<<30);eyes.clearFlags=eyeClear;eyes.backgroundColor=eyeBg;Save(eyes,"-eyes-hands-nobody");
+        eyes.cullingMask=eyeMask;
+        // a natural glance down (35 degrees below the horizon), like the player looking at the wheel
+        eyes.transform.rotation=Quaternion.AngleAxis(35,game.player.right)*Quaternion.LookRotation(game.player.forward,game.player.up);Save(eyes,"-eyes-glance");
+        eyes.transform.rotation=eyeRot;
+        var fp=rig.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(r=>r.name=="Corpo em primeira pessoa");
+        var shown=fp!=null && fp.enabled?new[]{fp.transform}:rig.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r=>r.gameObject.layer==31).Select(r=>r.transform).ToArray();
+        var saved=shown.ToDictionary(t=>t,t=>t.gameObject.layer);foreach(var t in shown)t.gameObject.layer=28;
+        var lightObj2=new GameObject("Review light");var light2=lightObj2.AddComponent<Light>();light2.type=LightType.Directional;light2.intensity=2;light2.cullingMask=1<<28;lightObj2.transform.rotation=Quaternion.Euler(40,-30,0);
+        foreach(var (hand,label) in new[]{(hl,"L"),(hr,"R")})
+        {
+            var palm=hand.position;
+            foreach(var (dir,tag) in new[]{(game.player.up*.6f-game.player.forward*.15f+game.player.right*(label=="L"?-.15f:.15f),"top"),(-game.player.forward*.45f+game.player.right*(label=="L"?-.35f:.35f)+game.player.up*.1f,"side")})
+            {camera.transform.position=palm+dir.normalized*.32f;camera.transform.LookAt(palm+(Bone(label=="L"?"Middle2L":"Middle2R").position-palm)*.5f,game.player.up);camera.fieldOfView=40;Save(camera,"-hand"+label+"-"+tag);}
+        }
+        foreach(var t in saved)t.Key.gameObject.layer=t.Value;
+        // The wheel grip seen from outside: full body and steering wheel only, from the dashboard and from the left.
+        if(name=="wheel" && OldPickupTruck.Instance!=null)
+        {
+            var wheel=OldPickupTruck.Instance.steeringWheel;
+            foreach(var sd in new[]{"L","R"})
+            {
+                var hb=Bone("Hand"+sd);var grip=new HandGripPose(hb,rig.transform);
+                Vector3 W(Vector3 d)=>wheel.InverseTransformDirection(d);
+                string F3(Vector3 v)=>v.ToString("F2");
+                var centre=OldPickupTruck.Instance.SteeringGrip(sd=="L"?-1:1);
+                results.Add("INFO grip "+sd+": wrist "+F3(wheel.InverseTransformPoint(hb.position))+" anchor "+F3(wheel.InverseTransformPoint(PowerGrip.AnchorWorld(grip,OldPickupTruck.SteeringRimRadius)))+" rim centre "+F3(wheel.InverseTransformPoint(centre))
+                    +" palm faces "+F3(W(hb.TransformDirection(grip.PalmLocal)))+" knuckles "+F3(W(hb.TransformDirection(grip.FingersLocal)))
+                    +" | flex "+string.Join(" ",new[]{"Index","Middle","Little","Thumb"}.Select(f=>f+":"+string.Join("/",Enumerable.Range(1,3).Select(k=>{var b=Bone(f+k+sd);return Quaternion.Angle(b.localRotation,Quaternion.identity).ToString("F0");}))))
+                    +" frame "+Time.frameCount);
+            }
+            var steering=Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None).FirstOrDefault(r=>r.name=="Steering" && Vector3.Distance(r.bounds.center,wheel.position)<.1f);
+            var body=rig.GetComponentsInChildren<Renderer>(true).Where(r=>r.gameObject.layer==31 || r.name.StartsWith("Protagonist")).Select(r=>r.transform).ToList();
+            if(steering!=null)body.Add(steering.transform);
+            var keep=body.ToDictionary(t=>t,t=>t.gameObject.layer);foreach(var t in body)t.gameObject.layer=28;
+            var fpSkin=rig.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(r=>r.name=="Corpo em primeira pessoa");bool fpOn=fpSkin!=null && fpSkin.enabled;if(fpSkin!=null)fpSkin.enabled=false;
+            foreach(var (pos,look,tag) in new[]{(wheel.position+wheel.forward*.55f+wheel.up*.08f,wheel.position,"grip-front"),(wheel.position-wheel.right*.42f+wheel.forward*.12f+wheel.up*.05f,OldPickupTruck.Instance.SteeringGrip(-1),"grip-left"),(wheel.position+wheel.right*.42f+wheel.forward*.12f+wheel.up*.05f,OldPickupTruck.Instance.SteeringGrip(1),"grip-right")})
+            {camera.transform.position=pos;camera.transform.LookAt(look,wheel.up);camera.fieldOfView=tag=="grip-front"?50:34;Save(camera,"-"+tag);}
+            if(fpSkin!=null)fpSkin.enabled=fpOn;foreach(var t in keep)t.Key.gameObject.layer=t.Value;
+        }
+        Object.DestroyImmediate(lightObj2);
+        texture.Release();Object.DestroyImmediate(texture);Object.DestroyImmediate(go);
     }
     static void Tick()
     {

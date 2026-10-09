@@ -118,6 +118,7 @@ public static class VisitorCinematicReview
                     stage.Evaluate(camera,line,duration*.5f,duration,total+duration*.5f);
                     Check(!float.IsNaN(camera.transform.position.x) && !float.IsNaN(stage.EliasHand.x),"Finite camera and actor pose at beat "+line);
                     if(new[]{0,1,2,5,8,9,12,14,19,24,28,29,30}.Contains(line))Capture("shot-"+line.ToString("00"));
+                    if(new[]{0,19,25}.Contains(line))HandCloseUps(stage.elias,"hands-"+line.ToString("00"));
                     if(line==25)Check(stage.GripError<.16f,"Hands contact tablet edges within tolerance: "+stage.GripError);
                     total+=duration;
                 }
@@ -154,6 +155,21 @@ public static class VisitorCinematicReview
         Check(!StoryDirector.Active && !GameMenu.BlocksInput,label+": controls released");
         Check(Vector3.Distance(camera.transform.localPosition,cameraPosition)<.01f && Quaternion.Angle(camera.transform.localRotation,cameraRotation)<.1f && Mathf.Abs(camera.fieldOfView-cameraFov)<.01f && Mathf.Abs(camera.nearClipPlane-near)<.001f,label+": player camera restored");
         Check(Quaternion.Angle(door.hinge.localRotation,doorRotation)<.1f && door.enabled==doorEnabled,label+": original door restored");
+    }
+    // Close-ups of both of Elias' hands from the scene camera's side, to judge grips at a size the shots cannot show.
+    static void HandCloseUps(Transform actor,string name)
+    {
+        var main=Camera.main;var go=new GameObject("hand close-up");var cam=go.AddComponent<Camera>();cam.CopyFrom(main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=28;cam.nearClipPlane=.02f;
+        var target=new RenderTexture(640,480,24);cam.targetTexture=target;var sheet=new Texture2D(1280,480,TextureFormat.RGB24,false);
+        foreach(var side in new[]{"L","R"})
+        {
+            var hand=actor.GetComponentsInChildren<Transform>(true).FirstOrDefault(t=>t.name=="Hand"+side);if(hand==null)continue;
+            var middle=actor.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Middle2"+side).position;var look=(hand.position+middle)*.5f;
+            var from=main.transform.position-look;from.y=Mathf.Max(from.y,.25f);cam.transform.position=look+from.normalized*.38f;cam.transform.LookAt(look);
+            cam.Render();var active=RenderTexture.active;RenderTexture.active=target;sheet.ReadPixels(new Rect(0,0,640,480),side=="L"?0:640,0);RenderTexture.active=active;
+        }
+        sheet.Apply();File.WriteAllBytes(Folder+"/"+name+".png",sheet.EncodeToPNG());cam.targetTexture=null;
+        Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);
     }
     static void Capture(string name)
     {

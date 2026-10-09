@@ -19,7 +19,9 @@ public class OldPickupTruck : MonoBehaviour
     void Start(){cageLids=GetComponent<TruckCageLids>();if(cageLids==null)cageLids=gameObject.AddComponent<TruckCageLids>();}
     float nextNoise;
     Quaternion wheelBase;
+    // Rim centre line at 9 and 3 o'clock; the rim tube is 2.3 cm thick (measured by SteeringWheelProbe).
     public Vector3 SteeringGrip(int side)=>steeringWheel.TransformPoint(new Vector3(side<0?-.175f:.175f,0,0));
+    public const float SteeringRimRadius=.0115f;
     bool movementEnabled;
     void Awake(){Instance=this;vehicle=GetComponent<PickupVehiclePhysics>();ignition=GetComponent<TruckIgnition>();if(ignition==null)ignition=gameObject.AddComponent<TruckIgnition>();if(steeringWheel!=null)wheelBase=steeringWheel.localRotation;}
     void OnDestroy(){if(Instance==this)Instance=null;}

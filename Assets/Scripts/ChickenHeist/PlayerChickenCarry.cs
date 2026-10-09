@@ -125,11 +125,14 @@ public class PlayerChickenCarry : MonoBehaviour
                 if(side==1 && truck.ignition.Active && animator.GetComponent<ProtagonistArticulation>()!=null)continue;
                 if(wheelGrips[side]==null)wheelGrips[side]=new HandGripPose(bones[side*3+2],animator.transform,true,true);
                 CharacterGripHands.Attach(animator.transform).SetPose(bones[side*3+2],CharacterGripHands.Pose.Wheel);
-                var surface=truck.SteeringGrip(side==0?-1:1)-truck.steeringWheel.forward*.012f;
-                var rotation=wheelGrips[side].Rotation(truck.steeringWheel.forward,truck.steeringWheel.right*(side==0?1:-1));
-                Reach(side*3,wheelGrips[side].Wrist(surface,rotation),side==0?-1:1);
+                // The rim runs through the closed hand (ProtagonistFingers closes it): palm towards the wheel's
+                // centre, knuckles towards the dashboard (wheel forward points away from the driver), thumb up.
+                var wheel=truck.steeringWheel;var inward=wheel.right*(side==0?1:-1);
+                var centre=truck.SteeringGrip(side==0?-1:1);
+                var rotation=wheelGrips[side].Rotation(inward,(wheel.forward*.92f+inward*.38f).normalized);
+                Reach(side*3,PowerGrip.Wrist(wheelGrips[side],rotation,centre,OldPickupTruck.SteeringRimRadius),side==0?-1:1);
                 bones[side*3+2].rotation=Quaternion.Slerp(bones[side*3+2].rotation,rotation,poseWeight);
-                HandError=Mathf.Max(HandError,Vector3.Distance(wheelGrips[side].Contact,surface));
+                HandError=Mathf.Max(HandError,Vector3.Distance(PowerGrip.AnchorWorld(wheelGrips[side],OldPickupTruck.SteeringRimRadius),centre));
             }
             return;
         }

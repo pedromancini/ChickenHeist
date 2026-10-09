@@ -109,8 +109,10 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         // Conversation gestures come from the captured Talk take inside VisitorCinematicActor.
         if(line==0)
         {
-            first.Reach(true,props.KeyContact+home.up*(.025f+Mathf.Abs(localTime-.85f)*.02f),localTime<1.5f?.95f:.35f);
-            first.Reach(false,props.NoteContact,.95f);
+            // Palms down on the calculator and on the corner of the note, fingers pointing across the desk.
+            Vector3 across=Vector3.ProjectOnPlane(elias.forward,home.up).normalized;
+            first.Grip(true,props.KeyContact+home.up*(.03f+Mathf.Abs(localTime-.85f)*.02f),-home.up,Quaternion.AngleAxis(-18,home.up)*across,localTime<1.5f?.95f:.35f);
+            first.Grip(false,props.NoteContact+props.NoteUp*.014f,-props.NoteUp,Quaternion.AngleAxis(18,home.up)*across,.95f);
         }
         if(line==1)
         {

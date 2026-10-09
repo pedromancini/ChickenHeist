@@ -67,6 +67,7 @@ public sealed class VisitorCinematicProps
         ShowPhoto(0);tablet.gameObject.SetActive(false);
     }
     public Vector3 NoteContact=>note.TransformPoint(new Vector3(.45f,0,.35f));
+    public Vector3 NoteUp=>note.up;
     public Vector3 KeyContact=>key.position;
     public void Paper(float time)
     {

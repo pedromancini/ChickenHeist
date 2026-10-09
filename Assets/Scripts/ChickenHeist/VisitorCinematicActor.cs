@@ -12,6 +12,9 @@ public sealed class VisitorCinematicActor
     float talkWeight;
     readonly Vector3[] handContact=new Vector3[2];readonly Quaternion[] handFrame=new Quaternion[2];
     readonly Transform[][] fingers=new Transform[2][];readonly Quaternion[][] fingerRest=new Quaternion[2][];
+    // Elias: palm frame and palm contact read from the T-pose bind pose (the idle-pose estimate is 90 degrees off on
+    // his model). Other actors keep the idle-pose estimate.
+    readonly HandGripPose[] grips=new HandGripPose[2];
     public float ContactError {get;private set;}
     public VisitorCinematicActor(Transform actor)
     {
@@ -27,9 +30,11 @@ public sealed class VisitorCinematicActor
         rightArm=Bone("UpperArmR","Upperarm_R");rightElbow=Bone("ForearmR","Lowerarm_R");rightHand=Bone("HandR","Hand_R");
         bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];talkPose=new Quaternion[bones.Length];
         idle.SampleAnimation(animation.gameObject,0);
+        bool protagonist=actor.GetComponentsInChildren<Transform>(true).Any(t=>t.name=="ProtagonistRig");
         for(int i=0;i<2;i++)
         {
             var hand=i==0?leftHand:rightHand;
+            if(protagonist)grips[i]=new HandGripPose(hand,root,palmDown:true);
             var tip=hand.GetComponentsInChildren<Transform>().FirstOrDefault(t=>t.name.StartsWith("Index1") || t.name.StartsWith("Index_01"));
             Vector3 along=tip!=null?(tip.position-hand.position).normalized:-root.up;
             handContact[i]=hand.InverseTransformVector(along*.055f);
@@ -68,11 +73,20 @@ public sealed class VisitorCinematicActor
     }
     public void Grip(bool right,Vector3 surface,Vector3 normal,Vector3 along,float weight=1)
     {
-        int i=right?1:0;var hand=right?rightHand:leftHand;
-        Quaternion desired=Quaternion.LookRotation(normal,along)*Quaternion.Inverse(handFrame[i]);
-        Vector3 wrist=surface-desired*Vector3.Scale(handContact[i],hand.lossyScale);
-        Reach(right,wrist,weight);hand.rotation=Quaternion.Slerp(hand.rotation,desired,weight);
-        ContactError=Mathf.Max(ContactError,Vector3.Distance(hand.TransformPoint(handContact[i]),surface)*weight);
+        int i=right?1:0;var hand=right?rightHand:leftHand;var elbow=right?rightElbow:leftElbow;
+        Quaternion desired=grips[i]!=null?grips[i].Rotation(normal,along):Quaternion.LookRotation(normal,along)*Quaternion.Inverse(handFrame[i]);
+        Vector3 wrist=grips[i]!=null?grips[i].Wrist(surface,desired):surface-desired*Vector3.Scale(handContact[i],hand.lossyScale);
+        Reach(right,wrist,weight);
+        if(grips[i]!=null)
+        {
+            // The forearm takes most of the roll around its own axis, so the wrist bends instead of wringing.
+            Vector3 axis=(hand.position-elbow.position).normalized;var delta=desired*Quaternion.Inverse(hand.rotation);
+            Vector3 roll=Vector3.Project(new Vector3(delta.x,delta.y,delta.z),axis);var twist=new Quaternion(roll.x,roll.y,roll.z,delta.w);
+            if(twist.w<0)twist=new Quaternion(-twist.x,-twist.y,-twist.z,-twist.w);
+            if(Quaternion.Dot(twist,twist)>1e-5f)elbow.rotation=Quaternion.Slerp(Quaternion.identity,Quaternion.Normalize(twist),.65f*weight)*elbow.rotation;
+        }
+        hand.rotation=Quaternion.Slerp(hand.rotation,desired,weight);
+        ContactError=Mathf.Max(ContactError,Vector3.Distance(grips[i]!=null?grips[i].Contact:hand.TransformPoint(handContact[i]),surface)*weight);
         foreach(var finger in fingers[i])
         {
             int j=System.Array.IndexOf(fingers[i],finger);

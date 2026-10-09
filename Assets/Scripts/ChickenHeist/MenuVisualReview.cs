@@ -135,6 +135,7 @@ public class MenuVisualReview : MonoBehaviour
             truck.Drive(0,-1,true,.02f);yield return new WaitForSecondsRealtime(1.3f);
             Check(carry.HandError<.03f,"Hands follow opposite steering turn: "+carry.HandError.ToString("F3"));
             yield return Shot("truck-03c-hands-left");
+            Camera.main.transform.localRotation=Quaternion.Euler(52,0,0);yield return Shot("truck-03d-hands-looking-down");
             truck.Drive(0,0,true,.02f);yield return new WaitForSecondsRealtime(.7f);
             Camera.main.transform.localRotation=Quaternion.identity;
             truck.vehicle.ExternalControl=false;
