@@ -27,7 +27,9 @@ ELIAS_DEBUG_HANDS=1 blender -b --factory-startup --python build_elias_v4.py  # p
 ELIAS_DEBUG_REMESH=1 blender -b --factory-startup --python build_elias_v4.py # pinta as peças da mão depois do remesh
 ```
 
-Depois, no Unity (modo batch): `EliasNativeInstall.Install`, `EliasNativeInstall.CleanStages` e `MixamoInstall.Run` (este último reaplica as animações do Mixamo de `E:\Jogo3D\Animacoes`).
+Depois, no Unity (modo batch): `EliasNativeInstall.Install`, `EliasNativeInstall.CleanStages` e `MixamoInstall.Run` (este último reaplica as animações do Mixamo de `E:\Jogo3D\Animacoes` e termina com `ClipGrounding.Run`, que acerta a altura do quadril quadro a quadro para os pés não entrarem no chão; relatório em `output/mixamo/grounding.txt`).
+
+`ClippingReview.Begin` (modo play) confere se o corpo atravessa alguma coisa: o Elias pegando a galinha, carregando (em pé e agachado), dirigindo e negociando, e depois os moradores, os fazendeiros, as vacas e as galinhas andando livres pelo mapa. Relatório e imagens em `output/clipping-review/`.
 
 Parâmetros por variável de ambiente: `ELIAS_SOURCE` (arquivo em `source/`), `ELIAS_HEAD_SCALE`, `ELIAS_ARM_STRETCH`, `ELIAS_HAND_SCALE`, `ELIAS_HEIGHT`, `ELIAS_TRIS`, `ELIAS_TEX`, `ELIAS_VOXEL`, `ELIAS_WRIST` (início,fim da transição do pulso, em metros), `ELIAS_CAGE`, `ELIAS_KEEP`, `ELIAS_WELD`. O v4 usava `ELIAS_SOURCE=Elias_v4_source.glb ELIAS_HEAD_SCALE=0.74 ELIAS_ARM_STRETCH=1.10 ELIAS_HAND_SCALE=0.92 ELIAS_VOXEL=0.0025`.
 

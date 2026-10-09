@@ -9,6 +9,26 @@ public class FarmAnimalBoundary : MonoBehaviour
     private static readonly List<FarmAnimalBoundary> animals = new List<FarmAnimalBoundary>();
 
     private void OnEnable() { animals.Add(this); }
+
+    // Cows keep their distance by a circle around their pivot, which is not at the middle of the body: use the
+    // farthest point of the model from the pivot (head or tail), so two cows never walk into each other.
+    private void Start()
+    {
+        if (GetComponent<SimpleAnimalWander>() == null) return;
+        float reach = 0f;
+        foreach (var filter in GetComponentsInChildren<MeshFilter>())
+        {
+            if (filter.sharedMesh == null) continue;
+            var b = filter.sharedMesh.bounds;
+            for (int i = 0; i < 8; i++)
+            {
+                var corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                var local = transform.InverseTransformPoint(filter.transform.TransformPoint(corner));
+                reach = Mathf.Max(reach, new Vector2(local.x, local.z).magnitude * transform.lossyScale.x);
+            }
+        }
+        if (reach > 0f) radius = Mathf.Max(radius, reach * .92f);
+    }
     private void OnDisable() { animals.Remove(this); }
 
     public bool Allows(Vector3 position)

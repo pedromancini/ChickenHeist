@@ -8,6 +8,8 @@ public class FarmerShotgun : MonoBehaviour
     public float LastShotDamage {get;private set;}
     Transform weapon,body;FarmerStateMachine ai;RuralCharacterAnimator animator;NPCFootContact feet;
     Transform[] arms=new Transform[6];
+    // End of the stock in the weapon's own space (the stock capsule, tilted 78 degrees, ends 42 cm behind the receiver).
+    static readonly Vector3 ButtLocal=new Vector3(0,-.085f,-.41f);
     readonly List<Material> materials=new List<Material>();
     AudioSource audioSource;AudioClip shot,reload;
     Light flash;float flashUntil,awakeBlend=1;FarmerActivity previous;
@@ -83,14 +85,27 @@ public class FarmerShotgun : MonoBehaviour
         weapon.gameObject.SetActive(!asleep && awakeBlend>.95f);
         if(ai.Activity==FarmerActivity.Reloading && previous!=FarmerActivity.Reloading)audioSource.PlayOneShot(reload,.3f);
         previous=ai.Activity;
-        float pitch=ai.Activity==FarmerActivity.Aiming?0:ai.Activity==FarmerActivity.Reloading?35:20;
-        weapon.localPosition=new Vector3(.05f,1.28f,.18f)-Vector3.forward*(Time.time<flashUntil?.05f:0);
+        // The gun is placed by its butt (the stock reaches 42 cm behind the receiver): aiming, the butt sits in the
+        // pocket of the right shoulder and the barrels point ahead; otherwise it rests in front of the right hip with
+        // the barrels down (reloading: further down). Recoil pushes it back along its own axis.
+        bool aiming=ai.Activity==FarmerActivity.Aiming;
+        float pitch=aiming?0:ai.Activity==FarmerActivity.Reloading?38:22;
+        var rotation=transform.rotation*Quaternion.Euler(pitch,0,0);
+        Vector3 butt;
         if(arms[0]!=null && arms[3]!=null)
-            weapon.position=(arms[0].position+arms[3].position)*.5f-Vector3.up*.22f+transform.forward*.12f+transform.right*.05f-transform.forward*(Time.time<flashUntil?.05f:0);
-        weapon.localRotation=Quaternion.Euler(pitch,0,0);flash.intensity=Time.time<flashUntil?3:0;
+        {
+            var shoulders=(arms[0].position+arms[3].position)*.5f;
+            butt=aiming?arms[3].position+transform.forward*.08f-Vector3.up*.04f-transform.right*.02f
+                       :shoulders+transform.right*.11f-Vector3.up*.36f+transform.forward*.17f;
+        }
+        else butt=transform.TransformPoint(new Vector3(.12f,1.0f,.15f));
+        weapon.rotation=rotation;
+        weapon.position=butt-rotation*ButtLocal-rotation*Vector3.forward*(Time.time<flashUntil?.05f:0);
+        flash.intensity=Time.time<flashUntil?3:0;
         if(!weapon.gameObject.activeSelf)return;
-        Reach(0,weapon.TransformPoint(new Vector3(-.07f,-.03f,.18f)),-1);
-        Reach(3,weapon.TransformPoint(new Vector3(.06f,-.07f,-.10f)),1);
+        // wrist targets: the palms close on the forend and on the grip (the wrist sits a little under and beside them)
+        Reach(0,weapon.TransformPoint(new Vector3(-.045f,-.015f,.10f)),-1);
+        Reach(3,weapon.TransformPoint(new Vector3(.045f,-.03f,-.15f)),1);
     }
     void Reach(int index,Vector3 target,float side)
     {

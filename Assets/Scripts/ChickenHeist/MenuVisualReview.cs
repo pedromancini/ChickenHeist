@@ -180,7 +180,8 @@ public class MenuVisualReview : MonoBehaviour
             yield return Shot("progression-01-before-pickup");
             Check(bird.TrySteal(),"Real chicken pickup succeeds");
             yield return Shot("progression-02-lifting");
-            yield return new WaitForSecondsRealtime(.8f);
+            float liftDeadline=Time.realtimeSinceStartup+4;
+            while(game.player.GetComponent<PlayerChickenCarry>().IsLifting && Time.realtimeSinceStartup<liftDeadline)yield return null;
             Camera.main.transform.localRotation=Quaternion.identity;
             yield return Shot("progression-03-in-arms");
                         var carry=game.player.GetComponent<PlayerChickenCarry>();

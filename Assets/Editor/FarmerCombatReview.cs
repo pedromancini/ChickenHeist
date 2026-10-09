@@ -91,6 +91,7 @@ public static class FarmerCombatReview
                 if((farmer.Activity==FarmerActivity.Waking || farmer.Activity==FarmerActivity.Leaving) && Time.realtimeSinceStartup<deadline)return;
                 Check(farmer.Activity==FarmerActivity.Investigating && Vector3.Distance(farmer.transform.position,home.outsideDoor.position)<1.5f,"Farmer exits physically through doorway: "+farmer.Activity+" at "+farmer.transform.position);
                 Capture("outside-with-shotgun",home.outsideDoor.position+new Vector3(2,1.6f,-3),farmer.transform.position+Vector3.up);
+                Capture("shotgun-carry-side",farmer.transform.position+farmer.transform.right*1.5f+farmer.transform.forward*.4f+Vector3.up*1.2f,farmer.transform.position+farmer.transform.forward*.25f+Vector3.up*1f);
                 health.TakeDamage(45);Check(health.Injured && Mathf.Approximately(health.Current,55),"Damage creates injury at low health");
                 var movement=game.player.GetComponent<PlayerMovement>();movement.estaAgachado=true;movement.ApplyTrapSlow(2);
                 Check(Mathf.Abs(movement.CurrentMoveSpeed-movement.velocidadeAgachado*.35f*health.SpeedMultiplier)<.01f,"Injury composes with crouch and trap slowdown");movement.estaAgachado=false;
@@ -114,6 +115,8 @@ public static class FarmerCombatReview
                 GameMenu.Instance.Pause();float oldHealth=health.Current;int shots=gun.ShotsFired;gun.Fire(game.player.position+Vector3.up);health.TakeDamage(10);
                 Check(health.Current==oldHealth && gun.ShotsFired==shots,"Pause blocks shots and damage");GameMenu.Instance.Resume();
                 Capture("shotgun-aim",farmer.transform.position+new Vector3(1.5f,1.5f,2.5f),farmer.transform.position+new Vector3(0,1.15f,.2f));
+                Capture("shotgun-aim-side",farmer.transform.position+farmer.transform.right*1.4f+farmer.transform.forward*.35f+Vector3.up*1.35f,farmer.transform.position+farmer.transform.forward*.3f+Vector3.up*1.2f);
+                Capture("shotgun-aim-front",farmer.transform.position+farmer.transform.forward*1.9f-farmer.transform.right*.5f+Vector3.up*1.45f,farmer.transform.position+Vector3.up*1.2f);
                 next=Time.realtimeSinceStartup+.1f;phase++;return;
             }
             if(phase==5)

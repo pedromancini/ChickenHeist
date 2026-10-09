@@ -14,6 +14,7 @@ public class RuralCharacterAnimator : MonoBehaviour
     float gestureUntil;
     string gestureState="Trade";
     string state;
+    public float Length(string name)=>clips!=null && clips[name]!=null?clips[name].length:0;
     public void Gesture(){PlayGesture("Trade");}
     public void Pickup(){PlayGesture("Pickup");}
     void PlayGesture(string name)

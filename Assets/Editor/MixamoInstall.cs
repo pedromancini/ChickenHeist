@@ -93,6 +93,8 @@ public static class MixamoInstall
         if(missing.Count>0)log.Add("kept current clip for: "+string.Join(", ",missing));
         AssetDatabase.SaveAssets();
         Sheets(baked,log);
+        // every clip, captured or from Mixamo, with the feet on the floor (output/mixamo/grounding.txt)
+        if(!trial){ClipGrounding.Run();log.Add("feet grounded: output/mixamo/grounding.txt");}
         Write(log);
     }
     static void Write(List<string> log){File.WriteAllLines(Out+"/install.txt",log);Debug.Log("MIXAMO INSTALL\n"+string.Join("\n",log));}

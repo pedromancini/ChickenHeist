@@ -6,11 +6,14 @@ using UnityEngine;
 public class PlayerChickenCarry : MonoBehaviour
 {
     public bool HasVisual => visual != null;
-    public bool IsLifting => visual != null && Time.time < liftStarted + LiftDuration;
+    public bool IsLifting => visual != null && Time.time < liftStarted + liftLength + LiftBlend;
     public Vector3 BirdPosition => visual != null ? visual.transform.position : transform.position;
     public float HandError { get; private set; }
     public float WristBend {get;private set;}
-    const float LiftDuration = .85f;
+    // Pickup: the bird waits where it was until the hands of the Pickup clip come down to it, rides up between them
+    // while the body straightens, then moves to the carry spot as the arm IK blends in over LiftBlend.
+    const float LiftDuration = .85f, LiftBlend = .28f;
+    float liftLength = LiftDuration; bool grabbed, followHands; Vector3 grabFrom; float grabTime;
     Transform player, eyes;
     BackpackInventory pack;
     RuralCharacterAnimator animator;
@@ -48,10 +51,22 @@ public class PlayerChickenCarry : MonoBehaviour
     public void Lift(InteractableChicken bird)
     {
         if(bird==null)return;
-        CreateVisual(bird.gameObject);
-        liftOrigin=bird.transform.position+Vector3.up*.2f;
+        LiftFrom(bird.gameObject,bird.transform.position+Vector3.up*.12f);
+    }
+    // Shared by the farm pickup and unloading a bird from the truck cages (origin: where the bird is taken from).
+    // fromGround: bend down with the Pickup clip and take the bird from between the hands; otherwise (a raised cage)
+    // reach forward with the Trade gesture and bring the bird straight to the arms.
+    public void LiftFrom(GameObject source,Vector3 origin,bool fromGround=true)
+    {
+        CreateVisual(source);
+        liftOrigin=origin;grabbed=false;
         liftStarted=Time.time;
-        animator?.Pickup();
+        bool articulated=animator!=null && animator.GetComponent<ProtagonistArticulation>()!=null;
+        followHands=fromGround && articulated;
+        if(fromGround)animator?.Pickup();else animator?.Gesture();
+        float clip=animator!=null?animator.Length("Pickup"):0;
+        liftLength=followHands && clip>.3f?clip:LiftDuration;
+        if(visual!=null)visual.transform.position=liftOrigin;
     }
 
     void CreateVisual(GameObject source)
@@ -140,20 +155,42 @@ public class PlayerChickenCarry : MonoBehaviour
         if(visual==null)
         {
             var flock=FindFirstObjectByType<HomeFlockView>();
-            if(flock?.chickenPrefab!=null){CreateVisual(flock.chickenPrefab);liftStarted=Time.time-LiftDuration;}
+            if(flock?.chickenPrefab!=null){CreateVisual(flock.chickenPrefab);liftStarted=Time.time-liftLength-LiftBlend;}
         }
         if(visual==null)return;
         bool stowed=ProtagonistPhone.IsOpen || phone!=null && phone.IsBusy || ChickenCoopLockpick.Active!=null;
         visual.SetActive(!stowed);
         if(stowed){poseWeight=0;return;}
-        float t=Mathf.SmoothStep(0,1,Mathf.Clamp01((Time.time-liftStarted)/LiftDuration));
         var movement=GetComponent<PlayerMovement>();
         float bob=movement!=null && movement.estaMovendo?Mathf.Sin(Time.time*(movement.estaSprinting?12:8))*.014f:Mathf.Sin(Time.time*2)*.003f;
         bool articulated=animator!=null && animator.GetComponent<ProtagonistArticulation>()!=null;
         var target=player.position+Vector3.up*(eyes.localPosition.y-(articulated?.32f:.34f)+bob)+player.forward*(articulated?.47f:.43f);
-        visual.transform.position=Vector3.Lerp(liftOrigin,target,t)+Vector3.up*(Mathf.Sin(t*Mathf.PI)*.10f);
         visual.transform.rotation=player.rotation*Quaternion.Euler(0,78,Mathf.Sin(Time.time*2)*2);
-        poseWeight=Mathf.MoveTowards(poseWeight,1,Time.deltaTime*5);
+        float elapsed=Time.time-liftStarted;
+        if(followHands && elapsed<liftLength+LiftBlend && bones[2]!=null && bones[5]!=null)
+        {
+            // Hands of the Pickup clip: the bird is taken when they come down to it (or half way through the clip)
+            // and stays between the palms while the body straightens; no arm IK until the clip ends.
+            for(int side=0;side<2;side++)if(grips[side]==null)grips[side]=new HandGripPose(bones[side*3+2],animator.transform);
+            var hands=(grips[0].Contact+grips[1].Contact)*.5f-Vector3.up*.03f;
+            if(elapsed<liftLength)
+            {
+                // the bird is drawn into the hands while they come down (from a fifth of the clip to just before
+                // the lowest point), so it never jumps; then it rides between the palms
+                if(!grabbed && elapsed>liftLength*.2f){grabbed=true;grabFrom=visual.transform.position;grabTime=Time.time;}
+                visual.transform.position=grabbed?Vector3.Lerp(grabFrom,hands,Mathf.SmoothStep(0,1,(Time.time-grabTime)/(liftLength*.28f))):liftOrigin;
+                poseWeight=0;HandError=0;return;
+            }
+            float b=Mathf.SmoothStep(0,1,(elapsed-liftLength)/LiftBlend);
+            visual.transform.position=Vector3.Lerp(hands,target,b);
+            poseWeight=b;
+        }
+        else
+        {
+            float t=Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/liftLength));
+            visual.transform.position=Vector3.Lerp(liftOrigin,target,t)+Vector3.up*(articulated?0:Mathf.Sin(t*Mathf.PI)*.10f);
+            poseWeight=Mathf.MoveTowards(poseWeight,1,Time.deltaTime*5);
+        }
         for(int i=0;i<bones.Length;i++)if(bones[i]==null)return;
         for(int i=0;i<bones.Length;i++)original[i]=bones[i].localRotation;
         posed=true;

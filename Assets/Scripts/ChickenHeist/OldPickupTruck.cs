@@ -112,7 +112,12 @@ public class OldPickupTruck : MonoBehaviour
         var pack=HeistGameManager.Instance.backpack;var economy=HouseholdEconomy.Instance;
         if(pack.IsFull || economy.Account.truckChickens<1)return false;
         if(!economy.Commit(a=>{a.truckChickens--;return true;},"Galinha retirada da gaiola."))return false;
-        pack.TryAddChicken();Player.GetComponentInChildren<RuralCharacterAnimator>()?.Pickup();return true;
+        pack.TryAddChicken();
+        // the bird is taken out of the cage on the cargo bed
+        var carry=Player.GetComponent<PlayerChickenCarry>();var flock=FindFirstObjectByType<HomeFlockView>();
+        if(carry!=null && flock?.chickenPrefab!=null)carry.LiftFrom(flock.chickenPrefab,cargoPoint.position+Vector3.up*.25f,false);
+        else Player.GetComponentInChildren<RuralCharacterAnimator>()?.Pickup();
+        return true;
     }
     public void RestorePosition(Vector3 position,float yaw)
     {RestorePose(position,Quaternion.Euler(0,yaw,0));}

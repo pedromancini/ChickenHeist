@@ -144,7 +144,7 @@ public class MissionNavigation : MonoBehaviour
         {
             var hit=groundHits[i];
             if(Game?.player!=null && hit.transform.IsChildOf(Game.player) || hit.transform.GetComponentInParent<OldPickupTruck>()!=null)continue;
-            if(hit.transform.GetComponentInParent<FarmerSleepSystem>()!=null || hit.transform.GetComponentInParent<InteractableChicken>()!=null || hit.transform.GetComponentInParent<SimpleAnimalWander>()!=null)continue;
+            if(Moving(hit.collider))continue;
             if(hit.point.y>p.y+.75f)continue;
             if(hit.normal.y<.65f || hit.distance>=nearest)continue;
             result.y=hit.point.y;nearest=hit.distance;
@@ -166,7 +166,7 @@ public class MissionNavigation : MonoBehaviour
             if(c.bounds.max.y<Mathf.Min(a.y,b.y)+.18f)continue;
             if(Game?.player!=null && c.transform.IsChildOf(Game.player))continue;
             if(c.GetComponentInParent<OldPickupTruck>()!=null)continue;
-            if(c.GetComponentInParent<SimpleAnimalWander>()!=null || c.GetComponentInParent<InteractableChicken>()!=null || c.GetComponentInParent<FarmerSleepSystem>()!=null)continue;
+            if(Moving(c))continue;
             LastObstacle=c.name;return false;
         }
         // Capsule casts don't report initial overlaps.
@@ -177,11 +177,15 @@ public class MissionNavigation : MonoBehaviour
             var c=overlapHits[i];
             if(terrain.Contains(c))continue;
             if(c.bounds.max.y<a.y+.18f || Game?.player!=null && c.transform.IsChildOf(Game.player) || c.GetComponentInParent<OldPickupTruck>()!=null)continue;
-            if(c.GetComponentInParent<SimpleAnimalWander>()!=null || c.GetComponentInParent<InteractableChicken>()!=null || c.GetComponentInParent<FarmerSleepSystem>()!=null)continue;
+            if(Moving(c))continue;
             LastObstacle=c.name;return false;
         }
         return true;
     }
+    // Animals and people move out of the way: residents walking the roads, farmers, the merchant and any other body
+    // carried by a CharacterController would otherwise close a road for as long as they stand on it.
+    static bool Moving(Collider c)=>c is CharacterController || c.GetComponentInParent<SimpleAnimalWander>()!=null || c.GetComponentInParent<InteractableChicken>()!=null
+        || c.GetComponentInParent<FarmerSleepSystem>()!=null || c.GetComponentInParent<RoadsideWalker>()!=null || c.GetComponentInParent<RuralCharacterAnimator>()!=null;
     public IEnumerator CalculateRoute(Vector3 start,Vector3 end,bool vehicle)
     {
         Status="Calculando caminho...";

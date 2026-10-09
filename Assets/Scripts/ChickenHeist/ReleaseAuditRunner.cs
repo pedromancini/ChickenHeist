@@ -48,6 +48,7 @@ public class ReleaseAuditRunner : MonoBehaviour
             int index=Array.IndexOf(ProtagonistPhone.Instance.farmNames,farm.identity);Check(game.StartMission(index),"Start "+farm.identity);
             MissionNavigation.Instance.ToggleDestination();yield return RouteReady();
             Check(MissionNavigation.Instance.Route.Count>1,"Return route from "+farm.identity+": "+MissionNavigation.Instance.Status);
+            if(MissionNavigation.Instance.Route.Count<=1)File.WriteAllText(Path.Combine(folder,"route-"+farm.layoutIndex+"-diagnostic.txt"),MissionNavigation.Instance.Diagnostic);
             eye.transform.position=new Vector3(farm.lot.center.x,Mathf.Max(player.position.y,0)+38,farm.lot.yMin-15);eye.transform.LookAt(new Vector3(farm.lot.center.x,player.position.y,farm.lot.center.y));
             yield return Shot("farm-"+farm.layoutIndex);
         }
