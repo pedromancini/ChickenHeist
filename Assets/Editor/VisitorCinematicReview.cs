@@ -24,8 +24,9 @@ public static class VisitorCinematicReview
         var root=new GameObject("VisitorStage");var stage=root.AddComponent<VisitorCinematicStage>();
         var protagonist=AssetDatabase.LoadAssetAtPath<GameObject>(ProtagonistInstaller.PrefabPath);
         stage.elias=Object.Instantiate(protagonist,root.transform).transform;
-        stage.visitor=VillagerNPCFactory.Create(root.transform,"Visitante","peasant_2").transform;
-        foreach(var actor in new[]{stage.elias,stage.visitor})
+        // the hooded visitor, rigged on Elias' bone names (HoodedVisitorInstall)
+        stage.visitor=new GameObject("Visitante").transform;stage.visitor.SetParent(root.transform,false);HoodedVisitorInstall.Build(stage.visitor);
+        foreach(var actor in new[]{stage.elias})
         {
             actor.localPosition=Vector3.zero;actor.localRotation=Quaternion.identity;
             foreach(var script in actor.GetComponentsInChildren<MonoBehaviour>(true))Object.DestroyImmediate(script);
@@ -107,9 +108,11 @@ public static class VisitorCinematicReview
             {
                 var stage=Object.FindAnyObjectByType<VisitorCinematicStage>();var camera=Camera.main;
                 Check(stage!=null,"Visitor prefab instantiated with two rigged actors");
-                Check(stage.visitor.GetComponentsInChildren<SkinnedMeshRenderer>().Any(s=>s.name=="Pele articulada do visitante" && s.bones.Length==15),"Supplied visitor has full-body skinning");
-                var supplied=stage.GetComponentsInChildren<Transform>(true).FirstOrDefault(t=>t.name=="Visitante encapuzado c12cb2ea fornecido");
-                Check(supplied!=null && supplied.GetComponentsInChildren<Renderer>(true).Length>0,"Visitor uses supplied c12cb2ea hooded character mesh with a visible renderer");
+                var visitorBody=stage.visitor.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(s=>s.name=="VisitorBody");
+                Check(visitorBody!=null && visitorBody.enabled && visitorBody.bones.Count(b=>b!=null)>=50 && new[]{"HandL","Index3L","Little3R","Thumb3R","ForearmR"}.All(n=>visitorBody.bones.Any(b=>b!=null && b.name==n)),
+                    "Hooded visitor is the supplied c12cb2ea model rigged with arms, wrists and fingers: "+(visitorBody!=null?visitorBody.bones.Length+" bones":"missing"));
+                Check(visitorBody!=null && visitorBody.sharedMaterial!=null && visitorBody.sharedMaterial.GetTexture("_BaseMap")!=null,"Hooded visitor keeps its painted texture");
+                File.WriteAllText(Folder+"/wrists.txt","beat: wrist load (1 = at the joint's limit) and contact error, Elias | visitor\n");
                 Check(stage.GetComponentsInChildren<Light>().Count(l=>l.shadows!=UnityEngine.LightShadows.None)<=1,"Only key light casts additional shadows");
                 float total=0;
                 for(int line=0;line<VisitorOpeningDialogue.Text.Length;line++)
@@ -118,9 +121,36 @@ public static class VisitorCinematicReview
                     stage.Evaluate(camera,line,duration*.5f,duration,total+duration*.5f);
                     Check(!float.IsNaN(camera.transform.position.x) && !float.IsNaN(stage.EliasHand.x),"Finite camera and actor pose at beat "+line);
                     if(new[]{0,1,2,5,8,9,12,14,19,24,28,29,30}.Contains(line))Capture("shot-"+line.ToString("00"));
-                    if(new[]{0,19,25}.Contains(line))HandCloseUps(stage.elias,"hands-"+line.ToString("00"));
                     if(line==25)Check(stage.GripError<.16f,"Hands contact tablet edges within tolerance: "+stage.GripError);
+                    Wrists(stage,"beat "+line);
                     total+=duration;
+                }
+                // the moments the hands are busy, up close: typing, knocking, the lever, holding and passing the tablet
+                foreach(var (line,at,visitorSide,name) in new[]{(0,.85f,false,"desk"),(1,1.43f,true,"knock"),(5,.9f,false,"lever"),(9,2.4f,true,"tablet-shown"),(12,1.5f,true,"tablet-held"),
+                    (19,1.4f,false,"pointing"),(24,1.2f,false,"handover"),(24,1.2f,true,"handover"),(25,3f,false,"tablet-read"),(29,1.6f,false,"door-close")})
+                {
+                    SetLine(line,at/VisitorOpeningDialogue.Durations[line]);stage.Evaluate(camera,line,at,VisitorOpeningDialogue.Durations[line],200+line+at);
+                    if(!visitorSide)Capture("moment-"+name);
+                    HandCloseUps(visitorSide?stage.VisitorActor:stage.EliasActor,"hands-"+name+(visitorSide?"-visitor":"-elias"));
+                    Wrists(stage,name+" (beat "+line+" at "+at+" s)");
+                    if(name=="knock")Check(stage.VisitorActor.ContactError<.03f,"Knuckles meet the door on the knock: "+stage.VisitorActor.ContactError.ToString("F3"));
+                    if(name=="tablet-held")Check(stage.VisitorActor.ContactError<.03f,"Visitor's palms on the tablet edges: "+stage.VisitorActor.ContactError.ToString("F3"));
+                    if(name=="tablet-held" || name=="tablet-read")TabletFingers(stage,name=="tablet-held"?stage.VisitorActor:stage.EliasActor,name,name=="tablet-held"?stage.Tablet.forward:-stage.Tablet.forward);
+                    if(name=="tablet-read")Check(stage.EliasActor.ContactError<.03f,"Elias' palms on the tablet edges: "+stage.EliasActor.ContactError.ToString("F3"));
+                    Check(stage.EliasActor.WristLoad<=1.001f && stage.VisitorActor.WristLoad<=1.001f,"Wrists within their range at "+name);
+                }
+                // the door swings out through the porch: it must clear the visitor standing there
+                if(stage.Door!=null)
+                {
+                    float clearance=float.PositiveInfinity;var hinge=stage.Door.hinge;
+                    for(float t=0;t<=VisitorOpeningDialogue.Durations[5];t+=.1f)
+                    {
+                        SetLine(5,t/VisitorOpeningDialogue.Durations[5]);stage.Evaluate(camera,5,t,VisitorOpeningDialogue.Durations[5],300+t);
+                        Vector3 a=hinge.position,b=hinge.TransformPoint(new Vector3(1.47f,0,0));Vector3 v=stage.visitor.position;
+                        Vector2 A=new Vector2(a.x,a.z),B=new Vector2(b.x,b.z),V=new Vector2(v.x,v.z);
+                        float u=Mathf.Clamp01(Vector2.Dot(V-A,B-A)/(B-A).sqrMagnitude);clearance=Mathf.Min(clearance,Vector2.Distance(A+(B-A)*u,V));
+                    }
+                    Check(clearance>.28f,"Opening door clears the visitor on the porch: "+clearance.ToString("F2")+" m from his centre");
                 }
                 stage.Evaluate(camera,28,.8f,6.5f,120);var before=stage.visitor.position;
                 stage.Evaluate(camera,28,4.5f,6.5f,124);Check(Vector3.Distance(before,stage.visitor.position)>2,"Visitor physically walks away");
@@ -156,20 +186,52 @@ public static class VisitorCinematicReview
         Check(Vector3.Distance(camera.transform.localPosition,cameraPosition)<.01f && Quaternion.Angle(camera.transform.localRotation,cameraRotation)<.1f && Mathf.Abs(camera.fieldOfView-cameraFov)<.01f && Mathf.Abs(camera.nearClipPlane-near)<.001f,label+": player camera restored");
         Check(Quaternion.Angle(door.hinge.localRotation,doorRotation)<.1f && door.enabled==doorEnabled,label+": original door restored");
     }
-    // Close-ups of both of Elias' hands from the scene camera's side, to judge grips at a size the shots cannot show.
-    static void HandCloseUps(Transform actor,string name)
+    // Held like a book: thumbs on the face towards the holder (near), fingers past the far face, nothing inside.
+    static void TabletFingers(VisitorCinematicStage stage,VisitorCinematicActor actor,string label,Vector3 near)
     {
-        var main=Camera.main;var go=new GameObject("hand close-up");var cam=go.AddComponent<Camera>();cam.CopyFrom(main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=28;cam.nearClipPlane=.02f;
-        var target=new RenderTexture(640,480,24);cam.targetTexture=target;var sheet=new Texture2D(1280,480,TextureFormat.RGB24,false);
-        foreach(var side in new[]{"L","R"})
+        var tablet=stage.Tablet;Vector3 screen=near;string line=label+":";bool ok=true;
+        for(int side=0;side<2;side++)
         {
-            var hand=actor.GetComponentsInChildren<Transform>(true).FirstOrDefault(t=>t.name=="Hand"+side);if(hand==null)continue;
-            var middle=actor.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Middle2"+side).position;var look=(hand.position+middle)*.5f;
-            var from=main.transform.position-look;from.y=Mathf.Max(from.y,.25f);cam.transform.position=look+from.normalized*.38f;cam.transform.LookAt(look);
-            cam.Render();var active=RenderTexture.active;RenderTexture.active=target;sheet.ReadPixels(new Rect(0,0,640,480),side=="L"?0:640,0);RenderTexture.active=active;
+            var hand=actor.Hand(side==1);
+            for(int f=0;f<5;f++)
+            {
+                var local=tablet.InverseTransformPoint(hand.Tip(f));float face=Vector3.Dot(hand.Tip(f)-tablet.position,screen);
+                bool inside=Mathf.Abs(local.x)<.245f && Mathf.Abs(local.y)<.155f && Mathf.Abs(face)<.014f;
+                bool right=f==0?face>0:face<0;ok&=right && !inside;
+                line+=$" {(side==0?"L":"R")}{CinematicHand.Names[f][0]} {face*100:+0.0;-0.0}cm{(inside?" INSIDE":"")}";
+            }
+        }
+        File.AppendAllText(Folder+"/wrists.txt",line+"\n");
+        Check(ok,"Thumbs on the holder's side of the tablet, fingers over the far side, none inside ("+label+")");
+    }
+    static void Wrists(VisitorCinematicStage stage,string label)
+    {
+        var e=stage.EliasActor;var v=stage.VisitorActor;
+        string Arm(VisitorCinematicActor a,bool right){var arm=a.Arm(right);return (right?"R":"L")+$" flex {arm.Flexion:0} dev {arm.Deviation:0} roll {arm.Roll:0} forearm {arm.ForearmRoll:0}";}
+        File.AppendAllText(Folder+"/wrists.txt",$"{label}: Elias load {e.WristLoad:0.00} contact {e.ContactError:0.000} [{Arm(e,false)} | {Arm(e,true)}]  visitor load {v.WristLoad:0.00} contact {v.ContactError:0.000} [{Arm(v,false)} | {Arm(v,true)}]\n");
+    }
+    // Both hands of an actor up close, each from the back of the hand, the thumb side and the palm side, lit by a lamp
+    // at the camera (the night scene is too dark to judge a grip): wrist, fingers and what they hold in one sheet.
+    static void HandCloseUps(VisitorCinematicActor actor,string name)
+    {
+        var main=Camera.main;var go=new GameObject("hand close-up");var cam=go.AddComponent<Camera>();cam.CopyFrom(main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=34;cam.nearClipPlane=.02f;
+        var lamp=new GameObject("close-up lamp").AddComponent<Light>();lamp.type=LightType.Directional;lamp.intensity=1.5f;lamp.shadows=LightShadows.None;
+        var target=new RenderTexture(480,400,24);cam.targetTexture=target;var sheet=new Texture2D(1440,800,TextureFormat.RGB24,false);
+        for(int row=0;row<2;row++)
+        {
+            bool right=row==1;var hand=right?actor.rightHand:actor.leftHand;
+            Vector3 palm=actor.Palm(right),fingers=actor.Fingers(right),thumb=Vector3.Cross(palm,fingers)*(right?-1:1);
+            var middle=hand.Find("Middle2"+(right?"R":"L"));var look=Vector3.Lerp(hand.position,middle!=null?middle.position:hand.position,.35f);
+            var views=new[]{-palm+fingers*.15f,thumb-palm*.25f,palm+fingers*.15f};
+            for(int v=0;v<3;v++)
+            {
+                var dir=views[v].normalized;cam.transform.position=look+dir*.36f;cam.transform.LookAt(look,Vector3.Cross(dir,Vector3.Cross(Vector3.up,dir)).sqrMagnitude>1e-4f?Vector3.up:fingers);
+                lamp.transform.rotation=Quaternion.LookRotation(-dir+Vector3.down*.3f);
+                cam.Render();var active=RenderTexture.active;RenderTexture.active=target;sheet.ReadPixels(new Rect(0,0,480,400),v*480,(1-row)*400);RenderTexture.active=active;
+            }
         }
         sheet.Apply();File.WriteAllBytes(Folder+"/"+name+".png",sheet.EncodeToPNG());cam.targetTexture=null;
-        Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);
+        Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);Object.DestroyImmediate(lamp.gameObject);
     }
     static void Capture(string name)
     {

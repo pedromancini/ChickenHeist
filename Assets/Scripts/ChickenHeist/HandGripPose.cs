@@ -89,4 +89,6 @@ public sealed class HandGripPose
     public Quaternion Rotation(Vector3 palmNormal,Vector3 fingers)=>Quaternion.LookRotation(palmNormal,fingers)*Quaternion.Inverse(frame);
     public Vector3 Wrist(Vector3 surface,Quaternion rotation)=>surface-rotation*Vector3.Scale(contact,hand.lossyScale);
     public Vector3 Contact=>hand.TransformPoint(contact);
+    // Hand-local centre of the palm surface (the point Contact returns).
+    public Vector3 ContactLocal=>contact;
 }

@@ -37,17 +37,19 @@ public sealed class VisitorCinematicProps
 
         var paper=Material("Papel amarelado",new Color(.76f,.72f,.59f));
         var ink=Material("Tinta da cobranca",new Color(.25f,.10f,.08f));
-        note=Part(root,"Aviso final de cobranca",PrimitiveType.Cube,desk+new Vector3(-.23f,.01f,0),new Vector3(.31f,.006f,.38f),paper);
+        // both within reach of Elias at the desk's near edge (z towards him): the bill under his right hand, the
+        // calculator under his left
+        note=Part(root,"Aviso final de cobranca",PrimitiveType.Cube,desk+new Vector3(-.23f,.01f,.12f),new Vector3(.31f,.006f,.38f),paper);
         note.localRotation=Quaternion.Euler(0,-8,0);
         var text=new GameObject("Cobranca impressa").AddComponent<TextMesh>();text.transform.SetParent(root,false);
-        text.transform.localPosition=desk+new Vector3(-.09f,.018f,-.12f);text.transform.localRotation=Quaternion.Euler(90,0,180);
+        text.transform.localPosition=desk+new Vector3(-.09f,.018f,0);text.transform.localRotation=Quaternion.Euler(90,0,180);
         text.text="AVISO DE COBRANCA\n\nENERGIA ATRASADA\n\nREGULARIZE SEU DEBITO";text.fontSize=48;text.characterSize=.0028f;text.color=new Color(.28f,.10f,.07f);text.anchor=TextAnchor.UpperLeft;
         DepthText(text);
         text.transform.SetParent(note,true);noteHome=note.localPosition;noteRotation=note.localRotation;
-        var calculator=Part(root,"Calculadora de mesa",PrimitiveType.Cube,desk+new Vector3(.23f,.025f,-.08f),new Vector3(.16f,.035f,.23f),dark);
-        for(int row=0;row<4;row++)for(int col=0;col<3;col++){var button=Part(root,"Tecla",PrimitiveType.Cube,desk+new Vector3(.185f+col*.045f,.05f,-.04f+row*.033f),new Vector3(.031f,.012f,.021f),paper);if(row==2 && col==1)key=button;}
+        var calculator=Part(root,"Calculadora de mesa",PrimitiveType.Cube,desk+new Vector3(.23f,.025f,.10f),new Vector3(.16f,.035f,.23f),dark);
+        for(int row=0;row<4;row++)for(int col=0;col<3;col++){var button=Part(root,"Tecla",PrimitiveType.Cube,desk+new Vector3(.185f+col*.045f,.05f,.10f+row*.033f),new Vector3(.031f,.012f,.021f),paper);if(row==2 && col==1)key=button;}
         var calcScreen=Material("LCD da calculadora",new Color(.30f,.36f,.27f));
-        Part(root,"Visor da calculadora",PrimitiveType.Cube,desk+new Vector3(.23f,.047f,-.15f),new Vector3(.125f,.007f,.06f),calcScreen);
+        Part(root,"Visor da calculadora",PrimitiveType.Cube,desk+new Vector3(.23f,.047f,.03f),new Vector3(.125f,.007f,.06f),calcScreen);
         }
         tablet=new GameObject("Tablet recebido do visitante").transform;tablet.SetParent(root,false);
         Part(tablet,"Carcaca",PrimitiveType.Cube,Vector3.zero,new Vector3(.49f,.31f,.028f),dark);
@@ -66,7 +68,8 @@ public sealed class VisitorCinematicProps
         photos=Resources.LoadAll<Texture2D>("Cinematics/Recon");if(photos.Length==0)photos=ProtagonistPhone.Instance?.farmPhotos;
         ShowPhoto(0);tablet.gameObject.SetActive(false);
     }
-    public Vector3 NoteContact=>note.TransformPoint(new Vector3(.45f,0,.35f));
+    // the bill's corner nearest Elias' right hand
+    public Vector3 NoteContact=>note.TransformPoint(new Vector3(-.25f,0,.3f));
     public Vector3 NoteUp=>note.up;
     public Vector3 KeyContact=>key.position;
     public void Paper(float time)
@@ -83,21 +86,9 @@ public sealed class VisitorCinematicProps
         var material=new Material(shader);
         material.name=name;material.SetColor("_BaseColor",color);material.SetFloat("_Smoothness",.12f);owned.Add(material);return material;
     }
-    bool ProvidedCharacter(Transform visitor)
-    {
-        var supplied=Resources.Load<GameObject>("Cinematics/HoodedVisitorVisual");
-        if(supplied==null)return false;
-        // Preserve the complete authored mesh and bind it to the cinematic rig.
-        foreach(var renderer in visitor.GetComponentsInChildren<SkinnedMeshRenderer>(true))renderer.forceRenderingOff=true;
-        var visual=Object.Instantiate(supplied,visitor);
-        visual.name="Visitante encapuzado c12cb2ea fornecido";
-        visual.transform.localPosition=new Vector3(0,.85f,0);
-        visual.transform.localRotation=Quaternion.identity;
-        visual.transform.localScale=Vector3.one*1.7f;
-        foreach(var filter in visual.GetComponentsInChildren<MeshFilter>(true))
-            owned.Add(HoodedVisitorSkin.Bind(visitor,filter));
-        return true;
-    }
+    // The supplied hooded model is rigged offline on Elias' bone names, fingers included (HoodedVisitorInstall); the
+    // canvas hood, mask and cloak below only stand in for it in a checkout without the rigged model.
+    static bool ProvidedCharacter(Transform visitor)=>visitor.GetComponentsInChildren<SkinnedMeshRenderer>(true).Any(s=>s.name=="VisitorBody");
     void DepthText(TextMesh text)
     {
         text.font.RequestCharactersInTexture(text.text,text.fontSize);

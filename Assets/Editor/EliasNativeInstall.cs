@@ -283,14 +283,16 @@ public static class EliasNativeInstall
 
     // Bakes one state onto the Elias hierarchy used in game: holder / Protagonist_Rigged(Clone) / ProtagonistRig / ...
     // asset: where to save (default: the game clip of that state, overwritten in place so references keep working).
-    internal static AnimationClip Bake(string state,Avatar avatar,Action<GameObject,float> poseAt,float length,string asset=null,bool? loop=null)
+    // modelPath/childName/rigName: another character on the same bone names (the hooded visitor: HoodedVisitorInstall).
+    internal static AnimationClip Bake(string state,Avatar avatar,Action<GameObject,float> poseAt,float length,string asset=null,bool? loop=null,
+        string modelPath=null,string childName=null,string rigName="ProtagonistRig")
     {
         var holder=new GameObject("bake");
-        var model=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Model),holder.transform);model.name=ModelChild;
+        var model=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(modelPath??Model),holder.transform);model.name=childName??ModelChild;
         try
         {
             var animator=model.GetComponent<Animator>();if(animator==null)animator=model.AddComponent<Animator>();animator.avatar=avatar;animator.applyRootMotion=false;
-            var rig=model.transform.Find("ProtagonistRig");var bones=rig.GetComponentsInChildren<Transform>().Where(t=>t!=rig).ToArray();
+            var rig=model.transform.Find(rigName);var bones=rig.GetComponentsInChildren<Transform>().Where(t=>t!=rig).ToArray();
             var hips=bones.First(b=>b.name=="Hips");
             int frames=Mathf.Max(2,Mathf.RoundToInt(length*30));
             var rot=bones.ToDictionary(b=>b,b=>Enumerable.Range(0,4).Select(_=>new AnimationCurve()).ToArray());
