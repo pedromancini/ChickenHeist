@@ -198,7 +198,8 @@ public static class VisitorCinematicReview
                 var local=tablet.InverseTransformPoint(hand.Tip(f));float face=Vector3.Dot(hand.Tip(f)-tablet.position,screen);
                 bool inside=Mathf.Abs(local.x)<.245f && Mathf.Abs(local.y)<.155f && Mathf.Abs(face)<.014f;
                 bool right=f==0?face>0:face<0;ok&=right && !inside;
-                line+=$" {(side==0?"L":"R")}{CinematicHand.Names[f][0]} {face*100:+0.0;-0.0}cm{(inside?" INSIDE":"")}";
+                float knuckle=Vector3.Dot(hand.Knuckle(f)-tablet.position,screen);
+                line+=$" {(side==0?"L":"R")}{CinematicHand.Names[f][0]} {face*100:+0.0;-0.0}cm(k{knuckle*100:+0.0;-0.0}){(inside?" INSIDE":"")}";
             }
         }
         File.AppendAllText(Folder+"/wrists.txt",line+"\n");

@@ -15,6 +15,7 @@ O Elias atual (v5) vem de `source/Elias_v5_source.glb`, enviado pelo usuário em
 - cores pintadas transferidas (bake) do modelo original para UVs novas, em 2048 px, sem manchas de cabelo ou barba na pele; a mancha azulada nas laterais da barba é recolorida (só na metade de baixo da cabeça, para não mexer nos olhos); nas mãos e antebraços, pontos muito mais escuros que a pele (sombras pintadas entre os dedos) voltam ao tom da pele;
 - pesos pelo "bone heat" do Blender. **No pulso**, tudo depois da articulação segue só a mão e os dedos, tudo antes da transição segue só o antebraço, e entre os dois há uma transição de 6,5 cm. O bone heat deixava a base da palma e do polegar presas ao antebraço, e isso fazia pontas ao dobrar a mão (era o pedaço solto que aparecia no volante);
 - pesos das mãos pelos eixos dos dedos; barba e queixo acompanham o osso da cabeça;
+- **osso de torção no antebraço** (`ForearmTwistL/R`, do meio do antebraço até o pulso): a pele do antebraço passa aos poucos para ele em direção ao pulso, e o jogo o gira com 80% da rotação da mão (`ArmTwist`). Antes, a rotação inteira ficava no pulso e a pele dava um nó;
 - cabeça separada (`ProtagonistHead`) com a barba; os dois lados do corte fechados (o do corpo com a cor da pele do pescoço, o da cabeça com a da barba).
 
 Execução:

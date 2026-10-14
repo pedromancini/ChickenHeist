@@ -337,6 +337,8 @@ public static class EliasNativeInstall
         body.clip=clips["Idle"];
         Rebind(body.gameObject);
         EnsureFirstPersonView(body.gameObject);
+        // the hands' roll spreads along the forearms (twist bones), after every animation and grip
+        if(body.GetComponent<ArmTwistDriver>()==null)body.gameObject.AddComponent<ArmTwistDriver>();
         clips["Idle"].SampleAnimation(body.gameObject,0);
         // First-person arms and legs are cut from the new body, torso hidden under the camera.
         var full=model.GetComponentsInChildren<SkinnedMeshRenderer>().First(s=>s.name=="ProtagonistBody");

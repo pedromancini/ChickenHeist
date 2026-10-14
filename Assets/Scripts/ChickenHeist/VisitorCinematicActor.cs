@@ -15,6 +15,7 @@ public sealed class VisitorCinematicActor
     readonly CinematicArm[] arms=new CinematicArm[2];readonly CinematicHand[] hands=new CinematicHand[2];
     readonly HandGripPose[] grips=new HandGripPose[2];readonly Vector3[] knuckles=new Vector3[2];
     readonly Vector3[][] knuckleEach=new Vector3[2][];
+    readonly ArmTwist[] twists=new ArmTwist[2];
     public float ContactError {get;private set;}
     // Largest wrist bend this frame against its limit (1: at the limit of the joint), for the review.
     public float WristLoad {get;private set;}
@@ -39,6 +40,7 @@ public sealed class VisitorCinematicActor
             arms[i]=new CinematicArm(root,spine,Bone("UpperArm"+side),Bone("Forearm"+side),hand,body,i==1);
             hands[i]=new CinematicHand(hand,body,root);
             grips[i]=new HandGripPose(hand,root,palmDown:true);
+            twists[i]=ArmTwist.Find(hand,body);
             var sum=Vector3.zero;int n=0;var each=new System.Collections.Generic.List<Vector3>();
             foreach(var f in new[]{"Index1","Middle1","Ring1","Little1"}){var b=hand.Find(f+side);if(b!=null){sum+=b.localPosition;each.Add(b.localPosition);n++;}}
             knuckleEach[i]=each.ToArray();
@@ -95,7 +97,7 @@ public sealed class VisitorCinematicActor
         inward=inward.normalized;near=Vector3.ProjectOnPlane(near,inward).normalized;
         // the knuckles go 1 cm past the far face, so the fingers have something to fold over
         float reach=Vector3.Dot(knuckles[i]-grips[i].ContactLocal,grips[i].FingersLocal)*hand.lossyScale.x;
-        Vector3 contact=edge-inward*.004f+near*(reach-thickness*.5f-.012f),local=grips[i].ContactLocal;
+        Vector3 contact=edge-inward*.004f+near*(reach-thickness*.5f-.02f),local=grips[i].ContactLocal;
         // every knuckle stays at least 1 cm past the far face whatever the turn, or the fingers would fold into the
         // plate (or round the near face): turns that break this cost more than any wrist bend
         float Knuckles(CinematicArm.Plan plan)
@@ -104,7 +106,7 @@ public sealed class VisitorCinematicActor
             foreach(var k in knuckleEach[i])
             {
                 float depth=Vector3.Dot(contact+plan.hand*Vector3.Scale(k-local,hand.lossyScale)-edge,-near);
-                cost+=Mathf.Pow(Mathf.Max(0,thickness*.5f+.01f-depth)/.004f,2);
+                cost+=Mathf.Pow(Mathf.Max(0,thickness*.5f+.01f-depth)/.002f,2);
             }
             return cost;
         }
@@ -144,6 +146,8 @@ public sealed class VisitorCinematicActor
         var palm=hands[i].hand.TransformDirection(grips[i].PalmLocal).normalized;
         hands[i].AimThumb(centre+palm*(radius+.012f)-fingers*.01f,weight);
     }
+    // Forearm twist bones after every grip of the frame: the hand's roll spreads along the forearm.
+    public void Twist(){foreach(var t in twists)t?.Apply();}
     // Wrist to a point, the hand as the clip holds it.
     public void Reach(bool right,Vector3 target,float weight)
     {

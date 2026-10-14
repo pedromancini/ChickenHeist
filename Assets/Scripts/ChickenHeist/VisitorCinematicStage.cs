@@ -150,10 +150,11 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         if(line>=24)
         {
             // read at the height of the lower chest, elbows bent at his sides
-            Vector3 carried=ep+home.InverseTransformDirection(elias.forward)*.34f+Vector3.up*1.16f;
+            Vector3 carried=ep+home.InverseTransformDirection(elias.forward)*.34f+Vector3.up*1.08f;
             tabletPosition=line==24?Vector3.Lerp(tabletPosition,carried,p):line==30?Vector3.Lerp(carried,desk+new Vector3(.19f,.04f,.05f),Ease(localTime/1.6f)):carried;
-            // read like a book at the lower chest: the screen tilted back towards his eyes
-            props.tablet.position=World(tabletPosition);props.tablet.rotation=line==30?home.rotation*Quaternion.Euler(Mathf.Lerp(34,90,Ease(localTime/1.6f)),180,5):line==24?Quaternion.Slerp(home.rotation*Quaternion.Euler(28,180,5),elias.rotation*Quaternion.Euler(34,0,5),p):elias.rotation*Quaternion.Euler(34,0,5);
+            // read like a book held open at the lower chest: nearly upright, tilted back a little towards his eyes, so
+            // his forearms point forward from elbows kept at his sides
+            props.tablet.position=World(tabletPosition);props.tablet.rotation=line==30?home.rotation*Quaternion.Euler(Mathf.Lerp(20,90,Ease(localTime/1.6f)),180,5):line==24?Quaternion.Slerp(home.rotation*Quaternion.Euler(28,180,5),elias.rotation*Quaternion.Euler(20,0,5),p):elias.rotation*Quaternion.Euler(20,0,5);
             float grip=line==30?1-Ease((localTime-.8f)/1.3f):1;
             // Elias reads it: his thumbs on the screen's border, fingers behind
             first.Edge(true,props.tablet.TransformPoint(new Vector3(TabletHalfWidth,-.04f,0)),-props.tablet.right,-props.tablet.forward,TabletThickness,line==29 && localTime<2.5f?0:grip);
@@ -163,6 +164,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         }
         // closing the door: the right palm on its inner face, the tablet in the left hand
         if(line==29 && localTime<2.5f && door!=null)first.Flat(true,door.hinge.TransformPoint(new Vector3(.40f,1.06f,.045f)),-door.hinge.forward,door.hinge.up,Ease(localTime/.8f)*(1-Ease((localTime-2.15f)/.35f)));
+        first.Twist();second.Twist();
         props.ShowPhoto(line>=19?1:0);
         Direct(camera,line,p,ep,vp);
         SoundEvents(line,localTime,emove,vmove,change,edistance,vdistance);

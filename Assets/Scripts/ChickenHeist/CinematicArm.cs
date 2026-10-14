@@ -5,8 +5,9 @@ using UnityEngine;
 //    forearm folds forwards), and the upper arm turns to aim it
 //  - the elbow goes where the wrist stays straightest, preferring down and out to the side; it never rises above the
 //    shoulder line on its own or folds into the body
-//  - the forearm takes the hand's roll (pronation and supination: the radius turns over the ulna); the wrist itself
-//    keeps 15 degrees of it at most
+//  - the hand rolls (pronation and supination: the radius turns over the ulna) from 40 degrees past palms-down to
+//    170 degrees towards palms-up; the forearm bone itself does not roll (that knotted the elbow), the forearm twist
+//    bone spreads the roll along the forearm (ArmTwist)
 //  - the wrist bends at most 70 degrees towards the palm, 55 towards the back of the hand, 20 towards the thumb and
 //    30 towards the little finger; a grip that needs more is left short instead of breaking the wrist
 // Bind-pose frames come from the skin's bind poses, so whatever the clip did to the bones never skews them.
@@ -65,7 +66,8 @@ public sealed class CinematicArm
         float Cost(float phi)
         {
             Vector3 E=Elbow(phi),o=r>1e-4f?(E-C)/r:e1;
-            float cost=3*(1-Vector3.Dot(o,natural));
+            // elbows down and at the sides: a raised, winged elbow reads as wrong even when the wrist is straight
+            float cost=7*(1-Vector3.Dot(o,natural));
             // the elbow stays out of the body and below the shoulder line
             float lateral=Vector3.Dot(E-chest.position,side);if(lateral<.14f)cost+=Sq((.14f-lateral)/.03f);
             float rise=Vector3.Dot(E-S,body.up);if(rise>.02f)cost+=Sq((rise-.02f)/.05f);
@@ -83,20 +85,21 @@ public sealed class CinematicArm
         var plan=new Plan{swivel=best,cost=bestCost};
         Arm(Elbow(best),W,out plan.upper,out var fore0);
         if(!handRotation.HasValue){plan.fore=fore0;plan.hand=fore0*handLocal;return plan;}
-        // the forearm takes the roll; the wrist keeps a little of it
-        Wrist(fore0,handRotation.Value,out _,out float need);
-        float keep=Mathf.Clamp(need*.25f,-15,15);plan.forearmRoll=Mathf.Clamp(need-keep,-40,170);
-        plan.fore=fore0*Quaternion.AngleAxis(plan.forearmRoll*supination,foreAxis);
+        // the forearm bone keeps the hinge's orientation; the hand takes the roll within its range and the twist
+        // bone spreads it along the forearm
+        plan.fore=fore0;
         var delta=Quaternion.Inverse(plan.fore)*handRotation.Value*Quaternion.Inverse(handBind);
         Decompose(delta,foreAxis,out var twist,out var swingQ);
-        plan.roll=Mathf.Clamp(Angle(twist,foreAxis)*supination,-15,15);
-        Vector3 v=swingQ*foreAxis;
-        float flex=Mathf.Atan2(Vector3.Dot(v,palmar),Vector3.Dot(v,foreAxis))*Mathf.Rad2Deg;
-        float dev=Mathf.Atan2(Vector3.Dot(v,radial),Vector3.Dot(v,foreAxis))*Mathf.Rad2Deg;
+        plan.roll=Mathf.Clamp(Angle(twist,foreAxis)*supination,-40,170);plan.forearmRoll=plan.roll*ArmTwist.Share;
+        var rolled=Quaternion.AngleAxis(plan.roll*supination,foreAxis);
+        // the wrist bends against the rolled hand's own palm and thumb sides
+        Vector3 palm=rolled*palmar,thumb=rolled*radial,v=swingQ*foreAxis;
+        float flex=Mathf.Atan2(Vector3.Dot(v,palm),Vector3.Dot(v,foreAxis))*Mathf.Rad2Deg;
+        float dev=Mathf.Atan2(Vector3.Dot(v,thumb),Vector3.Dot(v,foreAxis))*Mathf.Rad2Deg;
         float e=Mathf.Sqrt(Sq(flex/(flex>=0?70:55))+Sq(dev/(dev>=0?20:30)));
         if(e>1){flex/=e;dev/=e;}
-        var bent=Quaternion.FromToRotation(foreAxis,(foreAxis+palmar*Mathf.Tan(flex*Mathf.Deg2Rad)+radial*Mathf.Tan(dev*Mathf.Deg2Rad)).normalized);
-        plan.hand=plan.fore*bent*Quaternion.AngleAxis(plan.roll*supination,foreAxis)*handBind;
+        var bent=Quaternion.FromToRotation(foreAxis,(foreAxis+palm*Mathf.Tan(flex*Mathf.Deg2Rad)+thumb*Mathf.Tan(dev*Mathf.Deg2Rad)).normalized);
+        plan.hand=plan.fore*bent*rolled*handBind;
         plan.flexion=flex;plan.deviation=dev;
         return plan;
     }

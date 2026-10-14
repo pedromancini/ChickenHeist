@@ -12,8 +12,9 @@ public sealed class CinematicHand
     public static readonly float[,] Flat={{0,4,4},{4,5,3},{4,5,3},{5,6,3},{6,7,4}};
     public static readonly float[,] Fist={{0,30,35},{86,98,58},{90,100,60},{92,100,60},{94,98,58}};
     public static readonly float[,] Point={{0,25,30},{6,8,4},{72,96,58},{80,98,58},{86,96,56}};
-    // a thin plate's edge in the palm, the fingers past its far face folding over it (a book held open)
-    public static readonly float[,] Edge={{0,10,15},{62,26,12},{68,28,13},{72,30,14},{76,32,15}};
+    // a thin plate's edge in the palm, the fingers past its far face folding onto it: about 95 degrees in all, so the
+    // tips rest on the far face (more and they curl back round through the plate)
+    public static readonly float[,] Edge={{0,10,15},{48,32,14},{50,32,14},{46,28,12},{38,22,10}};
     // around a bar 2-3 cm thick (a door lever): the little finger closes most
     public static readonly float[,] Bar={{0,12,22},{58,88,50},{66,90,52},{72,90,52},{78,88,50}};
 

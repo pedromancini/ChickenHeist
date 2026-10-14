@@ -664,6 +664,34 @@ for sd, side in (('L', 1), ('R', -1)):
             if w > 1e-4: ob.vertex_groups[k].add([v.index], w, 'REPLACE')
         handset += 1
 log('hand vertices weighted from finger chains', handset)
+# ---------------------------------------------------------------- forearm twist
+# The forearm turns the hand (pronation, supination) by rolling along its length: most at the wrist, none at the
+# elbow. With the forearm as one bone the whole roll lands at the wrist and knots the skin there. A twist bone from
+# mid-forearm to the wrist takes a growing share of the forearm's weight towards the wrist; the game turns it by most
+# of the hand's roll (ArmTwist), so the skin twists gradually from the elbow to the hand.
+bpy.ops.object.select_all(action='DESELECT'); rig.select_set(True); bpy.context.view_layer.objects.active = rig
+bpy.ops.object.mode_set(mode='EDIT')
+for sd in 'LR':
+    el, wr = joint['Forearm' + sd]; fb = ad.edit_bones['Forearm' + sd]
+    tb = ad.edit_bones.new('ForearmTwist' + sd); tb.head = el.lerp(wr, .5); tb.tail = wr.copy(); tb.roll = fb.roll
+    tb.parent = fb; tb.use_connect = False
+bpy.ops.object.mode_set(mode='OBJECT')
+twisted = 0
+for sd in 'LR':
+    el, wr = joint['Forearm' + sd]; axis = wr - el; length = axis.length; axis = axis / length
+    fg = ob.vertex_groups['Forearm' + sd]; tg = ob.vertex_groups.new(name='ForearmTwist' + sd)
+    for v in me.vertices:
+        w = next((g.weight for g in v.groups if g.group == fg.index), 0)
+        if w <= 0: continue
+        s = min(1, max(0, ((v.co - el).dot(axis) / length - .15) / .7)); s = s * s * (3 - 2 * s)
+        if s <= 0: continue
+        if s >= .999: fg.remove([v.index])
+        else: fg.add([v.index], w * (1 - s), 'REPLACE')
+        tg.add([v.index], w * s, 'REPLACE'); twisted += 1
+        gs = sorted(((g.group, g.weight) for g in v.groups), key=lambda x: -x[1]); keep = gs[:4]; tot = sum(x for _, x in keep) or 1
+        for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
+        for g, x in keep: ob.vertex_groups[g].add([v.index], x / tot, 'REPLACE')
+log('forearm twist: vertices sharing the forearm with its twist bone', twisted)
 # Head: everything above the jaw, the beard in front of the neck down to the collar and the throat under it follow
 # the head bone (bone heat gave them to the neck: the head bone starts at the jaw, the beard hangs 6 cm lower).
 # The green shirt collar stays on the body.

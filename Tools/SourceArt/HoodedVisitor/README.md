@@ -7,10 +7,11 @@ O visitante da cutscene de abertura vem de `Assets/c12cb2ea-013a-4d05-b832-3f5e1
 - **Pose:** a pose A vira pose T com as palmas para baixo, pelo mesmo método do Elias.
 - **Articulações:** são localizadas na própria malha. O pescoço fica na proporção do corpo, porque o capuz esconde o pescoço real.
 - **Malha:** a superfície, as UVs e a textura originais são mantidas, já que o modelo é fechado tirando alguns furinhos. O sombreamento facetado também é mantido.
-- **Pesos:** vêm do "bone heat" do Blender, com três ajustes:
+- **Pesos:** vêm do "bone heat" do Blender, com quatro ajustes:
   - o pulso tem uma transição curta (`VISITOR_WRIST`);
   - a mão segue as cadeias dos dedos;
-  - a máscara acompanha o osso da cabeça.
+  - a máscara acompanha o osso da cabeça;
+  - cada antebraço tem um osso de torção (`ForearmTwistL/R`), igual ao do Elias, para a rotação da mão não dar nó no pulso.
 
 Execução:
 
