@@ -9,4 +9,7 @@ EditorBuildSettings:
     path: Assets/Scenes/ChickenHeistRuralWorld.unity
     guid: f729ef20df42f7d4ea21a6adbb7c5706
   m_configObjects:
+    UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 75e5fc47020cfc74cadaf7b89fc6b886, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 94c57f2269a32c84b81b5ad0acc3a0e8, type: 2}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 78c9a9323eb128943995a1207d0c1148, type: 2}
