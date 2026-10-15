@@ -31,7 +31,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
     readonly Vector3 atDesk=new Vector3(-5.8f,.63f,3.70f),atDoor=new Vector3(-3.06f,.63f,2.62f),atPorch=new Vector3(-2.96f,.63f,1.73f);
     // The door opens outwards across the porch (1.47 m wide): the visitor knocks from close, backs out of its swing
     // while Elias comes, and steps up again once it is open, near enough to hold the tablet out to him.
-    readonly Vector3 atKnock=new Vector3(-3.01f,.63f,1.83f),atWait=new Vector3(-2.86f,.63f,.83f),arrival=new Vector3(-3.3f,0,-4.3f),departure=new Vector3(-3.8f,0,-4.6f);
+    readonly Vector3 atKnock=new Vector3(-3.01f,.63f,1.76f),atWait=new Vector3(-2.86f,.63f,.83f),arrival=new Vector3(-3.3f,0,-4.3f),departure=new Vector3(-3.8f,0,-4.6f);
     public static VisitorCinematicStage Create(Transform home,Camera camera)
     {
         var prefab=Resources.Load<GameObject>("Cinematics/VisitorStage");
@@ -125,14 +125,17 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         Vector3 egaze=line==0 || line>=29?desk:line>=9 && line<=20 || line==23 || line==24?tabletPosition:vp+Vector3.up*1.58f;
         Vector3 vgaze=line==6?desk:line>=9 && line<=11?tabletPosition:ep+Vector3.up*1.57f;
         if(line==22)vgaze=Vector3.Lerp(vgaze,vp+new Vector3(3,1.5f,-1),Ease((p-.30f)/.12f)*(1-Ease((p-.63f)/.12f)));
-        first.Pose(ep,eyaw,total,emove,VisitorOpeningDialogue.Speakers[line]=="Elias",World(egaze),line==0?12:line>=29?6:line==14?-3:2,edistance,ew,eback);
+        // the bill: Elias takes it by its edge, reads it at his chest and lays it back (VisitorCinematicProps.Paper)
+        props.Paper(line==0?localTime:6);
+        float reading=line==0?Ease((localTime-1.45f)/.4f)*(1-Ease((localTime-5.45f)/.4f)):0;billReading=reading;
+        if(line==0)egaze=Vector3.Lerp(desk,home.InverseTransformPoint(props.NoteCentre),reading);
+        first.Pose(ep,eyaw,total,emove,VisitorOpeningDialogue.Speakers[line]=="Elias",World(egaze),line==0?Mathf.Lerp(12,4,reading):line>=29?6:line==14?-3:2,edistance,ew,eback);
         second.Pose(vp,vyaw,total,vmove,VisitorOpeningDialogue.Speakers[line]=="Visitante",World(vgaze),line==1?4:0,vdistance,vw,vback);
         // the one speaking moves his mouth with the line's syllables
         string said=VisitorOpeningDialogue.Text[line];
         bool jump=change || Mathf.Abs(localTime-previousLocal)>.1f;
         first.Speak(VisitorOpeningDialogue.Speakers[line]=="Elias"?VisitorCinematicActor.Mouth(said,localTime,duration):0,jump);
         second.Speak(VisitorOpeningDialogue.Speakers[line]=="Visitante"?VisitorCinematicActor.Mouth(said,localTime,duration):0,jump);
-        props.Paper(line==0?localTime:6);
         // Conversation gestures come from the captured Talk take inside VisitorCinematicActor; hands that hold or
         // touch something are posed on top (hinge elbows, forearm roll, wrists within their range, grip shapes).
         if(line==0)
@@ -140,15 +143,21 @@ public sealed class VisitorCinematicStage : MonoBehaviour
             // the left index finger types on the calculator, the right palm holds the bill down
             Vector3 across=Vector3.ProjectOnPlane(elias.forward,home.up).normalized;
             float press=Mathf.Clamp01(1-Mathf.Abs(localTime-.85f)/.2f);
-            first.Point(false,props.KeyContact+home.up*(.007f+.022f*(1-press)),(across*.45f-home.up*.9f).normalized,localTime<1.5f?.95f:.35f);
-            first.Flat(true,props.NoteContact+props.NoteUp*.012f,-props.NoteUp,Quaternion.AngleAxis(-18,home.up)*across,.95f);
+            // the left index types, then the hand comes back to his side while he reads
+            first.Point(false,props.KeyContact+home.up*(.007f+.022f*(1-press)),(across*.45f-home.up*.9f).normalized,.95f*(1-Ease((localTime-1.25f)/.55f)));
+            // until he picks it up: then the edge between his thumb (on the printed face) and his fingers (behind)
+            first.Flat(true,props.NoteContact+props.NoteUp*.012f,-props.NoteUp,Quaternion.AngleAxis(-18,home.up)*across,.95f*(1-reading));
+            first.Edge(true,props.NoteEdge,props.NoteInward,props.NoteUp,.006f,reading);
         }
         if(line==1 && door!=null)
         {
             // three knocks, a pause, a fourth: the knuckles meet the door with each sound
             float hit=0;foreach(float t in KnockTimes)hit=Mathf.Max(hit,Mathf.Clamp01(1-Mathf.Abs(localTime-t)/.13f));
             float raise=Ease((localTime-.25f)/.4f)*(1-Ease((localTime-3.25f)/.6f));
-            second.Knock(true,door.hinge.TransformPoint(new Vector3(1.05f,1.44f,-.042f-(1-hit)*.065f)),door.hinge.forward,raise);
+            // in front of his right shoulder at shoulder height, a bent arm's length away: knocking across his chest or
+            // above his head sank the elbow into his chest
+            var knuckle=door.hinge.InverseTransformPoint(World(vp+new Vector3(.17f,0,0)));knuckle.y=1.36f;knuckle.z=-.042f-(1-hit)*.065f;
+            second.Knock(true,door.hinge.TransformPoint(knuckle),door.hinge.forward,raise);
         }
         // the left hand presses the inner lever and lets go once the door swings out of reach
         if(line==5 && door!=null)first.Bar(false,door.hinge.TransformPoint(new Vector3(1.30f,1.06f,.10f)),door.hinge.right,-home.up,.018f,Ease(localTime/.45f)*(1-Ease((localTime-1.35f)/.45f)));
@@ -192,24 +201,30 @@ public sealed class VisitorCinematicStage : MonoBehaviour
     // Shutting the door (line 29): Elias reaches the lever by CloseGrab, pulls from ClosePull, the door is shut at CloseEnd.
     const float CloseGrab=1.2f,ClosePull=1.55f,CloseEnd=3.4f;
     float DoorAngle(int line,float t)=>line==29?Mathf.Lerp(76,0,Ease((t-ClosePull)/(CloseEnd-ClosePull-.15f))):76;
-    // Where Elias stands while the door is at `angle`: half a metre in front of its inner face, 30 cm short of the lever
-    // towards the hinge (the lever stays at a bent arm's reach), on the floor.
+    // Where Elias stands while the door is at `angle`: facing its inner face, his left shoulder half a metre in front of
+    // the inner lever, on the floor. With the lever in front of his middle the left arm crossed his body and the forearm
+    // sank into his belly.
     Vector3 Closing(float angle)
     {
         if(door==null)return atDoor;
-        var p=home.InverseTransformPoint(door.hinge.parent.TransformPoint(door.hinge.localPosition+Quaternion.Euler(0,angle,0)*new Vector3(1.0f,0,.6f)));
-        p.y=atDoor.y;return p;
+        var turn=Quaternion.Euler(0,angle,0);
+        var lever=home.InverseTransformPoint(door.hinge.parent.TransformPoint(door.hinge.localPosition+turn*new Vector3(1.30f,0,.10f)));
+        var inside=home.InverseTransformDirection(door.hinge.parent.TransformDirection(turn*Vector3.forward));inside.y=0;inside.Normalize();
+        var left=Vector3.Cross(-inside,Vector3.up);
+        var p=lever+inside*.42f-left*.17f;p.y=atDoor.y;return p;
     }
     // The visitor's knuckles meet the door with each knock sound (SoundEvents).
     static readonly float[] KnockTimes={.75f,1.09f,1.43f,2.8f};
     const float TabletHalfWidth=.245f,TabletThickness=.028f;
+    float billReading;
     // Eye height of native Elias in stage space (real proportions; the previous rig sat ~0.2 m lower).
     const float EliasEye=1.63f;
     void Direct(Camera camera,int line,float p,Vector3 ep,Vector3 vp)
     {
         Vector3 from,target;float fov=46;
         // All dialogue coverage remains on the east side of the Elias/visitor axis.
-        if(line==0){Shot=0;from=Vector3.Lerp(new Vector3(-4.62f,2.65f,4.35f),new Vector3(-4.92f,2.24f,4.04f),p);target=desk+new Vector3(0,.16f,.23f);fov=49;}
+        // the desk; when he stands up to read the bill, the camera rises with him and keeps his head in frame
+        if(line==0){Shot=0;from=Vector3.Lerp(new Vector3(-4.62f,2.65f,4.35f),new Vector3(-4.92f,2.24f,4.04f),p)+Vector3.up*.30f*billReading;target=desk+new Vector3(0,.16f,.23f)+new Vector3(0,.42f,.14f)*billReading;fov=49+3*billReading;}
         else if(line==1){Shot=1;from=new Vector3(-1.40f,2.32f,.30f)+Vector3.forward*p*.16f;target=new Vector3(-3.13f,1.80f,2.05f);fov=48;}
         // The door is still closed while the visitor answers, so this line is covered from the porch.
         // the door is still shut while the visitor answers: on the porch, in front of him, under the porch lamp

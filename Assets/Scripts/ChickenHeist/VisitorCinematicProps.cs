@@ -70,13 +70,21 @@ public sealed class VisitorCinematicProps
     }
     // the bill's corner nearest Elias' right hand
     public Vector3 NoteContact=>note.TransformPoint(new Vector3(-.25f,0,.3f));
+    // the bill's right edge (Elias' right), near its corner: where he takes it to read it, and towards its middle
+    public Vector3 NoteEdge=>note.TransformPoint(new Vector3(-.5f,0,.18f));
+    public Vector3 NoteInward=>note.right;
+    public Vector3 NoteCentre=>note.position;
     public Vector3 NoteUp=>note.up;
     public Vector3 KeyContact=>key.position;
     public void Paper(float time)
     {
         if(note==null)return;
+        // Elias takes the bill by its edge (from 1.45 s), lifts it to his chest turned up towards his eyes to read it, and
+        // lays it back down
         float lift=Mathf.SmoothStep(0,1,Mathf.Clamp01((time-1.9f)/1.2f))*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01((time-4.3f)/1.1f)));
-        note.localPosition=noteHome+new Vector3(.035f,.07f,.035f)*lift;note.localRotation=noteRotation*Quaternion.Euler(-22*lift,0,0);
+        // the edge he takes it by first comes up off the desk (his fingers go under it)
+        float corner=Mathf.SmoothStep(0,1,Mathf.Clamp01((time-1.4f)/.35f))*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01((time-5.3f)/.4f)));
+        note.localPosition=noteHome+new Vector3(.04f,.30f,.15f)*lift;note.localRotation=noteRotation*Quaternion.Euler(52*lift,0,-9*corner*(1-lift));
         var p=key.localPosition;p.y=noteHome.y+.04f-Mathf.Max(0,1-Mathf.Abs(time-.85f)/.18f)*.009f;key.localPosition=p;
     }
     Material Material(string name,Color color,bool unlit=false)

@@ -55,7 +55,19 @@ public class GamePreferences
         {look.sensibilidade=sensitivity;look.invertY=invertY;}
         PlayerMovement.SprintToggle=sprintToggle;
         if(Camera.main!=null)Camera.main.fieldOfView=fov;
-        if(display)Screen.SetResolution(Mathf.Clamp(width,800,7680),Mathf.Clamp(height,600,4320),fullscreen?FullScreenMode.FullScreenWindow:FullScreenMode.Windowed);
+        if(display)
+        {
+            int w=Mathf.Clamp(width,800,7680),h=Mathf.Clamp(height,600,4320);
+            if(!fullscreen)
+            {
+                // A window as large as the screen does not fit under its own title bar and the taskbar: Windows pushes its
+                // top (the HUD) or bottom off the screen. Shrink it, keeping its shape, to the desktop's free area.
+                var area=Screen.mainWindowDisplayInfo.workArea;int frame=Mathf.RoundToInt(48*Mathf.Max(1,Screen.dpi/96f));
+                if(area.width>0 && area.height>frame && (w>area.width || h>area.height-frame))
+                {float k=Mathf.Min(area.width/(float)w,(area.height-frame)/(float)h);w=Mathf.Max(800,Mathf.FloorToInt(w*k));h=Mathf.Max(600,Mathf.FloorToInt(h*k));}
+            }
+            Screen.SetResolution(w,h,fullscreen?FullScreenMode.FullScreenWindow:FullScreenMode.Windowed);
+        }
     }
     public void Persist(){if(HouseholdEconomy.ReviewSession)return;PlayerPrefs.SetString(Key,JsonUtility.ToJson(this));PlayerPrefs.Save();}
     public GamePreferences Copy()=>JsonUtility.FromJson<GamePreferences>(JsonUtility.ToJson(this));

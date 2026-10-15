@@ -136,7 +136,7 @@ public static class VisitorCinematicReview
                 }
                 // the moments the hands are busy, up close: typing, knocking, the lever, holding and passing the tablet
                 foreach(var (line,at,visitorSide,name) in new[]{(0,.85f,false,"desk"),(1,1.43f,true,"knock"),(5,.9f,false,"lever"),(9,2.4f,true,"tablet-shown"),(12,1.5f,true,"tablet-held"),
-                    (19,1.4f,false,"pointing"),(24,1.2f,false,"handover"),(24,1.2f,true,"handover"),(25,3f,false,"tablet-read"),(29,1.6f,false,"door-close")})
+                    (0,3.6f,false,"bill-read"),(19,1.4f,false,"pointing"),(24,1.2f,false,"handover"),(24,1.2f,true,"handover"),(25,3f,false,"tablet-read"),(29,1.6f,false,"door-close")})
                 {
                     SetLine(line,at/VisitorOpeningDialogue.Durations[line]);stage.Evaluate(camera,line,at,VisitorOpeningDialogue.Durations[line],200+line+at);
                     if(!visitorSide)Capture("moment-"+name);
@@ -168,9 +168,31 @@ public static class VisitorCinematicReview
                 // shutting the door: his hand stays on the inner lever while he walks back in pulling it, and he ends inside
                 SetLine(29,.3f);stage.Evaluate(camera,29,2.4f,8.5f,127);
                 Check(stage.EliasActor.ContactError<.05f,"Elias' hand stays on the inner lever while he pulls the door shut: "+stage.EliasActor.ContactError.ToString("F3"));
+                // the lever in front of his left shoulder (x < 0 in his own space), not across his body
+                foreach(var at in new[]{1.6f,2.4f,3.0f})
+                {
+                    SetLine(29,at/8.5f);stage.Evaluate(camera,29,at,8.5f,127+at);var lever=stage.elias.InverseTransformPoint(stage.Door.hinge.TransformPoint(new Vector3(1.30f,1.06f,.10f)));
+                    Check(lever.x<-.06f && lever.z>.2f,"Door lever in front of Elias' left shoulder at "+at+" s (his space: x "+lever.x.ToString("F2")+", z "+lever.z.ToString("F2")+")");
+                }
                 SetLine(29,.42f);stage.Evaluate(camera,29,3.6f,8.5f,128);
                 Check(Quaternion.Angle(stage.Door.hinge.localRotation,Quaternion.identity)<1 && Vector3.Dot(stage.elias.position-stage.Door.hinge.position,stage.Door.hinge.parent.forward)>.3f,"Door shut with Elias inside the house");
                 foreach(var at in new[]{.6f,1.4f,2.0f,2.6f,3.2f,3.8f}){SetLine(29,at/8.5f);stage.Evaluate(camera,29,at,8.5f,130+at);Capture("door-close-"+at.ToString("0.0"));}
+                // bodies whole, at the knock, through the door shutting and while talking (output/visitor-opening/body)
+                Directory.CreateDirectory(Folder+"/body");
+                foreach(var (line,at,visitorSide) in new[]{(0,.85f,false),(0,2.5f,false),(1,.75f,true),(1,1.43f,true),(1,2.8f,true),(29,.8f,false),(29,1.6f,false),(29,2.4f,false),(29,3.2f,false),(22,2f,true),(21,2f,false),(12,1.5f,true),(25,3f,false)})
+                {
+                    float duration=VisitorOpeningDialogue.Durations[line];SetLine(line,at/duration);stage.Evaluate(camera,line,at,duration,500+line+at);
+                    BodyViews(visitorSide?stage.VisitorActor:stage.EliasActor,"body/"+line.ToString("00")+"-"+at.ToString("0.00")+(visitorSide?"-visitor":"-elias"));
+                }
+                // the trunk while talking: the chest's travel over a whole line (the captured takes rocked it back and forth)
+                foreach(var (beat,actor,name) in new[]{(21,stage.EliasActor,"Elias"),(22,stage.VisitorActor,"visitor"),(12,stage.VisitorActor,"visitor holding the tablet")})
+                {
+                    float duration=VisitorOpeningDialogue.Durations[beat];var chest=new System.Collections.Generic.List<Vector3>();var tilt=new System.Collections.Generic.List<Quaternion>();
+                    for(float at=.2f;at<duration-.1f;at+=.1f)
+                    {SetLine(beat,at/duration);stage.Evaluate(camera,beat,at,duration,600+beat+at);chest.Add(actor.root.InverseTransformPoint(actor.spine.position));tilt.Add(Quaternion.Inverse(actor.root.rotation)*actor.spine.rotation);}
+                    var mean=chest.Aggregate(Vector3.zero,(a,b)=>a+b)/chest.Count;float travel=chest.Max(c=>Vector3.Distance(c,mean))*2;float turn=tilt.Max(q=>tilt.Max(r=>Quaternion.Angle(q,r)));
+                    Check(travel<.03f && turn<5,"Chest steady while "+name+" talks: travels "+(travel*100).ToString("0.0")+" cm, turns "+turn.ToString("0.0")+" deg");
+                }
                 // mouths: open while speaking, shut while listening
                 SetLine(14,.5f);stage.Evaluate(camera,14,VisitorOpeningDialogue.Durations[14]*.5f,VisitorOpeningDialogue.Durations[14],60);
                 Check(stage.EliasActor.HasJaw && stage.VisitorActor.HasJaw,"Both actors have a jaw shape for speech");
@@ -255,6 +277,27 @@ public static class VisitorCinematicReview
     }
     // Both hands of an actor up close, each from the back of the hand, the thumb side and the palm side, lit by a lamp
     // at the camera (the night scene is too dark to judge a grip): wrist, fingers and what they hold in one sheet.
+    // The whole actor alone (everything else culled), from the front, both sides and the back, lit evenly: arms against
+    // the body (an arm sunk into the chest), the clothes, the stance.
+    static void BodyViews(VisitorCinematicActor actor,string name)
+    {
+        const int Layer=31;var renderers=actor.root.GetComponentsInChildren<Renderer>(true);var layers=renderers.Select(r=>r.gameObject.layer).ToArray();
+        foreach(var r in renderers)r.gameObject.layer=Layer;
+        var go=new GameObject("body view");var cam=go.AddComponent<Camera>();cam.rect=new Rect(0,0,1,1);cam.fieldOfView=30;cam.nearClipPlane=.05f;
+        cam.cullingMask=1<<Layer;cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.42f,.45f,.5f);
+        var lamp=new GameObject("body lamp").AddComponent<Light>();lamp.type=LightType.Directional;lamp.intensity=1.3f;lamp.shadows=LightShadows.None;lamp.cullingMask=1<<Layer;
+        var target=new RenderTexture(400,560,24);cam.targetTexture=target;var sheet=new Texture2D(1600,560,TextureFormat.RGB24,false);
+        var look=actor.spine.position+Vector3.up*.05f;
+        for(int v=0;v<4;v++)
+        {
+            var dir=Quaternion.AngleAxis(v*90-15,Vector3.up)*actor.root.forward;cam.transform.position=look+dir*2.3f+Vector3.up*.25f;cam.transform.LookAt(look+Vector3.down*.15f);
+            lamp.transform.rotation=Quaternion.LookRotation(-dir+Vector3.down*.4f);
+            cam.Render();var active=RenderTexture.active;RenderTexture.active=target;sheet.ReadPixels(new Rect(0,0,400,560),v*400,0);RenderTexture.active=active;
+        }
+        sheet.Apply();File.WriteAllBytes(Folder+"/"+name+".png",sheet.EncodeToPNG());cam.targetTexture=null;
+        for(int i=0;i<renderers.Length;i++)renderers[i].gameObject.layer=layers[i];
+        Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);Object.DestroyImmediate(lamp.gameObject);
+    }
     static void HandCloseUps(VisitorCinematicActor actor,string name)
     {
         var main=Camera.main;var go=new GameObject("hand close-up");var cam=go.AddComponent<Camera>();cam.CopyFrom(main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=34;cam.nearClipPlane=.02f;

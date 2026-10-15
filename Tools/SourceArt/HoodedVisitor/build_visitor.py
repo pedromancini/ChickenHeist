@@ -192,6 +192,33 @@ head_top = z1
 joint['Head'] = (head_pivot, Vector((0, neck_y, head_top - (head_top - head_pivot.z) * .25)))
 joint['Root'] = (Vector((0, 0, 0)), joint['Hips'][0].copy())
 
+# ---------------------------------------------------------------- armpits
+# Raising the A-pose to a T-pose leaves the cloth of the armpit stretched between the arm and the trunk: the sides of the
+# hoodie flare out by 4 cm over the 20 cm under each armpit, and the underside of the sleeve hangs down to the trunk like
+# a web. Hidden with the arms down, they stand out on either side of the back as soon as an arm comes forward. The
+# flare is pulled back in towards the waist's width and the web raised towards the sleeve's underside.
+def tighten_armpits():
+    global P
+    Q = P.copy(); moved = 0
+    for sd, side in (('L', 1), ('R', -1)):
+        sh = joint['UpperArm' + sd][0]
+        x = side * P[:, 0]; dz = P[:, 2] - sh.z
+        ring = (np.abs(dz + .34) < .01) & (x > 0)
+        base = float(x[ring].max()) if ring.any() else .19
+        def sm(t): t = np.clip(t, 0, 1); return t * t * (3 - 2 * t)
+        # the flare: trunk sides from 34 cm under the shoulder up to the sleeve, back in towards the waist's width
+        flare = (x > base) & (x < base + .07) & (dz > -.34) & (dz < -.05)
+        k = .75 * sm((dz + .34) / .16) * flare
+        Q[:, 0] -= side * (x - base) * k
+        # the web: under the sleeve within 18 cm of the trunk, raised towards the sleeve's underside (6 cm under the arm)
+        web = (x > base + .02) & (x < base + .22) & (dz < -.06) & (dz > -.14)
+        lift = sm(1 - (x - base - .02) / .20) * .8 * web
+        Q[:, 2] += (-.06 - dz) * lift
+        moved += int((flare | web).sum())
+    P = Q; store(P)
+    return moved
+log('armpits: vertices tightened', tighten_armpits())
+
 # ---------------------------------------------------------------- fingers (three phalanges each)
 FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little']
 def edges():
@@ -308,6 +335,29 @@ for v in me.vertices:
         nb = min((n for n in names if n != 'Root'), key=lambda n: seg_dist(v.co, *joint[n]))
         ob.vertex_groups[nb].add([v.index], 1.0, 'REPLACE'); orphans += 1
 log('vertices weighted by nearest bone (bone heat did not reach them)', orphans)
+# Shoulders: bone heat splits the hoodie between the chest and the upper arm abruptly round the armpit and the shoulder
+# blade, so when an arm comes forward the cloth behind it stays put and stands out in flaps on either side of the back.
+# Within 22 cm of each shoulder joint the weights are averaged with their neighbours on the surface, so the cloth there
+# blends from the chest into the arm.
+def smooth_shoulders(radius=.22, rounds=30, rate=.5):
+    V = len(me.vertices); W = np.zeros((V, len(ob.vertex_groups)), np.float64)
+    for v in me.vertices:
+        for g in v.groups: W[v.index, g.group] = g.weight
+    d = np.min([np.linalg.norm(P - np.array(joint['UpperArm' + sd][0]), axis=1) for sd in 'LR'], axis=0)
+    k = (np.clip((radius - d) / (radius * .4), 0, 1) * rate)[:, None]
+    region = np.where(k[:, 0] > 0)[0]
+    cols = np.where(W[region].sum(0) > 0)[0]; Wc = W[:, cols].copy()
+    a, b = EV[:, 0], EV[:, 1]; deg = np.maximum(np.bincount(a, minlength=V) + np.bincount(b, minlength=V), 1)[:, None]
+    for _ in range(rounds):
+        S = np.zeros_like(Wc); np.add.at(S, a, Wc[b]); np.add.at(S, b, Wc[a])
+        Wc = Wc * (1 - k) + S / deg * k
+    for vi in region:
+        for g in [g.group for g in me.vertices[vi].groups]: ob.vertex_groups[g].remove([int(vi)])
+        row = Wc[vi]; top = np.argsort(-row)[:4]; tot = row[top].sum() or 1
+        for c in top:
+            if row[c] > 1e-3: ob.vertex_groups[int(cols[c])].add([int(vi)], float(row[c] / tot), 'REPLACE')
+    return len(region)
+log('shoulders: vertices with smoothed weights', smooth_shoulders())
 # The face mask is a separate piece lying on the face (from the bridge of the nose down over the throat); found here,
 # weighted at the end like the face under it.
 pieces = components(np.arange(len(me.vertices)))
@@ -451,6 +501,9 @@ for g in [g for g in ob.vertex_groups if g.index not in used]: ob.vertex_groups.
 log('triangles', sum(len(p.vertices) - 2 for p in me.polygons), 'vertices', len(me.vertices))
 
 # the colour texture is the source's own (already in the project as hooded_visitor_0.png): UVs are unchanged
+# the UV triangles, for pad_texture.py (fills the texture's gaps between islands with the islands' own colours)
+me.calc_loop_triangles(); uvd = me.uv_layers.active.data
+np.save(os.path.join(GEN, 'visitor_uv.npy'), np.array([[uvd[l].uv[:] for l in t.loops] for t in me.loop_triangles], dtype=np.float32))
 if EXPORT:
     bpy.ops.object.select_all(action='DESELECT')
     for o in (rig, ob): o.select_set(True)

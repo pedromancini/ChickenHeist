@@ -12,6 +12,10 @@ public sealed class VisitorCinematicActor
     readonly Animation animation;readonly AnimationClip idle,walk,walkBack,talk;
     readonly Transform[] bones;readonly Quaternion[] rest,walkPose,talkPose;
     float talkWeight;
+    // The trunk (hips to neck) keeps a third of the idle and talk takes' sway: at full strength the captured takes rock
+    // the chest back and forth all through a conversation, as if the actors were swaying on their feet.
+    const float TrunkSway=.3f;
+    readonly int[] trunk;readonly Quaternion[] trunkCalm;readonly Transform hips;readonly Vector3 hipsCalm;
     readonly CinematicArm[] arms=new CinematicArm[2];readonly CinematicHand[] hands=new CinematicHand[2];
     readonly HandGripPose[] grips=new HandGripPose[2];readonly Vector3[] knuckles=new Vector3[2];
     readonly Vector3[][] knuckleEach=new Vector3[2][];
@@ -36,6 +40,11 @@ public sealed class VisitorCinematicActor
         if(idle==null || walk==null)throw new System.InvalidOperationException("Missing cinematic Idle/Walk clips");
         head=Bone("Head");spine=Bone("Chest");leftHand=Bone("HandL");rightHand=Bone("HandR");
         bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];talkPose=new Quaternion[bones.Length];
+        // the trunk's still pose: the idle take's first frame
+        idle.SampleAnimation(animation.gameObject,0);hips=Bone("Hips");hipsCalm=hips.localPosition;
+        trunk=Enumerable.Range(0,bones.Length).Where(i=>new[]{"Hips","Spine","Spine2","Chest","Neck"}.Contains(bones[i].name)).ToArray();
+        trunkCalm=trunk.Select(i=>bones[i].localRotation).ToArray();
+        for(int i=0;i<bones.Length;i++)bones[i].localRotation=rest[i];
         var body=actor.GetComponentsInChildren<SkinnedMeshRenderer>(true).First(s=>System.Array.IndexOf(s.bones,leftHand)>=0);
         foreach(var s in actor.GetComponentsInChildren<SkinnedMeshRenderer>(true)){int k=s.sharedMesh!=null?s.sharedMesh.GetBlendShapeIndex("Fala"):-1;if(k>=0)jaws.Add((s,k));}
         for(int i=0;i<2;i++)
@@ -71,6 +80,8 @@ public sealed class VisitorCinematicActor
         }
         idle.SampleAnimation(animation.gameObject,Mathf.Repeat(time,Mathf.Max(.1f,idle.length)));
         if(talkWeight>0){float w=Mathf.SmoothStep(0,1,talkWeight);for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,talkPose[i],w);}
+        for(int k=0;k<trunk.Length;k++)bones[trunk[k]].localRotation=Quaternion.Slerp(trunkCalm[k],bones[trunk[k]].localRotation,TrunkSway);
+        hips.localPosition=Vector3.Lerp(hipsCalm,hips.localPosition,TrunkSway);
         if(moving)for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,walkPose[i],walkWeight);
         ContactError=0;WristLoad=0;
         root.localPosition=position;root.localRotation=Quaternion.Euler(0,yaw,0);
