@@ -10,6 +10,8 @@ public sealed class VisitorCinematicStage : MonoBehaviour
 {
     public Transform elias,visitor;
     public int Shot {get;private set;}
+    // a soft warm key on the tablet insert only (shot 3): the porch lamp above leaves the hands and the hood in the dark
+    Light insertKey;
     public Transform Tablet=>props.tablet;
     public Vector3 EliasHand=>first.rightHand.position;
     public float GripError=>Mathf.Max(first.ContactError,second.ContactError);
@@ -63,6 +65,8 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         LightAt("Retorno suave da cozinha",new Vector3(-2.2f,2.7f,4.5f),new Color(.60f,.68f,1),.75f,5);
         // the porch lamp over the door: the only light on the visitor's face under the hood
         LightAt("Lampada da varanda",new Vector3(-3.0f,2.65f,1.85f),new Color(1,.80f,.55f),1.1f,3.2f);
+        insertKey=new GameObject("Luz do plano do tablet").AddComponent<Light>();insertKey.transform.SetParent(transform,false);
+        insertKey.type=LightType.Spot;insertKey.color=new Color(1,.80f,.58f);insertKey.intensity=2.4f;insertKey.range=1.6f;insertKey.spotAngle=70;insertKey.innerSpotAngle=35;insertKey.shadows=LightShadows.None;insertKey.enabled=false;
         effects=Source("Madeira e objetos",1);effects.transform.position=World(new Vector3(-3.2f,1.7f,2.28f));
         eliasSteps=Source("Passos de Elias",1);visitorSteps=Source("Passos do visitante",1);room=Source("Insetos ao longe",0);
         knock=Sound("Batidas na madeira",.18f,145,31);footstep=Sound("Passo na varanda",.15f,80,79);creak=Sound("Dobradica gasta",.8f,320,13);
@@ -216,7 +220,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         else if(line==2 || line==7 || line==26)
         {Shot=2;from=line<5?new Vector3(-1.80f,2.12f,3.40f):new Vector3(-2.80f,2.10f,1.88f);target=ep+new Vector3(0,EliasEye-.05f,-.05f);fov=48;from+=Vector3.forward*p*.04f;}
         else if(line==9 || line==19)
-        {Shot=3;from=home.InverseTransformPoint(props.tablet.position)+new Vector3(.23f,.70f,.38f);target=home.InverseTransformPoint(props.tablet.position);fov=46;}
+        {Shot=3;from=home.InverseTransformPoint(props.tablet.position)+new Vector3(.23f,.70f,.38f);target=home.InverseTransformPoint(props.tablet.position);fov=40;}
         else if(line==14){Shot=4;from=new Vector3(-2.82f,ep.y+EliasEye-.28f,1.88f);target=ep+Vector3.up*(EliasEye-.04f);fov=43;}
         else if(line>=10 && line<=12 || line>=15 && line<=18 || line==24 || line==25)
         // high over Elias' right shoulder, looking down through the doorway: the tablet and the visitor's face above his
@@ -231,6 +235,11 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         // the visitor, chest up, from the doorway: far enough for the hood and the mask to read, lit by the porch lamp
         else{Shot=9;from=new Vector3(-2.74f,2.02f,2.58f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.46f,0);fov=line==13?36:41;}
         camera.transform.SetPositionAndRotation(World(from),Quaternion.LookRotation(World(target)-World(from),home.up));camera.fieldOfView=fov;
+        if(insertKey!=null)
+        {
+            insertKey.enabled=Shot==3;
+            if(Shot==3){var key=from+new Vector3(.25f,.15f,-.05f);insertKey.transform.SetPositionAndRotation(World(key),Quaternion.LookRotation(World(target)-World(key),home.up));}
+        }
     }
     Vector3 Ground(Vector3 position)
     {
