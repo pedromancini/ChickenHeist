@@ -16,6 +16,9 @@ public sealed class VisitorCinematicActor
     readonly HandGripPose[] grips=new HandGripPose[2];readonly Vector3[] knuckles=new Vector3[2];
     readonly Vector3[][] knuckleEach=new Vector3[2][];
     readonly ArmTwist[] twists=new ArmTwist[2];
+    // the jaw ("Fala" shape: Elias' head with the beard, the visitor's mask over his mouth)
+    readonly System.Collections.Generic.List<(SkinnedMeshRenderer skin,int index)> jaws=new System.Collections.Generic.List<(SkinnedMeshRenderer,int)>();
+    float mouth;
     public float ContactError {get;private set;}
     // Largest wrist bend this frame against its limit (1: at the limit of the joint), for the review.
     public float WristLoad {get;private set;}
@@ -34,6 +37,7 @@ public sealed class VisitorCinematicActor
         head=Bone("Head");spine=Bone("Chest");leftHand=Bone("HandL");rightHand=Bone("HandR");
         bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];talkPose=new Quaternion[bones.Length];
         var body=actor.GetComponentsInChildren<SkinnedMeshRenderer>(true).First(s=>System.Array.IndexOf(s.bones,leftHand)>=0);
+        foreach(var s in actor.GetComponentsInChildren<SkinnedMeshRenderer>(true)){int k=s.sharedMesh!=null?s.sharedMesh.GetBlendShapeIndex("Fala"):-1;if(k>=0)jaws.Add((s,k));}
         for(int i=0;i<2;i++)
         {
             string side=i==0?"L":"R";var hand=i==0?leftHand:rightHand;
@@ -145,6 +149,44 @@ public sealed class VisitorCinematicActor
         Place(i,grips[i].Rotation(palmFacing,fingers),PowerGrip.Anchor(grips[i],radius),centre,weight);
         var palm=hands[i].hand.TransformDirection(grips[i].PalmLocal).normalized;
         hands[i].AimThumb(centre+palm*(radius+.012f)-fingers*.01f,weight);
+    }
+    // How open the mouth is (0 shut, 1 wide): eased so syllables flow instead of snapping.
+    public void Speak(float open)
+    {
+        mouth=Mathf.Lerp(mouth,Mathf.Clamp01(open),1-Mathf.Exp(-Time.deltaTime*22));
+        if(Time.deltaTime<=0)mouth=Mathf.Clamp01(open);
+        foreach(var (skin,index) in jaws)skin.SetBlendShapeWeight(index,mouth*100);
+    }
+    public bool HasJaw=>jaws.Count>0;
+    // Mouth shape while a line is said: the subtitle's letters spread over the line (a short breath at the start, the
+    // last half second quiet), vowels open, consonants half open, spaces and punctuation shut, each letter blended with
+    // its neighbours so the mouth moves in syllables. The cutscene has no voice recordings, so the text is the voice.
+    public static float Mouth(string text,float time,float duration)
+    {
+        if(string.IsNullOrEmpty(text))return 0;
+        float start=.15f,end=Mathf.Max(start+.5f,duration-.5f),u=(time-start)/(end-start);
+        if(u<=0 || u>=1)return 0;
+        float at=u*text.Length,sum=0,weights=0;
+        for(int k=-1;k<=1;k++)
+        {
+            int i=Mathf.FloorToInt(at)+k;if(i<0 || i>=text.Length)continue;
+            float w=1-Mathf.Abs(at-(i+.5f))/1.5f;if(w<=0)continue;
+            sum+=Openness(text[i])*w;weights+=w;
+        }
+        return weights>0?sum/weights:0;
+    }
+    static float Openness(char c)
+    {
+        switch(char.ToLowerInvariant(c))
+        {
+            case 'a':case 'á':case 'â':case 'ã':case 'à':return 1;
+            case 'o':case 'ó':case 'ô':case 'õ':return .8f;
+            case 'e':case 'é':case 'ê':return .7f;
+            case 'u':case 'ú':return .5f;
+            case 'i':case 'í':return .45f;
+            case 'm':case 'b':case 'p':return .05f;
+        }
+        return char.IsLetter(c)?.28f:0;
     }
     // Forearm twist bones after every grip of the frame: the hand's roll spreads along the forearm.
     public void Twist(){foreach(var t in twists)t?.Apply();}

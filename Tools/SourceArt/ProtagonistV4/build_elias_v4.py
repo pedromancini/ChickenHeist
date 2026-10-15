@@ -772,6 +772,25 @@ for o in (head, body):
 tris = [sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (body, head)]
 log('triangles body', tris[0], 'head', tris[1])
 
+def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
+    # "Fala": the jaw dropped by `angle` degrees about the jaw joint (pivot: in front of the ears, the axis across the
+    # face). Everything below the lips and in front of the joint turns with it, fading out over 1.2 cm at the lips, to the
+    # sides past the corners of the jaw, back towards the ears and down to `bottom` (the chin, or the mask's lower edge). The game opens it with the loudness of the voice.
+    import math as _m
+    from mathutils import Matrix as _M, Vector as _V
+    if obj.data.shape_keys is None: obj.shape_key_add(name='Basis', from_mix=False)
+    key = obj.shape_key_add(name='Fala', from_mix=False)
+    rot = _M.Rotation(_m.radians(angle), 3, 'X')
+    moved = 0
+    def sm(t): t = max(0.0, min(1.0, t)); return t * t * (3 - 2 * t)
+    for i, v in enumerate(obj.data.vertices):
+        p = v.co
+        w = sm((mouth_z - p.z) / .012) * sm((half_width - abs(p.x)) / .025) * sm((pivot.y - .01 - p.y) / .04) * sm((p.z - bottom) / .025)
+        if w <= 0: continue
+        key.data[i].co = p.lerp(pivot + rot @ (p - pivot), w); moved += 1
+    log(label, 'speech shape: vertices moving with the jaw', moved)
+hp = joint['Head'][0]
+speech_shape(head, Vector((0, hp.y, hp.z + .065)), hp.z + .025, 11, .085, hp.z - .09, 'head')
 tex.filepath_raw = os.path.join(GEN, 'EliasV4_Albedo.png'); tex.file_format = 'PNG'; tex.save()
 if EXPORT:
     tex.filepath_raw = os.path.join(OUT_DIR, 'EliasV4_Albedo.png'); tex.save()

@@ -9,7 +9,7 @@
 #   - the original surface, UVs and texture are kept (the model is closed apart from a few pinholes); loose specks
 #     are removed and the flat (faceted) shading of the source is kept
 #   - skin weights from Blender's bone heat, then: the wrist blends over a short band (hand past it, forearm before
-#     it), the hand follows the finger chains, the face mask follows the head
+#     it), the hand follows the finger chains, the face mask moves with the face under it
 # Run:  blender -b --factory-startup --python build_visitor.py                 (previews in generated/)
 #       VISITOR_EXPORT=1 blender -b --factory-startup --python build_visitor.py  (also writes the FBX files)
 import bpy, bmesh, os, math
@@ -308,14 +308,11 @@ for v in me.vertices:
         nb = min((n for n in names if n != 'Root'), key=lambda n: seg_dist(v.co, *joint[n]))
         ob.vertex_groups[nb].add([v.index], 1.0, 'REPLACE'); orphans += 1
 log('vertices weighted by nearest bone (bone heat did not reach them)', orphans)
-# The face mask is a separate piece in front of the face (from the bridge of the nose down over the throat): all
-# of it follows the head, as a mask tied on would.
+# The face mask is a separate piece lying on the face (from the bridge of the nose down over the throat); found here,
+# weighted at the end like the face under it.
 pieces = components(np.arange(len(me.vertices)))
 mask = next((c for c in pieces[1:] if len(c) > 100 and P[c][:, 2].min() > head_pivot.z - .2 and np.abs(P[c][:, 0]).max() < .1), np.array([], int))
-for vi in mask.tolist():
-    for g in [g.group for g in me.vertices[vi].groups]: ob.vertex_groups[g].remove([vi])
-    ob.vertex_groups['Head'].add([vi], 1.0, 'REPLACE')
-log('face mask vertices on the head bone', len(mask), '(pieces:', [len(c) for c in pieces[:6]], ')')
+log('face mask piece', len(mask), 'vertices (pieces:', [len(c) for c in pieces[:6]], ')')
 # Wrist: past WRIST_END everything follows the hand and its fingers, before WRIST_START everything follows the
 # forearm, and in between the two blend smoothly (bone heat leaves the base of the palm and the thumb on the forearm,
 # which stays behind and stretches into spikes when the hand bends).
@@ -415,7 +412,40 @@ for v in me.vertices:
     keepg = gs[:4]; t = sum(w for _, w in keepg) or 1
     for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
     for g, w in keepg: ob.vertex_groups[g].add([v.index], w / t, 'REPLACE')
+# The mask moves with the face under it: every mask vertex takes the weights of the nearest vertex of the body (the
+# face above, the throat below). Glued rigidly to the head it pulled away from the throat and opened a gap whenever
+# the head turned or nodded.
+from mathutils import kdtree
+mask_set = set(int(i) for i in mask)
+others = [v.index for v in me.vertices if v.index not in mask_set]
+kd = kdtree.KDTree(len(others))
+for i in others: kd.insert(me.vertices[i].co, i)
+kd.balance()
+for vi in mask_set:
+    _, src, _ = kd.find(me.vertices[vi].co)
+    for g in [g.group for g in me.vertices[vi].groups]: ob.vertex_groups[g].remove([vi])
+    for g in me.vertices[src].groups: ob.vertex_groups[g.group].add([vi], g.weight, 'REPLACE')
+log('face mask vertices weighted like the face under them', len(mask_set))
 for p_ in me.polygons: p_.use_smooth = False
+
+def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
+    # "Fala": the jaw dropped by `angle` degrees about the jaw joint (pivot: in front of the ears, the axis across the
+    # face). Everything below the lips and in front of the joint turns with it, fading out over 1.2 cm at the lips, to the
+    # sides past the corners of the jaw, back towards the ears and down to `bottom` (the chin, or the mask's lower edge). The game opens it with the loudness of the voice.
+    import math as _m
+    from mathutils import Matrix as _M, Vector as _V
+    if obj.data.shape_keys is None: obj.shape_key_add(name='Basis', from_mix=False)
+    key = obj.shape_key_add(name='Fala', from_mix=False)
+    rot = _M.Rotation(_m.radians(angle), 3, 'X')
+    moved = 0
+    def sm(t): t = max(0.0, min(1.0, t)); return t * t * (3 - 2 * t)
+    for i, v in enumerate(obj.data.vertices):
+        p = v.co
+        w = sm((mouth_z - p.z) / .012) * sm((half_width - abs(p.x)) / .025) * sm((pivot.y - .01 - p.y) / .04) * sm((p.z - bottom) / .025)
+        if w <= 0: continue
+        key.data[i].co = p.lerp(pivot + rot @ (p - pivot), w); moved += 1
+    log(label, 'speech shape: vertices moving with the jaw', moved)
+speech_shape(ob, Vector((0, head_pivot.y, head_pivot.z + .01)), head_pivot.z - .017, 9, .08, head_pivot.z - .105, 'body')
 used = {x.group for v in me.vertices for x in v.groups}
 for g in [g for g in ob.vertex_groups if g.index not in used]: ob.vertex_groups.remove(g)
 log('triangles', sum(len(p.vertices) - 2 for p in me.polygons), 'vertices', len(me.vertices))

@@ -60,8 +60,9 @@ def wheel_panel(side,zmin,zmax,zc,top):
         a=i*math.pi/12;profile.append((zc+.47*math.cos(a),.39+.47*math.sin(a)))
     profile.append((zmin,.43))
     panel('Stamped fender with open wheel arch',side,profile,paint)
-    points=[(side*.904,.39+.49*math.sin(i*math.pi/16),zc+.49*math.cos(i*math.pi/16)) for i in range(17)]
-    for a,b in zip(points,points[1:]):beam('Wheel arch rolled lip',a,b,.025,paint2)
+    # the rolled lip hugs the arch's own edge (radius .47) on the panel's outer face, instead of floating 2 cm out
+    points=[(side*.889,.39+.477*math.sin(i*math.pi/16),zc+.477*math.cos(i*math.pi/16)) for i in range(17)]
+    for a,b in zip(points,points[1:]):beam('Wheel arch rolled lip',a,b,.03,paint2)
 
 # Ladder chassis and a genuinely open cargo bed.
 for x in [-.55,.55]:box('Chassis rail',(x,.37,-.05),(.09,.13,4.25),rust)
@@ -95,13 +96,21 @@ for side in [-1,1]:
     box('Mirror housing',(side*1.065,1.41,.96),(.17,.17,.075),trim,.028)
     box('Mirror surface',(side*1.065,1.41,.916),(.145,.14,.008),steel,.02)
     box('Mud flap',(side*.81,.25,-1.68),(.30,.29,.025),dark)
-    # Irregular oxide spots, concentrated below door seams and bed corners.
-    for n in range(28):
-        z=random.uniform(-2.08,2.08);y=random.uniform(.50,1.08)
-        if min(abs(z+1.25),abs(z-1.40))<.49 and y<.91:continue
-        x=side*.901;r=random.uniform(.018,.075)
-        verts=[(x,y+r*random.uniform(.5,1)*math.sin(k*math.tau/7),z+r*1.8*random.uniform(.5,1)*math.cos(k*math.tau/7)) for k in range(7)]
-        mesh('Irregular chipped paint',verts,[tuple(range(7))],rust if n%3 else rust2)
+    # Oxide spots, flush with the paint (2 mm proud, closed so they read from every side) and kept inside a single
+    # panel: clear of the door seams, the panel edges and the wheel arches. They used to float 1.4 cm off the body as
+    # one-sided stickers, some across the door gap or hanging past an edge.
+    panels=[(-2.04,-.36,.56,1.03),(-.12,.70,.58,1.02),(1.02,2.06,.98,1.02)]
+    placed=0
+    for n in range(60):
+        if placed>=16:break
+        z0,z1,y0,y1=random.choice(panels);r=random.uniform(.018,.05)
+        z=random.uniform(z0+r*1.8,z1-r*1.8);y=random.uniform(y0+r,y1-r)
+        if min(abs(z+1.25),abs(z-1.40))<.56 and y<.95:continue
+        out=.8875+.002
+        ring=[(y+r*random.uniform(.6,1)*math.sin(k*math.tau/7),z+r*1.6*random.uniform(.6,1)*math.cos(k*math.tau/7)) for k in range(7)]
+        verts=[(side*(out-.003),a,b) for a,b in ring]+[(side*out,a,b) for a,b in ring]
+        faces=[tuple(reversed(range(7))),tuple(range(7,14))]+[(k,(k+1)%7,(k+1)%7+7,k+7) for k in range(7)]
+        mesh('Oxide spot',verts,faces,rust if placed%3 else rust2);placed+=1
 
 # Hood is a tapered stamped shell with a sloping nose and central crease.
 verts=[(-.83,1.08,1.04),(.83,1.08,1.04),(.82,.98,2.17),(-.82,.98,2.17),

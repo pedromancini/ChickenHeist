@@ -74,7 +74,7 @@ public class ChickenCoopLockpick : MonoBehaviour
     public void SetDoorOpen(bool open,bool immediate=false)
     {
         CancelInteraction();IsOpen=open;Latch=new CoopPressureLatch(Seed);
-        if(door!=null){var hinge=door.GetComponent<HingedBarrier>();if(hinge==null)hinge=door.gameObject.AddComponent<HingedBarrier>();hinge.SetOpen(open,immediate);foreach(var r in door.GetComponentsInChildren<Renderer>())r.enabled=true;foreach(var c in door.GetComponentsInChildren<Collider>())c.enabled=true;}
+        if(door!=null){var hinge=door.GetComponent<HingedBarrier>();if(hinge==null)hinge=door.gameObject.AddComponent<HingedBarrier>();var opener=HeistGameManager.Instance!=null && HeistGameManager.Instance.player!=null?HeistGameManager.Instance.player.position:(Vector3?)null;hinge.SetOpen(open,immediate,opener);foreach(var r in door.GetComponentsInChildren<Renderer>())r.enabled=true;foreach(var c in door.GetComponentsInChildren<Collider>())c.enabled=true;}
     }
     void Update()
     {

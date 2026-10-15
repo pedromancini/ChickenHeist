@@ -36,6 +36,14 @@ public static class GameplayFixReview
         var account=Object.FindAnyObjectByType<HouseholdEconomy>();account.editorTestSavePath=Path.GetFullPath("Temp/fixes-"+Guid.NewGuid().ToString("N")+".json");HouseholdEconomy.SaveAccount(account.editorTestSavePath,new HouseholdAccount());
         SessionState.SetBool(Key,true);EditorApplication.isPlaying=true;
     }
+    // The checks alone, without the one-time vegetation clearing (the scene is not touched).
+    // Run: Unity.exe -batchmode -projectPath . -executeMethod GameplayFixReview.Run
+    public static void Run()
+    {
+        Directory.CreateDirectory(Folder);EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
+        var account=Object.FindAnyObjectByType<HouseholdEconomy>();account.editorTestSavePath=Path.GetFullPath("Temp/fixes-"+Guid.NewGuid().ToString("N")+".json");HouseholdEconomy.SaveAccount(account.editorTestSavePath,new HouseholdAccount());
+        SessionState.SetBool(Key,true);EditorApplication.isPlaying=true;
+    }
     static void Changed(PlayModeStateChange state)
     {
         if(!SessionState.GetBool(Key,false))return;
@@ -60,6 +68,19 @@ public static class GameplayFixReview
                     var p=gate.transform.position;var q=gate.transform.rotation;gate.RestoreOpen(true);
                     Check(Mathf.Abs(gate.transform.position.y-p.y)<.01f && gate.GetComponentsInChildren<Renderer>().All(r=>r.enabled),"Gate swings visibly above ground: "+gate.name);
                     gate.RestoreOpen(false);Check(Vector3.Distance(p,gate.transform.position)<.001f && Quaternion.Angle(q,gate.transform.rotation)<.01f,"Gate closes back to original pose");
+                }
+                // a gate pushed open swings away from whoever opens it, from either side
+                foreach(var gate in Object.FindObjectsByType<RuralGate>().Take(4))
+                {
+                    var barrier=gate.GetComponent<HingedBarrier>();var centre=barrier.InteractionPoint;var across=gate.transform.forward;across.y=0;across.Normalize();
+                    foreach(float sideSign in new[]{1f,-1f})
+                    {
+                        var opener=centre+across*sideSign*1.5f;float before=Vector3.Distance(opener,barrier.InteractionPoint);
+                        barrier.SetOpen(true,true,opener);float after=Vector3.Distance(opener,barrier.InteractionPoint);
+                        Check(after>before+.3f,"Gate swings away from the one opening it ("+(sideSign>0?"front":"back")+"): "+gate.name+" "+before.ToString("F2")+" -> "+after.ToString("F2"));
+                        barrier.SetOpen(false,true);
+                    }
+                    gate.RestoreOpen(false);
                 }
                 var coop=Object.FindAnyObjectByType<ChickenCoopLockpick>();coop.RestoreOpen(true);Check(coop.door.GetComponentsInChildren<Renderer>().All(r=>r.enabled),"Opened coop door stays visible");coop.RestoreOpen(false);Check(!coop.IsOpen && coop.door.GetComponentsInChildren<Collider>().All(c=>c.enabled),"Coop closes with collisions");
                 var economy=HouseholdEconomy.Instance;var flock=economy.home.GetComponentInChildren<HomeFlockView>();

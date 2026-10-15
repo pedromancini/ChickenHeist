@@ -125,6 +125,15 @@ public static class VisitorCinematicReview
                     Wrists(stage,"beat "+line);
                     total+=duration;
                 }
+                // storyboard: every beat at its start, middle and end, as the player sees it (output/visitor-opening/story)
+                Directory.CreateDirectory(Folder+"/story");float clock=0;
+                for(int line=0;line<VisitorOpeningDialogue.Text.Length;line++)
+                {
+                    float duration=VisitorOpeningDialogue.Durations[line];
+                    foreach(var (k,f) in new[]{("a",.08f),("b",.5f),("c",.92f)})
+                    {SetLine(line,f);stage.Evaluate(camera,line,duration*f,duration,clock+duration*f);Capture("story/beat-"+line.ToString("00")+"-"+k);}
+                    clock+=duration;
+                }
                 // the moments the hands are busy, up close: typing, knocking, the lever, holding and passing the tablet
                 foreach(var (line,at,visitorSide,name) in new[]{(0,.85f,false,"desk"),(1,1.43f,true,"knock"),(5,.9f,false,"lever"),(9,2.4f,true,"tablet-shown"),(12,1.5f,true,"tablet-held"),
                     (19,1.4f,false,"pointing"),(24,1.2f,false,"handover"),(24,1.2f,true,"handover"),(25,3f,false,"tablet-read"),(29,1.6f,false,"door-close")})
@@ -156,8 +165,15 @@ public static class VisitorCinematicReview
                 stage.Evaluate(camera,28,4.5f,6.5f,124);Check(Vector3.Distance(before,stage.visitor.position)>2,"Visitor physically walks away");
                 stage.Evaluate(camera,29,.3f,8.5f,125);before=stage.elias.position;
                 stage.Evaluate(camera,29,7.8f,8.5f,132);Check(Vector3.Distance(before,stage.elias.position)>2,"Elias physically returns to table");
-                stage.Evaluate(camera,29,1.0f,8.5f,126);before=stage.elias.position;
-                stage.Evaluate(camera,29,2.2f,8.5f,127);Check(Vector3.Distance(before,stage.elias.position)<.01f,"Elias stays at door throughout closing action");
+                // shutting the door: his hand stays on the inner lever while he walks back in pulling it, and he ends inside
+                SetLine(29,.3f);stage.Evaluate(camera,29,2.4f,8.5f,127);
+                Check(stage.EliasActor.ContactError<.05f,"Elias' hand stays on the inner lever while he pulls the door shut: "+stage.EliasActor.ContactError.ToString("F3"));
+                SetLine(29,.42f);stage.Evaluate(camera,29,3.6f,8.5f,128);
+                Check(Quaternion.Angle(stage.Door.hinge.localRotation,Quaternion.identity)<1 && Vector3.Dot(stage.elias.position-stage.Door.hinge.position,stage.Door.hinge.parent.forward)>.3f,"Door shut with Elias inside the house");
+                foreach(var at in new[]{.6f,1.4f,2.0f,2.6f,3.2f,3.8f}){SetLine(29,at/8.5f);stage.Evaluate(camera,29,at,8.5f,130+at);Capture("door-close-"+at.ToString("0.0"));}
+                // mouths: open while speaking, shut while listening
+                SetLine(14,.5f);stage.Evaluate(camera,14,VisitorOpeningDialogue.Durations[14]*.5f,VisitorOpeningDialogue.Durations[14],60);
+                Check(stage.EliasActor.HasJaw && stage.VisitorActor.HasJaw,"Both actors have a jaw shape for speech");
                 StoryDirector.Instance.Complete();CheckRestored("Completion");
                 phase=3;next=EditorApplication.timeSinceStartup+.3;return;
             }
