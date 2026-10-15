@@ -174,6 +174,21 @@ public static class VisitorCinematicReview
                 // mouths: open while speaking, shut while listening
                 SetLine(14,.5f);stage.Evaluate(camera,14,VisitorOpeningDialogue.Durations[14]*.5f,VisitorOpeningDialogue.Durations[14],60);
                 Check(stage.EliasActor.HasJaw && stage.VisitorActor.HasJaw,"Both actors have a jaw shape for speech");
+                // lip movement in the cutscene itself: Elias in his close-up while he talks (beat 21), the visitor's mask in
+                // his (beat 22); the listener's mouth stays shut. A strip of the speaker's face goes to mouth-<beat>.png.
+                foreach(var (beat,speaker,listener,name) in new[]{(21,stage.EliasActor,stage.VisitorActor,"Elias"),(22,stage.VisitorActor,stage.EliasActor,"visitor")})
+                {
+                    float duration=VisitorOpeningDialogue.Durations[beat];var weights=new System.Collections.Generic.List<float>();float listening=0;
+                    var strip=new Texture2D(8*240,240,TextureFormat.RGB24,false);
+                    for(int k=0;k<8;k++)
+                    {
+                        float at=.4f+(duration-1.1f)*k/7f;SetLine(beat,at/duration);stage.Evaluate(camera,beat,at,duration,400+beat+at);
+                        weights.Add(speaker.JawWeight);listening=Mathf.Max(listening,listener.JawWeight);
+                        Face(speaker,strip,k);
+                    }
+                    strip.Apply();File.WriteAllBytes(Folder+"/mouth-"+name+".png",strip.EncodeToPNG());Object.DestroyImmediate(strip);
+                    Check(weights.Max()>35 && weights.Min()<15 && listening<1,"Mouth moves while "+name+" talks (jaw "+string.Join(" ",weights.Select(w=>w.ToString("0")))+"), listener shut ("+listening.ToString("0")+")");
+                }
                 StoryDirector.Instance.Complete();CheckRestored("Completion");
                 phase=3;next=EditorApplication.timeSinceStartup+.3;return;
             }
@@ -220,6 +235,17 @@ public static class VisitorCinematicReview
         }
         File.AppendAllText(Folder+"/wrists.txt",line+"\n");
         Check(ok,"Thumbs on the holder's side of the tablet, fingers over the far side, none inside ("+label+")");
+    }
+    // the speaker's face up close, lit from the front, into one cell of a strip
+    static void Face(VisitorCinematicActor actor,Texture2D strip,int cell)
+    {
+        var head=actor.head;var go=new GameObject("face close-up");var cam=go.AddComponent<Camera>();cam.CopyFrom(Camera.main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=24;cam.nearClipPlane=.02f;
+        var lamp=new GameObject("face lamp").AddComponent<Light>();lamp.type=LightType.Directional;lamp.intensity=1.2f;lamp.shadows=LightShadows.None;
+        var look=head.position+actor.root.forward*.06f+Vector3.up*.02f;cam.transform.position=look+actor.root.forward*.55f+Vector3.up*.03f;cam.transform.LookAt(look);
+        lamp.transform.rotation=Quaternion.LookRotation(-actor.root.forward+Vector3.down*.4f);
+        var target=new RenderTexture(240,240,24);cam.targetTexture=target;cam.Render();var active=RenderTexture.active;RenderTexture.active=target;
+        strip.ReadPixels(new Rect(0,0,240,240),cell*240,0);RenderTexture.active=active;cam.targetTexture=null;
+        Object.DestroyImmediate(target);Object.DestroyImmediate(go);Object.DestroyImmediate(lamp.gameObject);
     }
     static void Wrists(VisitorCinematicStage stage,string label)
     {

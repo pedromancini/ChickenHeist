@@ -125,8 +125,9 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         second.Pose(vp,vyaw,total,vmove,VisitorOpeningDialogue.Speakers[line]=="Visitante",World(vgaze),line==1?4:0,vdistance,vw,vback);
         // the one speaking moves his mouth with the line's syllables
         string said=VisitorOpeningDialogue.Text[line];
-        first.Speak(VisitorOpeningDialogue.Speakers[line]=="Elias"?VisitorCinematicActor.Mouth(said,localTime,duration):0);
-        second.Speak(VisitorOpeningDialogue.Speakers[line]=="Visitante"?VisitorCinematicActor.Mouth(said,localTime,duration):0);
+        bool jump=change || Mathf.Abs(localTime-previousLocal)>.1f;
+        first.Speak(VisitorOpeningDialogue.Speakers[line]=="Elias"?VisitorCinematicActor.Mouth(said,localTime,duration):0,jump);
+        second.Speak(VisitorOpeningDialogue.Speakers[line]=="Visitante"?VisitorCinematicActor.Mouth(said,localTime,duration):0,jump);
         props.Paper(line==0?localTime:6);
         // Conversation gestures come from the captured Talk take inside VisitorCinematicActor; hands that hold or
         // touch something are posed on top (hinge elbows, forearm roll, wrists within their range, grip shapes).

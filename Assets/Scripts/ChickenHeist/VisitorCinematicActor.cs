@@ -151,29 +151,38 @@ public sealed class VisitorCinematicActor
         hands[i].AimThumb(centre+palm*(radius+.012f)-fingers*.01f,weight);
     }
     // How open the mouth is (0 shut, 1 wide): eased so syllables flow instead of snapping.
-    public void Speak(float open)
+    // snap: a jump in the cutscene's time (a skip, a review sample) takes the new value at once
+    public void Speak(float open,bool snap=false)
     {
         mouth=Mathf.Lerp(mouth,Mathf.Clamp01(open),1-Mathf.Exp(-Time.deltaTime*22));
-        if(Time.deltaTime<=0)mouth=Mathf.Clamp01(open);
+        if(snap || Time.deltaTime<=0)mouth=Mathf.Clamp01(open);
         foreach(var (skin,index) in jaws)skin.SetBlendShapeWeight(index,mouth*100);
     }
     public bool HasJaw=>jaws.Count>0;
+    // the jaw shape's weight as rendered (0 shut, 100 wide)
+    public float JawWeight=>jaws.Count>0?jaws[0].skin.GetBlendShapeWeight(jaws[0].index):0;
     // Mouth shape while a line is said: the subtitle's letters spread over the line (a short breath at the start, the
-    // last half second quiet), vowels open, consonants half open, spaces and punctuation shut, each letter blended with
-    // its neighbours so the mouth moves in syllables. The cutscene has no voice recordings, so the text is the voice.
+    // last half second quiet). The mouth opens on each vowel (wide on a, less on e and o, least on i and u) and closes
+    // on the consonants around it and on spaces and punctuation, so it moves in syllables. The cutscene has no voice
+    // recordings, so the text is the voice.
     public static float Mouth(string text,float time,float duration)
     {
         if(string.IsNullOrEmpty(text))return 0;
         float start=.15f,end=Mathf.Max(start+.5f,duration-.5f),u=(time-start)/(end-start);
         if(u<=0 || u>=1)return 0;
-        float at=u*text.Length,sum=0,weights=0;
-        for(int k=-1;k<=1;k++)
+        float at=u*text.Length;int here=Mathf.Clamp((int)at,0,text.Length-1);
+        if(!char.IsLetter(text[here]))return 0;
+        // the nearest vowel within the same word sets how open, its distance how far towards it the jaw has come
+        float best=0;
+        for(int k=-2;k<=2;k++)
         {
-            int i=Mathf.FloorToInt(at)+k;if(i<0 || i>=text.Length)continue;
-            float w=1-Mathf.Abs(at-(i+.5f))/1.5f;if(w<=0)continue;
-            sum+=Openness(text[i])*w;weights+=w;
+            int i=here+k;if(i<0 || i>=text.Length)continue;
+            bool sameWord=true;for(int j=Mathf.Min(i,here);j<=Mathf.Max(i,here);j++)if(!char.IsLetter(text[j])){sameWord=false;break;}
+            if(!sameWord)continue;
+            float open=Openness(text[i]);if(open<.4f)continue;
+            float distance=Mathf.Abs(at-(i+.5f));best=Mathf.Max(best,open*Mathf.Clamp01(1-distance/1.4f));
         }
-        return weights>0?sum/weights:0;
+        return best;
     }
     static float Openness(char c)
     {
@@ -186,7 +195,7 @@ public sealed class VisitorCinematicActor
             case 'i':case 'í':return .45f;
             case 'm':case 'b':case 'p':return .05f;
         }
-        return char.IsLetter(c)?.28f:0;
+        return char.IsLetter(c)?.1f:0;
     }
     // Forearm twist bones after every grip of the frame: the hand's roll spreads along the forearm.
     public void Twist(){foreach(var t in twists)t?.Apply();}

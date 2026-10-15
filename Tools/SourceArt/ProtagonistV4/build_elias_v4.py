@@ -790,7 +790,7 @@ def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
         key.data[i].co = p.lerp(pivot + rot @ (p - pivot), w); moved += 1
     log(label, 'speech shape: vertices moving with the jaw', moved)
 hp = joint['Head'][0]
-speech_shape(head, Vector((0, hp.y, hp.z + .065)), hp.z + .025, 11, .085, hp.z - .09, 'head')
+speech_shape(head, Vector((0, hp.y, hp.z + .065)), hp.z + .025, 16, .085, hp.z - .09, 'head')
 tex.filepath_raw = os.path.join(GEN, 'EliasV4_Albedo.png'); tex.file_format = 'PNG'; tex.save()
 if EXPORT:
     tex.filepath_raw = os.path.join(OUT_DIR, 'EliasV4_Albedo.png'); tex.save()
