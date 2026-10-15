@@ -209,22 +209,25 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         else if(line==1){Shot=1;from=new Vector3(-1.40f,2.32f,.30f)+Vector3.forward*p*.16f;target=new Vector3(-3.13f,1.80f,2.05f);fov=48;}
         // The door is still closed while the visitor answers, so this line is covered from the porch.
         // the door is still shut while the visitor answers: on the porch, in front of him, under the porch lamp
-        else if(line==3){Shot=11;from=new Vector3(-2.42f,1.95f,1.86f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.47f,0);fov=44;}
-        else if(line==2 || line==4 || line==7 || line==26)
+        // line 5 too: the door is still swinging open between them, and from inside it hides him
+        else if(line==3 || line==5){Shot=11;from=new Vector3(-2.42f,1.95f,1.86f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.47f,0);fov=44;}
+        // "Trabalho? A essa hora?" through the still shut door: over his right shoulder, the door in front of him
+        else if(line==4){Shot=2;from=ep+new Vector3(.42f,EliasEye+.12f,.70f)+Vector3.back*p*.05f;target=ep+new Vector3(0,EliasEye-.25f,-.45f);fov=50;}
+        else if(line==2 || line==7 || line==26)
         {Shot=2;from=line<5?new Vector3(-1.80f,2.12f,3.40f):new Vector3(-2.80f,2.10f,1.88f);target=ep+new Vector3(0,EliasEye-.05f,-.05f);fov=48;from+=Vector3.forward*p*.04f;}
         else if(line==9 || line==19)
         {Shot=3;from=home.InverseTransformPoint(props.tablet.position)+new Vector3(.23f,.70f,.38f);target=home.InverseTransformPoint(props.tablet.position);fov=46;}
         else if(line==14){Shot=4;from=new Vector3(-2.82f,ep.y+EliasEye-.28f,1.88f);target=ep+Vector3.up*(EliasEye-.04f);fov=43;}
-        else if(line>=10 && line<=12 || line>=15 && line<=18 || line==24 || line==25 || line==5)
+        else if(line>=10 && line<=12 || line>=15 && line<=18 || line==24 || line==25)
         // high over Elias' right shoulder, looking down through the doorway: the tablet and the visitor's face above his
         // shoulder, the walls and the open door kept to the edges
-        {Shot=5;from=new Vector3(-2.72f,2.48f,3.42f)+new Vector3(-.04f,0,.05f)*p;target=new Vector3(-2.98f,1.80f,2.02f);fov=46;}
+        {Shot=5;from=new Vector3(-2.66f,2.46f,3.12f)+new Vector3(-.04f,0,.05f)*p;target=new Vector3(-3.00f,1.82f,2.00f);fov=44;}
         else if(line>=20 && line<=23)
         {Shot=10;from=Vector3.Lerp(new Vector3(-2.80f,0,1.88f),new Vector3(-2.68f,0,1.97f),((line-20)+p)/4f)+Vector3.up*(ep.y+EliasEye-.28f);target=ep+Vector3.up*(EliasEye-.04f);fov=45;}
-        else if(line==28){Shot=6;from=Vector3.Lerp(new Vector3(-2.72f,2.42f,3.42f),new Vector3(-2.80f,2.36f,3.25f),p);target=vp+Vector3.up*1.2f;fov=50;}
+        else if(line==28){Shot=6;from=Vector3.Lerp(new Vector3(-2.66f,2.42f,3.12f),new Vector3(-2.74f,2.36f,3.00f),p);target=vp+Vector3.up*1.2f;fov=48;}
         // from inside the room through the doorway: Elias on the porch, the door coming shut behind him
         else if(line==29){Shot=7;from=new Vector3(-2.62f,2.30f,4.85f)+Vector3.left*p*.35f;target=ep+Vector3.up*(EliasEye-.35f);fov=52;}
-        else if(line==30){Shot=8;from=Vector3.Lerp(desk+new Vector3(.7f,1.14f,.67f),desk+new Vector3(.53f,.82f,.53f),p);target=desk+new Vector3(.04f,.02f,.025f);fov=47;}
+        else if(line==30){Shot=8;from=Vector3.Lerp(desk+new Vector3(.95f,1.45f,.95f),desk+new Vector3(.80f,1.25f,.85f),p);target=desk+new Vector3(.18f,.30f,.10f);fov=50;}
         // the visitor, chest up, from the doorway: far enough for the hood and the mask to read, lit by the porch lamp
         else{Shot=9;from=new Vector3(-2.74f,2.02f,2.58f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.46f,0);fov=line==13?36:41;}
         camera.transform.SetPositionAndRotation(World(from),Quaternion.LookRotation(World(target)-World(from),home.up));camera.fieldOfView=fov;
