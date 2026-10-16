@@ -13,6 +13,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
     // a soft warm key on the tablet insert only (shot 3): the porch lamp above leaves the hands and the hood in the dark
     Light insertKey;
     public Transform Tablet=>props.tablet;
+    public Vector3 BillCentre=>props.NoteCentre;
     public Vector3 EliasHand=>first.rightHand.position;
     public float GripError=>Mathf.Max(first.ContactError,second.ContactError);
     public VisitorCinematicActor EliasActor=>first;
@@ -59,6 +60,9 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         var table=home.GetComponentsInChildren<Transform>().FirstOrDefault(t=>t.name=="Prop_Wooden_Table_02");
         if(table!=null){var renderers=table.GetComponentsInChildren<Renderer>();if(renderers.Length>0){var b=renderers[0].bounds;foreach(var r in renderers)b.Encapsulate(r.bounds);desk=home.InverseTransformPoint(new Vector3(b.center.x,b.max.y+.025f,b.center.z));}}
         props=new VisitorCinematicProps(transform,home,second.head,visitor,desk);
+        // the tablet's case is solid to both actors' fingers (they close onto it, never through it)
+        System.Func<Vector3,float> slab=p=>CinematicHand.BoxDistance(props.tablet.worldToLocalMatrix,new Vector3(TabletHalfWidth,.155f,TabletThickness*.5f),p);
+        first.Plate=slab;second.Plate=slab;
         LightAt("Abajur da mesa",new Vector3(-5.8f,2.62f,3.5f),new Color(1,.69f,.36f),2.2f,5);
         LightAt("Lampada sobre a porta",new Vector3(-3.8f,2.95f,2.5f),new Color(1,.77f,.48f),1.35f,5);
         LightAt("Luar na varanda",new Vector3(-1.2f,3.7f,-.6f),new Color(.38f,.55f,1),1.5f,7);
@@ -125,11 +129,9 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         Vector3 egaze=line==0 || line>=29?desk:line>=9 && line<=20 || line==23 || line==24?tabletPosition:vp+Vector3.up*1.58f;
         Vector3 vgaze=line==6?desk:line>=9 && line<=11?tabletPosition:ep+Vector3.up*1.57f;
         if(line==22)vgaze=Vector3.Lerp(vgaze,vp+new Vector3(3,1.5f,-1),Ease((p-.30f)/.12f)*(1-Ease((p-.63f)/.12f)));
-        // the bill: Elias takes it by its edge, reads it at his chest and lays it back (VisitorCinematicProps.Paper)
-        props.Paper(line==0?localTime:6);
-        float reading=line==0?Ease((localTime-1.45f)/.4f)*(1-Ease((localTime-5.45f)/.4f)):0;billReading=reading;
-        if(line==0)egaze=Vector3.Lerp(desk,home.InverseTransformPoint(props.NoteCentre),reading);
-        first.Pose(ep,eyaw,total,emove,VisitorOpeningDialogue.Speakers[line]=="Elias",World(egaze),line==0?Mathf.Lerp(12,4,reading):line>=29?6:line==14?-3:2,edistance,ew,eback);
+        // at the desk he reads the bill lying in front of him
+        if(line==0)egaze=home.InverseTransformPoint(props.NoteCentre);
+        first.Pose(ep,eyaw,total,emove,VisitorOpeningDialogue.Speakers[line]=="Elias",World(egaze),line==0?12:line>=29?6:line==14?-3:2,edistance,ew,eback);
         second.Pose(vp,vyaw,total,vmove,VisitorOpeningDialogue.Speakers[line]=="Visitante",World(vgaze),line==1?4:0,vdistance,vw,vback);
         // the one speaking moves his mouth with the line's syllables
         string said=VisitorOpeningDialogue.Text[line];
@@ -140,14 +142,10 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         // touch something are posed on top (hinge elbows, forearm roll, wrists within their range, grip shapes).
         if(line==0)
         {
-            // the left index finger types on the calculator, the right palm holds the bill down
+            // leaning on the desk, still: the right palm on the corner of the bill, the left flat on the desk beside it
             Vector3 across=Vector3.ProjectOnPlane(elias.forward,home.up).normalized;
-            float press=Mathf.Clamp01(1-Mathf.Abs(localTime-.85f)/.2f);
-            // the left index types, then the hand comes back to his side while he reads
-            first.Point(false,props.KeyContact+home.up*(.007f+.022f*(1-press)),(across*.45f-home.up*.9f).normalized,.95f*(1-Ease((localTime-1.25f)/.55f)));
-            // until he picks it up: then the edge between his thumb (on the printed face) and his fingers (behind)
-            first.Flat(true,props.NoteContact+props.NoteUp*.012f,-props.NoteUp,Quaternion.AngleAxis(-18,home.up)*across,.95f*(1-reading));
-            first.Edge(true,props.NoteEdge,props.NoteInward,props.NoteUp,.006f,reading);
+            first.Flat(true,props.NoteContact+props.NoteUp*.012f,-props.NoteUp,Quaternion.AngleAxis(-18,home.up)*across,.95f);
+            first.Flat(false,props.DeskBeside+props.NoteUp*.012f,-props.NoteUp,Quaternion.AngleAxis(18,home.up)*across,.95f);
         }
         if(line==1 && door!=null)
         {
@@ -169,8 +167,10 @@ public sealed class VisitorCinematicStage : MonoBehaviour
             // shown to Elias like an open book: the screen (local -Z) turned to him and tilted up towards his eyes, the
             // visitor's thumbs on the back, his fingers over the border of the screen
             props.tablet.position=World(tabletPosition);props.tablet.rotation=home.rotation*Quaternion.Euler(Mathf.Lerp(62,28,reveal),180,5);
-            second.Edge(true,props.tablet.TransformPoint(new Vector3(-TabletHalfWidth,0,0)),props.tablet.right,props.tablet.forward,TabletThickness,1);
-            second.Edge(false,props.tablet.TransformPoint(new Vector3(TabletHalfWidth,0,0)),-props.tablet.right,props.tablet.forward,TabletThickness,1);
+            // by the lower half of its sides, where his forearms meet the edges square (higher up his wrists ran out of
+            // sideways bend and the hands crossed the corners)
+            second.Edge(true,props.tablet.TransformPoint(new Vector3(-TabletHalfWidth,VisitorGripHeight,0)),props.tablet.right,props.tablet.forward,TabletThickness,1);
+            second.Edge(false,props.tablet.TransformPoint(new Vector3(TabletHalfWidth,VisitorGripHeight,0)),-props.tablet.right,props.tablet.forward,TabletThickness,1);
             if(line==15 || line==19)first.Point(true,props.tablet.TransformPoint(new Vector3(.02f,.035f,-.027f)),props.tablet.forward,Mathf.Sin(p*Mathf.PI));
         }
         if(line>=24)
@@ -216,15 +216,15 @@ public sealed class VisitorCinematicStage : MonoBehaviour
     // The visitor's knuckles meet the door with each knock sound (SoundEvents).
     static readonly float[] KnockTimes={.75f,1.09f,1.43f,2.8f};
     const float TabletHalfWidth=.245f,TabletThickness=.028f;
-    float billReading;
+    static float VisitorGripHeight=0f;
     // Eye height of native Elias in stage space (real proportions; the previous rig sat ~0.2 m lower).
     const float EliasEye=1.63f;
     void Direct(Camera camera,int line,float p,Vector3 ep,Vector3 vp)
     {
         Vector3 from,target;float fov=46;
         // All dialogue coverage remains on the east side of the Elias/visitor axis.
-        // the desk; when he stands up to read the bill, the camera rises with him and keeps his head in frame
-        if(line==0){Shot=0;from=Vector3.Lerp(new Vector3(-4.62f,2.65f,4.35f),new Vector3(-4.92f,2.24f,4.04f),p)+Vector3.up*.30f*billReading;target=desk+new Vector3(0,.16f,.23f)+new Vector3(0,.42f,.14f)*billReading;fov=49+3*billReading;}
+        // the desk from behind his left shoulder: him leaning on it, his head, the bill and the calculator
+        if(line==0){Shot=0;from=Vector3.Lerp(new Vector3(-4.62f,2.70f,4.35f),new Vector3(-4.80f,2.52f,4.16f),p);target=desk+new Vector3(0,.42f,.30f);fov=50;}
         else if(line==1){Shot=1;from=new Vector3(-1.40f,2.32f,.30f)+Vector3.forward*p*.16f;target=new Vector3(-3.13f,1.80f,2.05f);fov=48;}
         // The door is still closed while the visitor answers, so this line is covered from the porch.
         // the door is still shut while the visitor answers: on the porch, in front of him, under the porch lamp

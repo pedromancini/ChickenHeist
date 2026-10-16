@@ -18,7 +18,9 @@ from mathutils import Vector, Matrix
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(ROOT, '..', '..', '..'))
-SOURCE = os.path.join(PROJECT, 'Assets', 'c12cb2ea-013a-4d05-b832-3f5e1cf0ad28.glb')
+# the supplied model: since October 2026 the masked man in a hoodie of 6d4aedaf-...glb (the first one, c12cb2ea-...glb,
+# can still be rebuilt with VISITOR_SOURCE=c12cb2ea-013a-4d05-b832-3f5e1cf0ad28.glb)
+SOURCE = os.path.join(PROJECT, 'Assets', os.environ.get('VISITOR_SOURCE', '6d4aedaf-f1e7-4d58-b10c-bb30b38579ce.glb'))
 OUT_DIR = os.path.join(PROJECT, 'Assets', 'ChickenHeistGenerated', 'Characters', 'HoodedVisitor')
 GEN = os.path.join(ROOT, 'generated'); os.makedirs(GEN, exist_ok=True)
 EXPORT = os.environ.get('VISITOR_EXPORT') == '1'
@@ -72,7 +74,8 @@ def tpose():
     global P
     z0_ = P[:, 2].min(); H_ = P[:, 2].max() - z0_
     def clusters(f):
-        m = np.abs(P[:, 2] - (z0_ + f * H_)) < .004 * H_
+        # 8 mm slices: the lighter mesh of the second model leaves thinner slices of an arm empty
+        m = np.abs(P[:, 2] - (z0_ + f * H_)) < .008 * H_
         idx = np.where(m)[0]; idx = idx[np.argsort(P[idx, 0])]
         if len(idx) < 10: return []
         return np.split(idx, np.where(np.diff(P[idx, 0]) > .01 * H_)[0] + 1)
@@ -80,12 +83,15 @@ def tpose():
     torso = float(np.median(widths))
     fit = {}
     for side in (1, -1):
-        rows = []
+        rows = []; misses = 0
         for f in np.arange(.78, .40, -.01):
             out = [c for c in clusters(f) if side * P[c, 0].mean() > torso * 1.05]
             if not out:
-                if rows: break
+                if rows:
+                    misses += 1
+                    if misses > 2: break
                 continue
+            misses = 0
             c = max(out, key=lambda c: side * P[c, 0].mean()) if len(out) == 1 else min(out, key=lambda c: side * P[c, 0].mean())
             rows.append((z0_ + f * H_, P[c, 0].mean(), P[c, 1].mean()))
         rows = rows[1:13]
@@ -510,6 +516,12 @@ if EXPORT:
     for path in ('Visitor_Rigged.fbx', 'VisitorHumanoid.fbx'):
         bpy.ops.export_scene.fbx(filepath=os.path.join(OUT_DIR, path), use_selection=True, object_types={'MESH', 'ARMATURE'},
                                  add_leaf_bones=False, bake_anim=False, axis_forward='-Z', axis_up='Y', path_mode='STRIP')
+    # the colour texture goes in as hooded_visitor_0.png (HoodedVisitorInstall's material); the first model's texture was
+    # already there under that name
+    diffuse = next((im for im in bpy.data.images if 'diffuse' in im.name.lower()), None)
+    if diffuse is not None:
+        diffuse.filepath_raw = os.path.join(OUT_DIR, 'hooded_visitor_0.png'); diffuse.file_format = 'PNG'; diffuse.save()
+        log('colour texture written', diffuse.name, tuple(diffuse.size))
     log('exported to', OUT_DIR)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(GEN, 'Visitor.blend'))
 

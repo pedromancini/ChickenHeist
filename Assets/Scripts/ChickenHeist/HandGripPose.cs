@@ -12,7 +12,11 @@ public sealed class HandGripPose
     public float SurfaceLevel {get;private set;}
     public Transform Hand=>hand;
     // palmDown: the model's bind pose is a T-pose with the palms facing down (Elias). Defaults to the player's rig.
-    public HandGripPose(Transform hand, Transform character, bool authored=false, bool wheel=false, bool? palmDown=null)
+    // fingersFromKnuckles: the hand's own frame measured on its skin. The palm faces along the flattest direction of the
+    // hand's skin (on the side of the assumed palm) and the fingers run from the wrist to the middle of the four knuckles,
+    // instead of the bind pose's down direction and the centre of the skin (a hand modelled turned or with a heavy thumb
+    // sits askew on whatever it holds).
+    public HandGripPose(Transform hand, Transform character, bool authored=false, bool wheel=false, bool? palmDown=null, bool fingersFromKnuckles=false)
     {
         this.hand=hand;
         bool articulated=palmDown ?? character.GetComponent<ProtagonistArticulation>()!=null;
@@ -40,7 +44,33 @@ public sealed class HandGripPose
             if(sum<=0)continue;
             center/=sum;
             var palm=bind.MultiplyVector(skin.transform.InverseTransformDirection(articulated?-character.up:-character.forward)).normalized;
+            if(fingersFromKnuckles)
+            {
+                // covariance of the hand's skin; its least spread direction (power iteration on trace*I - C)
+                float xx=0,xy=0,xz=0,yy=0,yz=0,zz=0;int n=0;
+                for(int i=0;i<vertices.Length;i++)
+                {
+                    var w=weights[i];if(!(w.boneIndex0==bone && w.weight0>.5f))continue;
+                    var d=bind.MultiplyPoint3x4(vertices[i])-center;xx+=d.x*d.x;xy+=d.x*d.y;xz+=d.x*d.z;yy+=d.y*d.y;yz+=d.y*d.z;zz+=d.z*d.z;n++;
+                }
+                if(n>20)
+                {
+                    float tr=xx+yy+zz;var v=palm;
+                    for(int it=0;it<60;it++)
+                    {
+                        var c=new Vector3(xx*v.x+xy*v.y+xz*v.z,xy*v.x+yy*v.y+yz*v.z,xz*v.x+yz*v.y+zz*v.z);
+                        v=(v*tr-c).normalized;
+                    }
+                    if(Vector3.Dot(v,palm)<0)v=-v;palm=v;
+                }
+            }
             var fingers=Vector3.ProjectOnPlane(center,palm).normalized;
+            if(fingersFromKnuckles)
+            {
+                string side=hand.name.Length>0?hand.name.Substring(hand.name.Length-1):"";Vector3 sumK=Vector3.zero;int n=0;
+                foreach(var f in new[]{"Index1","Middle1","Ring1","Little1"}){var b=hand.Find(f+side);if(b!=null){sumK+=b.localPosition;n++;}}
+                if(n>0)fingers=Vector3.ProjectOnPlane(sumK/n,palm).normalized;
+            }
             // Palm surface: deepest point along the palm normal of the palm's central strip, between the wrist and the
             // knuckles. The whole hand would include the base of the thumb, which hangs below the palm on some models
             // and would hold every grip several centimetres away from what it touches.

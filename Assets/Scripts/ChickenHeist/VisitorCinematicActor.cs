@@ -24,6 +24,11 @@ public sealed class VisitorCinematicActor
     readonly System.Collections.Generic.List<(SkinnedMeshRenderer skin,int index)> jaws=new System.Collections.Generic.List<(SkinnedMeshRenderer,int)>();
     float mouth;
     public float ContactError {get;private set;}
+    public string Trace="";
+    // Signed distance to the plate held with Edge (the tablet): the fingers close onto it until they touch.
+    public System.Func<Vector3,float> Plate;
+    // how far each joint may close round the plate (thumb first): enough to fold over its far face
+    static readonly float[,] WrapLimit={{0,40,50},{95,100,75},{95,100,75},{95,100,75},{95,100,75}};
     // Largest wrist bend this frame against its limit (1: at the limit of the joint), for the review.
     public float WristLoad {get;private set;}
     public CinematicArm Arm(bool right)=>arms[right?1:0];
@@ -52,7 +57,7 @@ public sealed class VisitorCinematicActor
             string side=i==0?"L":"R";var hand=i==0?leftHand:rightHand;
             arms[i]=new CinematicArm(root,spine,Bone("UpperArm"+side),Bone("Forearm"+side),hand,body,i==1);
             hands[i]=new CinematicHand(hand,body,root);
-            grips[i]=new HandGripPose(hand,root,palmDown:true);
+            grips[i]=new HandGripPose(hand,root,palmDown:true,fingersFromKnuckles:true);
             twists[i]=ArmTwist.Find(hand,body);
             var sum=Vector3.zero;int n=0;var each=new System.Collections.Generic.List<Vector3>();
             foreach(var f in new[]{"Index1","Middle1","Ring1","Little1"}){var b=hand.Find(f+side);if(b!=null){sum+=b.localPosition;each.Add(b.localPosition);n++;}}
@@ -83,7 +88,7 @@ public sealed class VisitorCinematicActor
         for(int k=0;k<trunk.Length;k++)bones[trunk[k]].localRotation=Quaternion.Slerp(trunkCalm[k],bones[trunk[k]].localRotation,TrunkSway);
         hips.localPosition=Vector3.Lerp(hipsCalm,hips.localPosition,TrunkSway);
         if(moving)for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,walkPose[i],walkWeight);
-        ContactError=0;WristLoad=0;
+        ContactError=0;WristLoad=0;Trace="";
         root.localPosition=position;root.localRotation=Quaternion.Euler(0,yaw,0);
         spine.rotation=Quaternion.AngleAxis(lean,root.right)*spine.rotation;
         Vector3 delta=root.InverseTransformDirection(gaze-head.position);
@@ -115,6 +120,8 @@ public sealed class VisitorCinematicActor
         Vector3 contact=edge-inward*.004f+near*(reach-thickness*.5f-.02f),local=grips[i].ContactLocal;
         // every knuckle stays at least 1 cm past the far face whatever the turn, or the fingers would fold into the
         // plate (or round the near face): turns that break this cost more than any wrist bend
+        // and no part of the palm inside the plate: a thick palm turned the wrong way round the edge sinks into it
+        var palm=hands[i].PalmSurface;
         float Knuckles(CinematicArm.Plan plan)
         {
             float cost=0;
@@ -123,10 +130,32 @@ public sealed class VisitorCinematicActor
                 float depth=Vector3.Dot(contact+plan.hand*Vector3.Scale(k-local,hand.lossyScale)-edge,-near);
                 cost+=Mathf.Pow(Mathf.Max(0,thickness*.5f+.01f-depth)/.002f,2);
             }
+            if(Plate!=null && palm!=null)
+                for(int p=0;p<palm.Length;p+=3)
+                    cost+=Mathf.Pow(Mathf.Max(0,.003f-Plate(contact+plan.hand*Vector3.Scale(palm[p]-local,hand.lossyScale)))/.002f,2);
             return cost;
         }
-        Place(i,grips[i].Rotation(inward,-near),local,contact,weight,inward,-35,35,Knuckles);
+        Place(i,grips[i].Rotation(inward,-near),local,contact,weight,inward,-50,50,Knuckles);
+        // a palm thicker than the grip assumes sinks into the plate: move the hand straight out of the face it sank into
+        // (the solid's outward direction at its deepest point) until its skin only touches
+        if(Plate!=null)
+        {
+            var placed=contact;float placedGap=hands[i].PalmGap(Plate,out var deep);
+            Trace+=" || "+(right?"R":"L")+" gap "+(placedGap*1000).ToString("0.0");
+            for(int pass=0;pass<3 && placedGap<.0025f;pass++)
+            {
+                const float e=.001f;
+                var outward=new Vector3(Plate(deep+Vector3.right*e)-Plate(deep-Vector3.right*e),Plate(deep+Vector3.up*e)-Plate(deep-Vector3.up*e),Plate(deep+Vector3.forward*e)-Plate(deep-Vector3.forward*e)).normalized;
+                var before=hand.position;
+                contact=placed+outward*(.0035f-placedGap);Place(i,grips[i].Rotation(inward,-near),local,contact,weight,inward,-50,50,Knuckles);
+                float g=hands[i].PalmGap(Plate,out var d2);
+                Trace+=" | pass "+pass+" out "+outward.ToString("F2")+" push "+((.002f-placedGap)*1000).ToString("0.0")+" moved "+((hand.position-before).magnitude*1000).ToString("0.0")+" err "+(ContactError*1000).ToString("0.0")+" gap "+(g*1000).ToString("0.0");
+                if(g<=placedGap){contact=placed;Place(i,grips[i].Rotation(inward,-near),local,contact,weight,inward,-50,50,Knuckles);break;}
+                placed=contact;placedGap=g;deep=d2;
+            }
+        }
         hands[i].AimThumb(edge+inward*.035f+near*(thickness*.5f+.008f),weight);
+        if(Plate!=null)hands[i].Wrap(Plate,WrapLimit,weight,skipThumbBase:true);
     }
     // A closed fist knocking: the knuckles on `point`, `into` pointing into the door, palm down.
     public void Knock(bool right,Vector3 point,Vector3 into,float weight)

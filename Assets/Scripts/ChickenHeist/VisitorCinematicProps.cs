@@ -8,7 +8,7 @@ public sealed class VisitorCinematicProps
     public readonly Transform tablet;
     readonly List<Object> owned=new List<Object>();readonly Material screen;readonly Transform root;
     readonly Texture2D[] photos;int shown=-1;
-    Transform note;Vector3 noteHome;Quaternion noteRotation;Transform key;
+    Transform note;Vector3 deskBeside;
     public VisitorCinematicProps(Transform root,Transform home,Transform head,Transform visitor,Vector3 desk)
     {
         this.root=root;
@@ -36,18 +36,21 @@ public sealed class VisitorCinematicProps
         }
 
         var paper=Material("Papel amarelado",new Color(.76f,.72f,.59f));
-        var ink=Material("Tinta da cobranca",new Color(.25f,.10f,.08f));
         // both within reach of Elias at the desk's near edge (z towards him): the bill under his right hand, the
         // calculator under his left
         note=Part(root,"Aviso final de cobranca",PrimitiveType.Cube,desk+new Vector3(-.23f,.01f,.12f),new Vector3(.31f,.006f,.38f),paper);
         note.localRotation=Quaternion.Euler(0,-8,0);
-        var text=new GameObject("Cobranca impressa").AddComponent<TextMesh>();text.transform.SetParent(root,false);
-        text.transform.localPosition=desk+new Vector3(-.09f,.018f,0);text.transform.localRotation=Quaternion.Euler(90,0,180);
-        text.text="AVISO DE COBRANCA\n\nENERGIA ATRASADA\n\nREGULARIZE SEU DEBITO";text.fontSize=48;text.characterSize=.0028f;text.color=new Color(.28f,.10f,.07f);text.anchor=TextAnchor.UpperLeft;
-        DepthText(text);
-        text.transform.SetParent(note,true);noteHome=note.localPosition;noteRotation=note.localRotation;
+        // the printed bill (Tools/make_bill_texture.py) on the paper's top face, its head away from Elias so it reads
+        // upright to him
+        var printed=Resources.Load<Texture2D>("Cinematics/ContaDeEnergia");
+        if(printed!=null)
+        {
+            var print=Material("Conta de energia impressa",Color.white);print.SetTexture("_BaseMap",printed);
+            var face=Part(note,"Conta de energia",PrimitiveType.Quad,new Vector3(0,.6f,0),Vector3.one,print);face.localRotation=Quaternion.Euler(90,0,180);
+        }
+        deskBeside=desk+new Vector3(.0f,.007f,.27f);
         var calculator=Part(root,"Calculadora de mesa",PrimitiveType.Cube,desk+new Vector3(.23f,.025f,.10f),new Vector3(.16f,.035f,.23f),dark);
-        for(int row=0;row<4;row++)for(int col=0;col<3;col++){var button=Part(root,"Tecla",PrimitiveType.Cube,desk+new Vector3(.185f+col*.045f,.05f,.10f+row*.033f),new Vector3(.031f,.012f,.021f),paper);if(row==2 && col==1)key=button;}
+        for(int row=0;row<4;row++)for(int col=0;col<3;col++)Part(root,"Tecla",PrimitiveType.Cube,desk+new Vector3(.185f+col*.045f,.05f,.10f+row*.033f),new Vector3(.031f,.012f,.021f),paper);
         var calcScreen=Material("LCD da calculadora",new Color(.30f,.36f,.27f));
         Part(root,"Visor da calculadora",PrimitiveType.Cube,desk+new Vector3(.23f,.047f,.03f),new Vector3(.125f,.007f,.06f),calcScreen);
         }
@@ -70,23 +73,10 @@ public sealed class VisitorCinematicProps
     }
     // the bill's corner nearest Elias' right hand
     public Vector3 NoteContact=>note.TransformPoint(new Vector3(-.25f,0,.3f));
-    // the bill's right edge (Elias' right), near its corner: where he takes it to read it, and towards its middle
-    public Vector3 NoteEdge=>note.TransformPoint(new Vector3(-.5f,0,.18f));
-    public Vector3 NoteInward=>note.right;
     public Vector3 NoteCentre=>note.position;
+    // the desk top beside the bill, under Elias' left hand
+    public Vector3 DeskBeside=>root.TransformPoint(deskBeside);
     public Vector3 NoteUp=>note.up;
-    public Vector3 KeyContact=>key.position;
-    public void Paper(float time)
-    {
-        if(note==null)return;
-        // Elias takes the bill by its edge (from 1.45 s), lifts it to his chest turned up towards his eyes to read it, and
-        // lays it back down
-        float lift=Mathf.SmoothStep(0,1,Mathf.Clamp01((time-1.9f)/1.2f))*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01((time-4.3f)/1.1f)));
-        // the edge he takes it by first comes up off the desk (his fingers go under it)
-        float corner=Mathf.SmoothStep(0,1,Mathf.Clamp01((time-1.4f)/.35f))*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01((time-5.3f)/.4f)));
-        note.localPosition=noteHome+new Vector3(.04f,.30f,.15f)*lift;note.localRotation=noteRotation*Quaternion.Euler(52*lift,0,-9*corner*(1-lift));
-        var p=key.localPosition;p.y=noteHome.y+.04f-Mathf.Max(0,1-Mathf.Abs(time-.85f)/.18f)*.009f;key.localPosition=p;
-    }
     Material Material(string name,Color color,bool unlit=false)
     {
         var shader=unlit?Resources.Load<Shader>("Cinematics/CinematicScreen"):Shader.Find("Universal Render Pipeline/Lit");
