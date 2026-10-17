@@ -45,7 +45,7 @@ public sealed class CinematicPlaybackReview : MonoBehaviour
         yield return new WaitForSecondsRealtime(.3f);yield return new WaitForEndOfFrame();Capture("gameplay-after");
         Check(economy.Account.balance==balance && economy.Account.flock==flock,"Opening preserves money and bird count");
         Check(SleepPrompt.IsOpen && economy.Account.tabletWaiting,"The tablet is only promised; a box sends Elias to bed");SleepPrompt.SkipForReview();yield return null;
-        var dock=FindAnyObjectByType<ReceivedTabletDock>();Check(dock!=null && dock.Available,"Delivered tablet remains interactive");
+        Check(economy.Account.TabletReady,"Delivered tablet stays with Elias");
         Check(Camera.main.rect==new Rect(0,0,1,1),"Gameplay viewport restored after opening");
         var phone=ProtagonistPhone.Instance;
         for(int attempt=0;attempt<2;attempt++)

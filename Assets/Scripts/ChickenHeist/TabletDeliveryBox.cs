@@ -1,8 +1,8 @@
 using UnityEngine;
 
 // The visitor's promise kept: the morning after the opening the doorbell rings, and a cardboard box waits on the porch
-// beside the front door with the tablet inside. Opening it (E) hands the tablet over: the account stops waiting for it,
-// so ReceivedTabletDock shows it on the desk and Tab opens it. The tablet never passes between the actors' hands.
+// beside the front door with the tablet inside. Opening it (E) hands the tablet over: the account stops waiting for it
+// and Elias keeps it with him (Tab opens it). The tablet never passes between the actors' hands.
 public sealed class TabletDeliveryBox : MonoBehaviour
 {
     GameObject box;bool rang;float ringAt=-1;
@@ -55,7 +55,7 @@ public sealed class TabletDeliveryBox : MonoBehaviour
         if(!HouseholdEconomy.Instance.Commit(a=>{a.tabletWaiting=false;return true;},"Dentro da caixa estava o tablet do visitante."))return false;
         box.SetActive(false);
         var checkpoint=FindAnyObjectByType<GameCheckpoint>();checkpoint?.Save(out _);
-        HeistGameManager.Instance?.ShowMessage("TAB  |  O tablet estava na caixa. Examine as fazendas antes de decidir.",9);
+        HeistGameManager.Instance?.ShowMessage("TAB  |  O tablet estava na caixa e agora fica com voce. Examine as fazendas antes de decidir.",9);
         return true;
     }
 }

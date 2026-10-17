@@ -33,7 +33,6 @@ public static class WorldInteraction
             else if(item is HomeCoopGate coopGate){point=coopGate.InteractionPoint;range=2.4f;}
             else if(item is HomeDoorbell bell){point=bell.InteractionPoint;range=1.6f;}
             else if(item is HomeNextNight rest){range=rest.distance;}
-            else if(item is ReceivedTabletDock tablet){if(!tablet.Available)continue;point=tablet.InteractionPoint;range=2;}
             else if(item is TabletDeliveryBox delivery){if(!delivery.Available)continue;point=delivery.InteractionPoint;range=2.2f;}
             else if(item is HomePhoneDock){if(HouseholdEconomy.Instance?.Account.introSeen==true)continue;range=2;}
             else if(item is OldPickupTruck truck){point=truck.cargoPoint.position;range=2.5f;if(game.backpack.chickensCarried==0)continue;}

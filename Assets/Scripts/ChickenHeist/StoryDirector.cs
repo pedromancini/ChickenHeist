@@ -48,7 +48,7 @@ public class StoryDirector : MonoBehaviour
     void Start()
     {
         gameObject.AddComponent<SleepPrompt>();
-        if(HouseholdEconomy.Instance?.home!=null){ReceivedTabletDock.Ensure(HouseholdEconomy.Instance.home);TabletDeliveryBox.Ensure(HouseholdEconomy.Instance.home);DeskBills.Ensure(HouseholdEconomy.Instance.home);}
+        if(HouseholdEconomy.Instance?.home!=null){TabletDeliveryBox.Ensure(HouseholdEconomy.Instance.home);DeskBills.Ensure(HouseholdEconomy.Instance.home);}
     }
     public bool ReplayOpening(){if(!Begin(false))return false;replay=true;freshOpening=false;return true;}
     public void SetPaused(bool value)

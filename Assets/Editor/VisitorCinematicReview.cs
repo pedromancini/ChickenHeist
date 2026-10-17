@@ -196,6 +196,16 @@ public static class VisitorCinematicReview
                     var mean=chest.Aggregate(Vector3.zero,(a,b)=>a+b)/chest.Count;float travel=chest.Max(c=>Vector3.Distance(c,mean))*2;float turn=tilt.Max(q=>tilt.Max(r=>Quaternion.Angle(q,r)));
                     Check(travel<.03f && turn<5,"Chest steady while "+name+" talks: travels "+(travel*100).ToString("0.0")+" cm, turns "+turn.ToString("0.0")+" deg");
                 }
+                // the arms while talking: how far each hand wanders in the actor's own space over a whole line
+                foreach(var (beat,actor,name) in new[]{(21,stage.EliasActor,"Elias"),(22,stage.VisitorActor,"visitor"),(18,stage.VisitorActor,"visitor (beat 18)")})
+                {
+                    float duration=VisitorOpeningDialogue.Durations[beat];var left=new System.Collections.Generic.List<Vector3>();var right=new System.Collections.Generic.List<Vector3>();
+                    for(float at=.2f;at<duration-.1f;at+=.1f)
+                    {SetLine(beat,at/duration);stage.Evaluate(camera,beat,at,duration,800+beat+at);left.Add(actor.root.InverseTransformPoint(actor.leftHand.position));right.Add(actor.root.InverseTransformPoint(actor.rightHand.position));}
+                    float Spread(System.Collections.Generic.List<Vector3> l){var m=l.Aggregate(Vector3.zero,(a,b)=>a+b)/l.Count;return l.Max(c=>Vector3.Distance(c,m))*2;}
+                    float wander=Mathf.Max(Spread(left),Spread(right));
+                    Check(wander<.08f,"Arms steady while "+name+" talks: hands wander "+(wander*100).ToString("0.0")+" cm (arm sway "+VisitorCinematicActor.ArmSway+")");
+                }
                 // mouths: open while speaking, shut while listening
                 SetLine(14,.5f);stage.Evaluate(camera,14,VisitorOpeningDialogue.Durations[14]*.5f,VisitorOpeningDialogue.Durations[14],60);
                 Check(stage.EliasActor.HasJaw && stage.VisitorActor.HasJaw,"Both actors have a jaw shape for speech");
@@ -231,7 +241,7 @@ public static class VisitorCinematicReview
                 Check(StoryDirector.Instance.Begin(false),"Natural ending starts");SetLine(30,.98f);
                 phase=4;next=EditorApplication.timeSinceStartup+.5;return;
             }
-            if(phase==4){CheckRestored("Natural ending");Check(Object.FindAnyObjectByType<VisitorCinematicStage>()==null,"No temporary stage remains");Check(Object.FindAnyObjectByType<ReceivedTabletDock>()?.Available==true,"Received tablet persists outside cinematic");DeliveryFlow();phase=5;EditorApplication.isPlaying=false;}
+            if(phase==4){CheckRestored("Natural ending");Check(Object.FindAnyObjectByType<VisitorCinematicStage>()==null,"No temporary stage remains");Check(HouseholdEconomy.Instance.Account.TabletReady,"Received tablet stays with Elias outside the cinematic");DeliveryFlow();phase=5;EditorApplication.isPlaying=false;}
         }
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
     }
@@ -239,13 +249,13 @@ public static class VisitorCinematicReview
     // next morning a box waits by the door, and opening it hands the tablet over (no tablet between the actors' hands).
     static void DeliveryFlow()
     {
-        var economy=HouseholdEconomy.Instance;var dock=Object.FindAnyObjectByType<ReceivedTabletDock>();
+        var economy=HouseholdEconomy.Instance;
         economy.Commit(a=>{a.introSeen=false;a.tabletWaiting=false;return true;},"Fresh opening for the delivery flow");
         Check(StoryDirector.Instance.Begin(false),"Fresh opening starts");StoryDirector.Instance.Complete();
         Check(economy.Account.introSeen && economy.Account.tabletWaiting && !economy.Account.TabletReady,"After the conversation the tablet is only promised");
         Check(SleepPrompt.IsOpen && GameMenu.BlocksInput,"A box on screen tells Elias to go to sleep");
         var box=Object.FindAnyObjectByType<TabletDeliveryBox>(FindObjectsInactive.Include);
-        Check(box!=null && !box.Available && dock!=null && !dock.Available,"No box at the door and no tablet on the desk before the night passes");
+        Check(box!=null && !box.Available && !economy.Account.TabletReady,"No box at the door and no tablet before the night passes");
         Check(economy.Account.CampaignObjective.StartsWith("Durma"),"Objective says to sleep: "+economy.Account.CampaignObjective);
         SleepPrompt.Close();Check(!GameMenu.BlocksInput,"Closing the box gives the controls back");
         economy.Commit(a=>{a.RestUntilMorning();return true;},"Next morning");
@@ -258,7 +268,8 @@ public static class VisitorCinematicReview
         cam.transform.position=spot-door.hinge.parent.forward*2.2f+Vector3.up*1.1f+door.hinge.parent.right*.6f;cam.transform.LookAt(spot+door.hinge.parent.right*-.5f+Vector3.up*.4f);
         var t=new RenderTexture(1280,720,24);cam.targetTexture=t;cam.Render();var a=RenderTexture.active;RenderTexture.active=t;var tex=new Texture2D(1280,720,TextureFormat.RGB24,false);tex.ReadPixels(new Rect(0,0,1280,720),0,0);tex.Apply();RenderTexture.active=a;
         File.WriteAllBytes(Folder+"/delivery-box.png",tex.EncodeToPNG());cam.targetTexture=null;Object.DestroyImmediate(t);Object.DestroyImmediate(tex);Object.DestroyImmediate(go);
-        Check(box.Open() && economy.Account.TabletReady && dock.Available && !box.Available,"Opening the box hands the tablet over: it is on the desk and Tab opens it");
+        Check(box.Open() && economy.Account.TabletReady && !box.Available,"Opening the box hands the tablet over: it stays with Elias and Tab opens it");
+        ProtagonistPhone.Instance.SetOpen(true);Check(ProtagonistPhone.IsOpen,"Tab opens the delivered tablet");ProtagonistPhone.Instance.SetOpen(false);
     }
     static void CheckRestored(string label)
     {
