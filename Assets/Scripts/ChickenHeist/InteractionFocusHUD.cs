@@ -13,7 +13,7 @@ public class InteractionFocusHUD : MonoBehaviour
         GUI.skin=UITheme.Skin;
         string label=focus is InteractableChicken?"Pegar galinha":focus is RuralGate gate?(gate.IsOpen?"Fechar portão":"Abrir portão"):
             focus is ChickenCoopLockpick coop?(coop.IsOpen?"Fechar galinheiro":"Abrir trinco"):focus is HomeDoor door?(door.opened?"Fechar porta":"Abrir porta"):
-            focus is HomeCoopGate coopGate?(coopGate.IsOpen?"Fechar portinhola":"Abrir portinhola"):focus is HomeDoorbell?"Tocar campainha":focus is HomeNextNight?"Descansar":focus is HomePhoneDock || focus is ReceivedTabletDock?"Consultar tablet":focus is OldPickupTruck?"Guardar galinha":focus is VillageMarket?"Conversar com vendedor":focus is ExtractionZone?"Concluir entrega":"";
+            focus is HomeCoopGate coopGate?(coopGate.IsOpen?"Fechar portinhola":"Abrir portinhola"):focus is HomeDoorbell?"Tocar campainha":focus is HomeNextNight?"Descansar":focus is HomePhoneDock || focus is ReceivedTabletDock?"Consultar tablet":focus is TabletDeliveryBox?"Abrir caixa":focus is OldPickupTruck?"Guardar galinha":focus is VillageMarket?"Conversar com vendedor":focus is ExtractionZone?"Concluir entrega":"";
         if(label.Length>0)UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.62f,"E",label);
         var game=HeistGameManager.Instance;var economy=HouseholdEconomy.Instance;
         if(game!=null && economy!=null && !game.MissionActive)

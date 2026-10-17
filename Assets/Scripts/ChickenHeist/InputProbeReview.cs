@@ -27,7 +27,7 @@ public class InputProbeReview : MonoBehaviour
         var menu=GameMenu.Instance;var old=menu;menu.SendMessage("BeginGame");
         float deadline=Time.realtimeSinceStartup+30;
         while((GameMenu.Instance==null || GameMenu.Instance==old || !StoryDirector.Active) && Time.realtimeSinceStartup<deadline)yield return null;
-        if(StoryDirector.Active)StoryDirector.Instance.Complete();
+        if(StoryDirector.Active){StoryDirector.Instance.Complete();SleepPrompt.SkipForReview();}
         yield return new WaitForSecondsRealtime(1.5f);
         movement=HeistGameManager.Instance.player.GetComponent<PlayerMovement>();
         File.WriteAllText(Path.Combine(output,"ready.txt"),"ready");

@@ -9,7 +9,7 @@ public class GameMenu : MonoBehaviour
 {
     public static GameMenu Instance { get; private set; }
     public static bool IsOpen => Instance!=null && Instance.page!=Page.Play;
-    public static bool BlocksInput => IsOpen || StoryDirector.Active || TruckCageLids.Active!=null || HomeNextNight.IsResting || closedFrame==Time.frameCount || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput;
+    public static bool BlocksInput => IsOpen || StoryDirector.Active || SleepPrompt.IsOpen || TruckCageLids.Active!=null || HomeNextNight.IsResting || closedFrame==Time.frameCount || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput;
     static int closedFrame=-1;
     static bool played,pendingFresh;
     static GameCheckpointData pendingLoad;
@@ -71,7 +71,7 @@ public class GameMenu : MonoBehaviour
     void Update()
     {
         if(confirmUntil>0 && Time.realtimeSinceStartup>=confirmUntil)RevertVideo();
-        if(StoryDirector.Active || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput)return;
+        if(StoryDirector.Active || DeveloperConsole.BlocksInput || BackpackPanel.BlocksInput || SleepPrompt.IsOpen || SleepPrompt.ClosedFrame==Time.frameCount)return;
         if(page==Page.Loading)return;
         if(!Input.GetKeyDown(KeyCode.Escape))return;
         if(page==Page.Play)

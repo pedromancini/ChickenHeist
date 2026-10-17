@@ -64,7 +64,13 @@ public class MenuVisualReview : MonoBehaviour
         float reloadDeadline=Time.realtimeSinceStartup+30;
         while((GameMenu.Instance==null || GameMenu.Instance==oldMenu || !StoryDirector.Active) && Time.realtimeSinceStartup<reloadDeadline)yield return null;
         menu=GameMenu.Instance;
-        if(StoryDirector.Active){yield return new WaitForSecondsRealtime(2.5f);yield return Shot("ui-cutscene-subtitle");StoryDirector.Instance.Complete();}
+        if(StoryDirector.Active)
+        {
+            yield return new WaitForSecondsRealtime(2.5f);yield return Shot("ui-cutscene-subtitle");StoryDirector.Instance.Complete();
+            // after the conversation the tablet is only promised: a box sends Elias to bed
+            yield return new WaitForSecondsRealtime(.5f);Check(SleepPrompt.IsOpen,"After the opening a box tells Elias to sleep");yield return Shot("ui-sleep-prompt");
+            SleepPrompt.SkipForReview();
+        }
         yield return new WaitForSecondsRealtime(1);
         Check(!GameMenu.IsOpen && !HeistGameManager.Instance.MissionActive,"Start game enters quiet free exploration");
         yield return Shot("07-exploration");

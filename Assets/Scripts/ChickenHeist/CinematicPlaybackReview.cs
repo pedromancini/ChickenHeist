@@ -44,6 +44,7 @@ public sealed class CinematicPlaybackReview : MonoBehaviour
         Check(!StoryDirector.Active,"Whole timeline completed naturally");Check(captures.Count==VisitorOpeningDialogue.Text.Length,"Every beat rendered with actual GUI: "+captures.Count);
         yield return new WaitForSecondsRealtime(.3f);yield return new WaitForEndOfFrame();Capture("gameplay-after");
         Check(economy.Account.balance==balance && economy.Account.flock==flock,"Opening preserves money and bird count");
+        Check(SleepPrompt.IsOpen && economy.Account.tabletWaiting,"The tablet is only promised; a box sends Elias to bed");SleepPrompt.SkipForReview();yield return null;
         var dock=FindAnyObjectByType<ReceivedTabletDock>();Check(dock!=null && dock.Available,"Delivered tablet remains interactive");
         Check(Camera.main.rect==new Rect(0,0,1,1),"Gameplay viewport restored after opening");
         var phone=ProtagonistPhone.Instance;

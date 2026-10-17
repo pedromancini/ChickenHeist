@@ -45,7 +45,11 @@ public class StoryDirector : MonoBehaviour
     readonly System.Collections.Generic.Dictionary<Renderer,Material[]> surfaces=new System.Collections.Generic.Dictionary<Renderer,Material[]>();
 
     void Awake(){Instance=this;voice=gameObject.AddComponent<AudioSource>();voice.playOnAwake=false;voice.spatialBlend=0;}
-    void Start(){if(HouseholdEconomy.Instance?.home!=null)ReceivedTabletDock.Ensure(HouseholdEconomy.Instance.home);}
+    void Start()
+    {
+        gameObject.AddComponent<SleepPrompt>();
+        if(HouseholdEconomy.Instance?.home!=null){ReceivedTabletDock.Ensure(HouseholdEconomy.Instance.home);TabletDeliveryBox.Ensure(HouseholdEconomy.Instance.home);DeskBills.Ensure(HouseholdEconomy.Instance.home);}
+    }
     public bool ReplayOpening(){if(!Begin(false))return false;replay=true;freshOpening=false;return true;}
     public void SetPaused(bool value)
     {
@@ -163,7 +167,7 @@ public class StoryDirector : MonoBehaviour
 
         if(!running)return;
 
-        bool saved=replay || HouseholdEconomy.Instance.Commit(a=>{if(vision){a.pendingVision=false;a.declineSeen=true;}else a.introSeen=true;return true;},vision?"Uma nova manha. Leia as noticias no tablet.":"O tablet ficou com voce. TAB para examinar as fazendas antes de decidir.");
+        bool saved=replay || HouseholdEconomy.Instance.Commit(a=>{if(vision){a.pendingVision=false;a.declineSeen=true;}else{if(!a.introSeen){a.tabletWaiting=true;a.tabletPromisedDay=a.day;}a.introSeen=true;}return true;},vision?"Uma nova manha. Leia as noticias no tablet.":"O visitante deixa o tablet numa caixa, do lado da porta, amanha cedo.");
 
         if(!saved)return;
 
@@ -175,7 +179,9 @@ public class StoryDirector : MonoBehaviour
             player.GetComponentInChildren<PlayerLook>()?.RestorePitch(20);if(controller!=null)controller.enabled=active;Physics.SyncTransforms();
         }
         var callback=finished;finished=null;callback?.Invoke();
-        if(wasOpening)HeistGameManager.Instance?.ShowMessage("TAB  |  Examine as fotos no tablet. Escolha uma fazenda quando estiver pronto.",9);
+        // the first time through, the tablet is only promised: a box on screen sends Elias to bed
+        if(wasOpening && HouseholdEconomy.Instance.Account.tabletWaiting && !replay)SleepPrompt.Show();
+        else if(wasOpening && HouseholdEconomy.Instance.Account.TabletReady)HeistGameManager.Instance?.ShowMessage("TAB  |  Examine as fotos no tablet. Escolha uma fazenda quando estiver pronto.",9);
 
     }
 

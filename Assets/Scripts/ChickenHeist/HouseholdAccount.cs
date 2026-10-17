@@ -18,9 +18,14 @@ public class HouseholdAccount
     public int version=1, day=1, balance=95, feed=0, boards=0, flock=0, meals=0, repairs=0;
     public bool backpackUpgrade;
     public bool introSeen,pendingVision,declineSeen;
+    // The visitor promised the tablet at the end of the opening: it waits in a box by the door from the next morning
+    // (TabletDeliveryBox) until Elias opens it. Saves from before this default to "not waiting".
+    public bool tabletWaiting;public int tabletPromisedDay;
+    public bool TabletReady=>introSeen && !tabletWaiting;
+    public bool TabletAtDoor=>introSeen && tabletWaiting && day>tabletPromisedDay;
     public bool campaignCelebrated;
     public bool CampaignComplete => repairs>=3 && debts!=null && debts.TrueForAll(d=>d.amount==0);
-    public string CampaignObjective => CampaignComplete?"Sitio recuperado. Continue vivendo no vale.":"Recupere o sitio: quite as contas e melhore o galinheiro ("+CoopLevel+"/3).";
+    public string CampaignObjective => TabletAtDoor?"Tem uma caixa do lado da porta. Abra para pegar o tablet.":tabletWaiting?"Durma. Amanha cedo o tablet chega numa caixa, do lado da porta.":CampaignComplete?"Sitio recuperado. Continue vivendo no vale.":"Recupere o sitio: quite as contas e melhore o galinheiro ("+CoopLevel+"/3).";
     public int CoopLevel=>Mathf.Clamp(repairs,0,3);
     public int EggIncome=>6+CoopLevel*2;
     public int FeedPortions=>5+CoopLevel;

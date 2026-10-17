@@ -20,6 +20,12 @@ public class ProtagonistPhone : MonoBehaviour
     void Update()
     {
         if(GameMenu.BlocksInput || VillageMarket.IsOpen || VillageMarket.ClosedFrame==Time.frameCount)return;
+        if(Input.GetKeyDown(KeyCode.Tab) && !IsOpen && economy!=null && economy.Account.introSeen && economy.Account.tabletWaiting)
+        {
+            // promised, not delivered yet: it comes in a box by the door in the morning
+            HeistGameManager.Instance?.ShowMessage(economy.Account.TabletAtDoor?"O tablet esta na caixa do lado da porta.":"O tablet chega amanha cedo, numa caixa do lado da porta. Va dormir.",5);
+            return;
+        }
         if(Input.GetKeyDown(KeyCode.Tab))
         {
             // Lockpick owns movement while active; do not steal its input focus.

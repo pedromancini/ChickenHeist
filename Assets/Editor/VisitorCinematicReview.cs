@@ -110,7 +110,7 @@ public static class VisitorCinematicReview
                 Check(stage!=null,"Visitor prefab instantiated with two rigged actors");
                 var visitorBody=stage.visitor.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(s=>s.name=="VisitorBody");
                 Check(visitorBody!=null && visitorBody.enabled && visitorBody.bones.Count(b=>b!=null)>=50 && new[]{"HandL","Index3L","Little3R","Thumb3R","ForearmR"}.All(n=>visitorBody.bones.Any(b=>b!=null && b.name==n)),
-                    "Hooded visitor is the supplied c12cb2ea model rigged with arms, wrists and fingers: "+(visitorBody!=null?visitorBody.bones.Length+" bones":"missing"));
+                    "Hooded visitor is the supplied 6d4aedaf model rigged with arms, wrists and fingers: "+(visitorBody!=null?visitorBody.bones.Length+" bones":"missing"));
                 Check(visitorBody!=null && visitorBody.sharedMaterial!=null && visitorBody.sharedMaterial.GetTexture("_BaseMap")!=null,"Hooded visitor keeps its painted texture");
                 File.WriteAllText(Folder+"/wrists.txt","beat: wrist load (1 = at the joint's limit) and contact error, Elias | visitor\n");
                 Check(stage.GetComponentsInChildren<Light>().Count(l=>l.shadows!=UnityEngine.LightShadows.None)<=1,"Only key light casts additional shadows");
@@ -121,7 +121,6 @@ public static class VisitorCinematicReview
                     stage.Evaluate(camera,line,duration*.5f,duration,total+duration*.5f);
                     Check(!float.IsNaN(camera.transform.position.x) && !float.IsNaN(stage.EliasHand.x),"Finite camera and actor pose at beat "+line);
                     if(new[]{0,1,2,5,8,9,12,14,19,24,28,29,30}.Contains(line))Capture("shot-"+line.ToString("00"));
-                    if(line==25)Check(stage.GripError<.16f,"Hands contact tablet edges within tolerance: "+stage.GripError);
                     Wrists(stage,"beat "+line);
                     total+=duration;
                 }
@@ -134,45 +133,15 @@ public static class VisitorCinematicReview
                     {SetLine(line,f);stage.Evaluate(camera,line,duration*f,duration,clock+duration*f);Capture("story/beat-"+line.ToString("00")+"-"+k);}
                     clock+=duration;
                 }
-                // the moments the hands are busy, up close: typing, knocking, the lever, holding and passing the tablet
-                foreach(var (line,at,visitorSide,name) in new[]{(0,.85f,false,"desk"),(1,1.43f,true,"knock"),(5,.9f,false,"lever"),(9,2.4f,true,"tablet-shown"),(12,1.5f,true,"tablet-held"),
-                    (19,1.4f,false,"pointing"),(24,1.2f,false,"handover"),(24,1.2f,true,"handover"),(25,3f,false,"tablet-read"),(29,1.6f,false,"door-close")})
+                // the moments the hands are busy, up close: leaning on the desk, knocking, the lever, shutting the door
+                foreach(var (line,at,visitorSide,name) in new[]{(0,.85f,false,"desk"),(1,1.43f,true,"knock"),(5,.9f,false,"lever"),(29,1.6f,false,"door-close")})
                 {
                     SetLine(line,at/VisitorOpeningDialogue.Durations[line]);stage.Evaluate(camera,line,at,VisitorOpeningDialogue.Durations[line],200+line+at);
                     if(!visitorSide)Capture("moment-"+name);
                     HandCloseUps(visitorSide?stage.VisitorActor:stage.EliasActor,"hands-"+name+(visitorSide?"-visitor":"-elias"));
                     Wrists(stage,name+" (beat "+line+" at "+at+" s)");
                     if(name=="knock")Check(stage.VisitorActor.ContactError<.03f,"Knuckles meet the door on the knock: "+stage.VisitorActor.ContactError.ToString("F3"));
-                    if(name=="tablet-held")Check(stage.VisitorActor.ContactError<.03f,"Visitor's palms on the tablet edges: "+stage.VisitorActor.ContactError.ToString("F3"));
-                    if(name=="tablet-held" || name=="tablet-read")TabletFingers(stage,name=="tablet-held"?stage.VisitorActor:stage.EliasActor,name,name=="tablet-held"?stage.Tablet.forward:-stage.Tablet.forward);
-                    if(name=="tablet-held" || name=="tablet-read" || name=="handover")
-                    {
-                        if(!visitorSide || name!="handover")TabletViews(stage,"tablet-"+name);
-                        var (n,d)=InTablet(stage,visitorSide?stage.VisitorActor:stage.EliasActor);
-                        foreach(bool right in new[]{false,true})
-                        {
-                            var who=visitorSide?stage.VisitorActor:stage.EliasActor;float g=who.Hand(right).PalmGap(who.Plate,out var deep);
-                            File.AppendAllText(Folder+"/wrists.txt",name+(visitorSide?" visitor ":" Elias ")+(right?"R":"L")+" palm gap "+(g*1000).ToString("0.0")+" mm at tablet-local "+stage.Tablet.InverseTransformPoint(deep).ToString("F3")+" hand at "+stage.Tablet.InverseTransformPoint(who.Hand(right).hand.position).ToString("F3")+" trace "+who.Trace+"\n");
-                        }
-                        Check(d<.0015f,"No skin inside the tablet at "+name+(visitorSide?" (visitor)":" (Elias)")+": "+n+" vertices, "+(d*1000).ToString("0.0")+" mm deep (skin contact under 1.5 mm) "+inTabletBones);
-                    }
-                    if(name=="tablet-read")Check(stage.EliasActor.ContactError<.03f,"Elias' palms on the tablet edges: "+stage.EliasActor.ContactError.ToString("F3"));
                     Check(stage.EliasActor.WristLoad<=1.001f && stage.VisitorActor.WristLoad<=1.001f,"Wrists within their range at "+name);
-                }
-                // every beat the tablet is in someone's hands: no finger or palm through its case
-                {
-                    int worst=0;float deepest=0;string where="";
-                    foreach(int line in new[]{10,12,14,16,18,20,22,23,24,25,26,27,28})
-                    {
-                        float duration=VisitorOpeningDialogue.Durations[line];
-                        foreach(float f in new[]{.2f,.6f,.95f})
-                        {
-                            SetLine(line,f);stage.Evaluate(camera,line,duration*f,duration,700+line+f);
-                            foreach(var actor in new[]{stage.EliasActor,stage.VisitorActor})
-                            {var (n,d)=InTablet(stage,actor);if(n>worst || d>deepest){where="beat "+line+" at "+f.ToString("0.00")+(actor==stage.VisitorActor?" visitor":" Elias");}worst=Mathf.Max(worst,n);deepest=Mathf.Max(deepest,d);}
-                        }
-                    }
-                    Check(deepest<.0015f,"Hands never through the tablet while it is held (skin contact under 1.5 mm): worst "+worst+" vertices, "+(deepest*1000).ToString("0.0")+" mm deep ("+where+")");
                 }
                 // the door swings out through the porch: it must clear the visitor standing there
                 if(stage.Door!=null)
@@ -219,7 +188,7 @@ public static class VisitorCinematicReview
                     BodyViews(visitorSide?stage.VisitorActor:stage.EliasActor,"body/"+line.ToString("00")+"-"+at.ToString("0.00")+(visitorSide?"-visitor":"-elias"));
                 }
                 // the trunk while talking: the chest's travel over a whole line (the captured takes rocked it back and forth)
-                foreach(var (beat,actor,name) in new[]{(21,stage.EliasActor,"Elias"),(22,stage.VisitorActor,"visitor"),(12,stage.VisitorActor,"visitor holding the tablet")})
+                foreach(var (beat,actor,name) in new[]{(21,stage.EliasActor,"Elias"),(22,stage.VisitorActor,"visitor"),(12,stage.VisitorActor,"visitor (beat 12)")})
                 {
                     float duration=VisitorOpeningDialogue.Durations[beat];var chest=new System.Collections.Generic.List<Vector3>();var tilt=new System.Collections.Generic.List<Quaternion>();
                     for(float at=.2f;at<duration-.1f;at+=.1f)
@@ -262,9 +231,34 @@ public static class VisitorCinematicReview
                 Check(StoryDirector.Instance.Begin(false),"Natural ending starts");SetLine(30,.98f);
                 phase=4;next=EditorApplication.timeSinceStartup+.5;return;
             }
-            if(phase==4){CheckRestored("Natural ending");Check(Object.FindAnyObjectByType<VisitorCinematicStage>()==null,"No temporary stage remains");Check(Object.FindAnyObjectByType<ReceivedTabletDock>()?.Available==true,"Received tablet persists outside cinematic");phase=5;EditorApplication.isPlaying=false;}
+            if(phase==4){CheckRestored("Natural ending");Check(Object.FindAnyObjectByType<VisitorCinematicStage>()==null,"No temporary stage remains");Check(Object.FindAnyObjectByType<ReceivedTabletDock>()?.Available==true,"Received tablet persists outside cinematic");DeliveryFlow();phase=5;EditorApplication.isPlaying=false;}
         }
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
+    }
+    // The story after the conversation: the visitor only promises the tablet; a box on screen sends Elias to bed; the
+    // next morning a box waits by the door, and opening it hands the tablet over (no tablet between the actors' hands).
+    static void DeliveryFlow()
+    {
+        var economy=HouseholdEconomy.Instance;var dock=Object.FindAnyObjectByType<ReceivedTabletDock>();
+        economy.Commit(a=>{a.introSeen=false;a.tabletWaiting=false;return true;},"Fresh opening for the delivery flow");
+        Check(StoryDirector.Instance.Begin(false),"Fresh opening starts");StoryDirector.Instance.Complete();
+        Check(economy.Account.introSeen && economy.Account.tabletWaiting && !economy.Account.TabletReady,"After the conversation the tablet is only promised");
+        Check(SleepPrompt.IsOpen && GameMenu.BlocksInput,"A box on screen tells Elias to go to sleep");
+        var box=Object.FindAnyObjectByType<TabletDeliveryBox>(FindObjectsInactive.Include);
+        Check(box!=null && !box.Available && dock!=null && !dock.Available,"No box at the door and no tablet on the desk before the night passes");
+        Check(economy.Account.CampaignObjective.StartsWith("Durma"),"Objective says to sleep: "+economy.Account.CampaignObjective);
+        SleepPrompt.Close();Check(!GameMenu.BlocksInput,"Closing the box gives the controls back");
+        economy.Commit(a=>{a.RestUntilMorning();return true;},"Next morning");
+        Check(box.Available,"Next morning the box waits by the door");
+        Check(economy.Account.CampaignObjective.Contains("caixa"),"Objective points to the box: "+economy.Account.CampaignObjective);
+        box.SendMessage("Update");
+        Check(box.Shown,"The box is on the porch: "+economy.home.InverseTransformPoint(box.InteractionPoint).ToString("F2")+" (house space)");
+        var door=economy.home.GetComponentInChildren<HomeDoor>();var spot=box.InteractionPoint;
+        var go=new GameObject("box view");var cam=go.AddComponent<Camera>();cam.CopyFrom(Camera.main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=50;
+        cam.transform.position=spot-door.hinge.parent.forward*2.2f+Vector3.up*1.1f+door.hinge.parent.right*.6f;cam.transform.LookAt(spot+door.hinge.parent.right*-.5f+Vector3.up*.4f);
+        var t=new RenderTexture(1280,720,24);cam.targetTexture=t;cam.Render();var a=RenderTexture.active;RenderTexture.active=t;var tex=new Texture2D(1280,720,TextureFormat.RGB24,false);tex.ReadPixels(new Rect(0,0,1280,720),0,0);tex.Apply();RenderTexture.active=a;
+        File.WriteAllBytes(Folder+"/delivery-box.png",tex.EncodeToPNG());cam.targetTexture=null;Object.DestroyImmediate(t);Object.DestroyImmediate(tex);Object.DestroyImmediate(go);
+        Check(box.Open() && economy.Account.TabletReady && dock.Available && !box.Available,"Opening the box hands the tablet over: it is on the desk and Tab opens it");
     }
     static void CheckRestored(string label)
     {
@@ -274,47 +268,6 @@ public static class VisitorCinematicReview
         Check(Quaternion.Angle(door.hinge.localRotation,doorRotation)<.1f && door.enabled==doorEnabled,label+": original door restored");
     }
     // Held like a book: thumbs on the face towards the holder (near), fingers past the far face, nothing inside.
-    // Skin of the actor inside the tablet's case (deeper than half a millimetre): how many vertices and how deep.
-    static string inTabletBones="";
-    static (int count,float depth) InTablet(VisitorCinematicStage stage,VisitorCinematicActor actor)
-    {
-        var box=stage.Tablet.worldToLocalMatrix;var half=new Vector3(.245f,.155f,.014f);int count=0;float depth=0;
-        var byBone=new System.Collections.Generic.Dictionary<string,int>();
-        foreach(var skin in actor.root.GetComponentsInChildren<SkinnedMeshRenderer>())
-        {
-            var mesh=skin.sharedMesh;if(mesh==null || !mesh.isReadable)continue;
-            var vertices=mesh.vertices;var weights=mesh.boneWeights;var poses=mesh.bindposes;var bones=skin.bones;
-            var m=new Matrix4x4[bones.Length];for(int i=0;i<bones.Length;i++)m[i]=bones[i]!=null?bones[i].localToWorldMatrix*poses[i]:Matrix4x4.zero;
-            for(int v=0;v<vertices.Length;v++)
-            {
-                var w=weights[v];var x=vertices[v];
-                var p=m[w.boneIndex0].MultiplyPoint3x4(x)*w.weight0+m[w.boneIndex1].MultiplyPoint3x4(x)*w.weight1+m[w.boneIndex2].MultiplyPoint3x4(x)*w.weight2+m[w.boneIndex3].MultiplyPoint3x4(x)*w.weight3;
-                float d=CinematicHand.BoxDistance(box,half,p);
-                if(d<-.0005f){count++;depth=Mathf.Max(depth,-d);var bn=bones[w.boneIndex0]!=null?bones[w.boneIndex0].name:"?";byBone[bn]=(byBone.TryGetValue(bn,out var c)?c:0)+1;}
-            }
-        }
-        inTabletBones=string.Join(" ",byBone.OrderByDescending(kv=>kv.Value).Select(kv=>kv.Key+":"+kv.Value));
-        return (count,depth);
-    }
-    static void TabletFingers(VisitorCinematicStage stage,VisitorCinematicActor actor,string label,Vector3 near)
-    {
-        var tablet=stage.Tablet;Vector3 screen=near;string line=label+":";bool ok=true;
-        for(int side=0;side<2;side++)
-        {
-            var hand=actor.Hand(side==1);
-            for(int f=0;f<5;f++)
-            {
-                var local=tablet.InverseTransformPoint(hand.Tip(f));float face=Vector3.Dot(hand.Tip(f)-tablet.position,screen);
-                bool inside=Mathf.Abs(local.x)<.245f && Mathf.Abs(local.y)<.155f && Mathf.Abs(face)<.014f;
-                // a finger tip may rest on the edge itself (within the thickness), never on the holder's face
-                bool right=f==0?face>0:face<.014f;ok&=right && !inside;
-                float knuckle=Vector3.Dot(hand.Knuckle(f)-tablet.position,screen);
-                line+=$" {(side==0?"L":"R")}{CinematicHand.Names[f][0]} {face*100:+0.0;-0.0}cm(k{knuckle*100:+0.0;-0.0}){(inside?" INSIDE":"")}";
-            }
-        }
-        File.AppendAllText(Folder+"/wrists.txt",line+"\n");
-        Check(ok,"Thumbs on the holder's side of the tablet, fingers over the far side, none inside ("+label+")");
-    }
     // the speaker's face up close, lit from the front, into one cell of a strip
     static void Face(VisitorCinematicActor actor,Texture2D strip,int cell)
     {
@@ -353,22 +306,6 @@ public static class VisitorCinematicReview
         }
         sheet.Apply();File.WriteAllBytes(Folder+"/"+name+".png",sheet.EncodeToPNG());cam.targetTexture=null;
         for(int i=0;i<renderers.Length;i++)renderers[i].gameObject.layer=layers[i];
-        Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);Object.DestroyImmediate(lamp.gameObject);
-    }
-    // The tablet in someone's hands from four sides (front, back, above, below its edge), lit evenly: how the hands sit on it.
-    static void TabletViews(VisitorCinematicStage stage,string name)
-    {
-        var t=stage.Tablet;var go=new GameObject("tablet view");var cam=go.AddComponent<Camera>();cam.CopyFrom(Camera.main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=40;cam.nearClipPlane=.02f;
-        var lamp=new GameObject("tablet lamp").AddComponent<Light>();lamp.type=LightType.Directional;lamp.intensity=1.4f;lamp.shadows=LightShadows.None;
-        var target=new RenderTexture(480,360,24);cam.targetTexture=target;var sheet=new Texture2D(1920,360,TextureFormat.RGB24,false);
-        var dirs=new[]{-t.forward,t.forward,t.up*.9f-t.forward*.4f,-t.up*.9f+t.forward*.4f};
-        for(int v=0;v<4;v++)
-        {
-            var d=dirs[v].normalized;cam.transform.position=t.position+d*.75f;cam.transform.LookAt(t.position,Mathf.Abs(Vector3.Dot(d,t.up))>.8f?t.forward:t.up);
-            lamp.transform.rotation=Quaternion.LookRotation(-d+Vector3.down*.3f);
-            cam.Render();var active=RenderTexture.active;RenderTexture.active=target;sheet.ReadPixels(new Rect(0,0,480,360),v*480,0);RenderTexture.active=active;
-        }
-        sheet.Apply();File.WriteAllBytes(Folder+"/"+name+".png",sheet.EncodeToPNG());cam.targetTexture=null;
         Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);Object.DestroyImmediate(lamp.gameObject);
     }
     static void HandCloseUps(VisitorCinematicActor actor,string name)

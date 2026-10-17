@@ -1,12 +1,13 @@
 using System.Linq;
 using UnityEngine;
 
-// Recreated from introSeen after loading. It is scenery, not a second inventory item.
+// Recreated from the account after loading, once the tablet has come out of its box. It is scenery, not a second
+// inventory item.
 public sealed class ReceivedTabletDock : MonoBehaviour
 {
     VisitorCinematicProps props;Transform visual;Renderer[] replaced;bool[] previous;
     public Vector3 InteractionPoint=>props!=null?props.tablet.position:transform.position;
-    public bool Available=>HouseholdEconomy.Instance?.Account.introSeen==true && !StoryDirector.Active;
+    public bool Available=>HouseholdEconomy.Instance?.Account.TabletReady==true && !StoryDirector.Active;
     public static ReceivedTabletDock Ensure(Transform home)
     {
         var found=home.GetComponentInChildren<ReceivedTabletDock>();if(found!=null)return found;

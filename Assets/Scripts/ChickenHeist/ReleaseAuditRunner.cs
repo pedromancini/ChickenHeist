@@ -33,6 +33,8 @@ public class ReleaseAuditRunner : MonoBehaviour
         yield return new WaitForSecondsRealtime(5);
         Check(StoryDirector.Active,"First game through menu starts opening");
         yield return Shot("opening");StoryDirector.Instance.Complete();yield return null;
+        Check(SleepPrompt.IsOpen && HouseholdEconomy.Instance.Account.tabletWaiting,"After the opening the tablet is promised and a box sends Elias to bed");
+        yield return Shot("sleep-prompt");SleepPrompt.SkipForReview();yield return null;
         var game=HeistGameManager.Instance;var economy=HouseholdEconomy.Instance;var player=game.player;
         player.GetComponent<PlayerMovement>().enabled=false;player.GetComponentInChildren<PlayerLook>().enabled=false;
         var checkpoint=FindAnyObjectByType<GameCheckpoint>();
@@ -61,7 +63,7 @@ public class ReleaseAuditRunner : MonoBehaviour
         Check(Screen.width==1920 && Screen.height==1080,"Performance sample at 1920x1080");
         game.EndActiveMission();Position(origin);
         var actor=FindAnyObjectByType<RoadsideWalker>();var truck=OldPickupTruck.Instance;
-        if(actor!=null){var reaction=actor.GetComponent<VehicleImpactReaction>()??actor.gameObject.AddComponent<VehicleImpactReaction>();Check(reaction.Hit(Vector3.forward*5),"Forward impact knocks pedestrian down");yield return new WaitForSeconds(7.2f);Check(!reaction.Down,"Pedestrian recovers from forward impact");Check(reaction.Hit(Vector3.back*5),"Reverse impact knocks pedestrian down");yield return new WaitForSeconds(4.2f);Check(!reaction.Down,"Pedestrian recovers from reverse impact");}
+        if(actor!=null){var reaction=actor.GetComponent<VehicleImpactReaction>()??actor.gameObject.AddComponent<VehicleImpactReaction>();string why="menu "+GameMenu.IsOpen+" story "+StoryDirector.Active+" sleep "+SleepPrompt.IsOpen+" resting "+HomeNextNight.IsResting+" blocks "+GameMenu.BlocksInput+" down "+reaction.Down+" animator "+(actor.GetComponentInChildren<RuralCharacterAnimator>()!=null);Check(reaction.Hit(Vector3.forward*5),"Forward impact knocks pedestrian down ("+why+")");yield return new WaitForSeconds(7.2f);Check(!reaction.Down,"Pedestrian recovers from forward impact");Check(reaction.Hit(Vector3.back*5),"Reverse impact knocks pedestrian down");yield return new WaitForSeconds(4.2f);Check(!reaction.Down,"Pedestrian recovers from reverse impact");}
         economy.Commit(a=>{a.flock=0;return true;},"Test");yield return null;
         var flock=game.DeliveryFlock;Position(flock.transform.position+Vector3.back*2);game.backpack.RestoreCount(1);game.CompleteMission();Check(game.backpack.chickensCarried==0 && economy.Account.flock==1,"Delivery commits one chicken");yield return new WaitForSeconds(.3f);eye.transform.LookAt(flock.transform.position);yield return Shot("delivery");
         economy.Commit(a=>{a.repairs=3;foreach(var debt in a.debts)debt.amount=0;return true;},"Test");Check(economy.Account.CampaignComplete && economy.Account.campaignCelebrated,"Campaign completion recorded after repairs and debts");
