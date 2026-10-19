@@ -67,6 +67,7 @@ Hoje todos os efeitos do jogo são sintetizados pelo próprio código, como sons
 | `ui_click.wav` | Clique de botão discreto | Menus |
 | `rooster_morning.wav` | Galo cantando ao longe | Quando o dia amanhece |
 | `day_ambience.wav` | Dia no sítio: pássaros, vento leve (**loop**, estéreo) | Fundo durante o dia |
+| `chicken_walk.wav` | Galinha andando/ciscando: passinhos e cacarejos baixos (**loop** de 3–5 s) | Galinhas soltas e no galinheiro |
 | `chicken_pickup.wav` | Galinha agitada sendo pega no colo | Pegar galinha |
 | `cage_lid.wav` | Tampa de gaiola de arame fechando | Gaiolas da caminhonete |
 | `truck_door.wav` | Porta de caminhonete velha abrindo/fechando | Entrar e sair da caminhonete |
