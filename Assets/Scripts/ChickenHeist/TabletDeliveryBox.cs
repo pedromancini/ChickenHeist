@@ -53,6 +53,7 @@ public sealed class TabletDeliveryBox : MonoBehaviour
     {
         if(!Available)return false;
         if(!HouseholdEconomy.Instance.Commit(a=>{a.tabletWaiting=false;return true;},"Dentro da caixa estava o tablet do visitante."))return false;
+        GameAudioMix.Instance?.PlayRecorded("box_open",box.transform.position+Vector3.up*.3f,.55f);
         box.SetActive(false);
         var checkpoint=FindAnyObjectByType<GameCheckpoint>();checkpoint?.Save(out _);
         HeistGameManager.Instance?.ShowMessage("TAB  |  O tablet estava na caixa e agora fica com voce. Examine as fazendas antes de decidir.",9);

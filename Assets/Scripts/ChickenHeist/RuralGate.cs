@@ -12,7 +12,7 @@ public class RuralGate : MonoBehaviour
         if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return;
         var game=HeistGameManager.Instance;if(game?.player==null || !WorldInteraction.Pressed(this))return;
         Ensure();if(Vector3.Distance(game.player.position+Vector3.up,hinge.InteractionPoint)>3.2f)return;
-        opened=!opened;hinge.SetOpen(opened,false,game.player.position);NoiseEmitter.EmitGlobal(NoiseSource.FloorCreak,hinge.InteractionPoint);
+        opened=!opened;hinge.SetOpen(opened,false,game.player.position);GameAudioMix.Instance?.PlayRecorded("gate_metal",hinge.InteractionPoint,.4f);NoiseEmitter.EmitGlobal(NoiseSource.FloorCreak,hinge.InteractionPoint);
         MissionNavigation.Instance?.Refresh();
     }
 }

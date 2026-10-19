@@ -63,7 +63,7 @@ public class TruckCageLids : MonoBehaviour
             LeftHand=near-player.right*.19f;RightHand=near+player.right*.19f;
             yield return null;
         }
-        lid.localPosition=Vector3.up*.655f;HandsOnLid=false;closing=-1;
+        lid.localPosition=Vector3.up*.655f;HandsOnLid=false;closing=-1;GameAudioMix.Instance?.PlayRecorded("cage_lid",lid.position,.45f);
         movement.enabled=wasEnabled;look.enabled=lookEnabled;Active=null;
         HeistGameManager.Instance.ShowMessage("Gaiola cheia. Tampa colocada.",2);
     }

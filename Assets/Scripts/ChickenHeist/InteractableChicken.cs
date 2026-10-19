@@ -70,6 +70,7 @@ public class InteractableChicken : MonoBehaviour
 
         if (backpack.TryAddChicken())
         {
+            GameAudioMix.Instance?.PlayRecorded("chicken_pickup",transform.position,.4f);
             pickupFrame=Time.frameCount;
             if (!sleeping)
                 NoiseEmitter.EmitGlobal(NoiseSource.ChickenCluck, transform.position);

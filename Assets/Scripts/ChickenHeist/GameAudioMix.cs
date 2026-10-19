@@ -19,7 +19,23 @@ public class GameAudioMix : MonoBehaviour
         foreach(var d in doorNodes)doors[d]=d.opened;
         foreach(var f in farmerNodes){farmers[f]=f.Activity;steps[f]=0;}
         foreach(var key in new[]{"engine","starter","start","stall","step","wood","door","sleep","wake","chicken","cow","spray"})Clip(key);
+        // the night all round (crickets, insects, far frogs), quiet, on the ambience volume
+        var night=SoundLibrary.Load("night_ambience");
+        if(night!=null){var bed=Source("Noite no vale");bed.spatialBlend=0;bed.loop=true;bed.clip=night;bed.volume=.22f;bed.GetComponent<AudioBusGain>().ambient=true;bed.time=Random.Range(0,night.length);bed.Play();}
+        // hens scratching about in every coop, heard only up close
+        var scratching=SoundLibrary.Load("chicken_walk");
+        if(scratching!=null)foreach(var coop in FindObjectsByType<ChickenCoopLockpick>(FindObjectsSortMode.None))
+        {
+            var node=new GameObject("Galinhas ciscando");node.transform.SetParent(coop.transform,false);node.AddComponent<AudioBusGain>().ambient=true;
+            var s=node.AddComponent<AudioSource>();s.clip=scratching;s.loop=true;s.spatialBlend=1;s.minDistance=1.5f;s.maxDistance=14;s.rolloffMode=AudioRolloffMode.Linear;s.volume=.32f;
+            s.pitch=Random.Range(.93f,1.07f);s.time=Random.Range(0,scratching.length);s.Play();
+        }
+        // a new day: the rooster, a moment after waking up
+        if(HomeNextNight.JustWoke){HomeNextNight.JustWoke=false;var home=HouseholdEconomy.Instance?.home;if(home!=null)StartCoroutine(Rooster(home.position+home.right*14+home.forward*9));}
     }
+    System.Collections.IEnumerator Rooster(Vector3 at){yield return new WaitForSeconds(1.2f);PlayRecorded("rooster_morning",at,.5f);}
+    // A recorded effect only: silent while the file is missing (no synthesized stand-in for these).
+    public void PlayRecorded(string key,Vector3 position,float volume=.35f){if(SoundLibrary.Load(key)!=null)Play(key,position,volume);}
     AudioSource Source(string label)
     {
         var node=new GameObject(label);node.transform.SetParent(transform,false);node.AddComponent<AudioBusGain>();var s=node.AddComponent<AudioSource>();s.playOnAwake=false;s.spatialBlend=1;s.minDistance=1.5f;s.maxDistance=35;s.rolloffMode=AudioRolloffMode.Linear;return s;

@@ -67,7 +67,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         effects=Source("Madeira e objetos",1);effects.transform.position=World(new Vector3(-3.2f,1.7f,2.28f));
         eliasSteps=Source("Passos de Elias",1);visitorSteps=Source("Passos do visitante",1);room=Source("Insetos ao longe",0);
         knock=SoundLibrary.Or("knock",()=>Sound("Batidas na madeira",.18f,145,31));footstep=SoundLibrary.Or("porch_step",()=>Sound("Passo na varanda",.15f,80,79));creak=SoundLibrary.Or("door_creak",()=>Sound("Dobradica gasta",.8f,320,13));
-        night=SoundLibrary.Or("night_ambience",NightSound);room.clip=night;room.loop=true;room.volume=.025f;room.GetComponent<AudioBusGain>().ambient=true;room.Play();
+        night=SoundLibrary.Or("night_ambience",NightSound);room.clip=night;room.loop=true;room.volume=SoundLibrary.Load("night_ambience")!=null?.12f:.025f;room.GetComponent<AudioBusGain>().ambient=true;room.Play();
     }
     AudioSource Source(string name,float spatial)
     {var node=new GameObject(name);node.transform.SetParent(transform,false);var source=node.AddComponent<AudioSource>();node.AddComponent<AudioBusGain>();source.playOnAwake=false;source.spatialBlend=spatial;source.minDistance=1.5f;source.maxDistance=16;source.rolloffMode=AudioRolloffMode.Linear;return source;}

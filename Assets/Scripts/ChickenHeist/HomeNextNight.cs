@@ -4,6 +4,8 @@ using UnityEngine.SceneManagement;
 public class HomeNextNight : MonoBehaviour
 {
     public static bool IsResting {get;private set;}
+    // set when a night's sleep reloads the world, so the morning starts with the rooster (GameAudioMix)
+    public static bool JustWoke;
     public static HomeNextNight Instance {get;private set;}
     void Awake(){Instance=this;}
     float fade;
@@ -42,7 +44,7 @@ public class HomeNextNight : MonoBehaviour
         }
         while(fade<1){fade=Mathf.Min(1,fade+Time.unscaledDeltaTime);yield return null;}
         yield return new WaitForSecondsRealtime(.65f);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().path);
+        JustWoke=true;SceneManager.LoadScene(SceneManager.GetActiveScene().path);
     }
     void OnDestroy(){IsResting=false;if(Instance==this)Instance=null;}
     void OnGUI()

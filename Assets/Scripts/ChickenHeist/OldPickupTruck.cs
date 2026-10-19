@@ -69,7 +69,7 @@ public class OldPickupTruck : MonoBehaviour
         {HeistGameManager.Instance.ShowMessage("Guarde as galinhas nas gaiolas antes de dirigir.",4);return false;}
         var movement=Player.GetComponent<PlayerMovement>();movementEnabled=movement.enabled;
         movement.RestorePosture(false);movement.enabled=false;Player.GetComponent<CharacterController>().enabled=false;
-        driving=true;vehicle.SetInput(0,0,true,true);return true;
+        driving=true;vehicle.SetInput(0,0,true,true);GameAudioMix.Instance?.PlayRecorded("truck_door",seat.position,.45f);return true;
     }
     public bool ExitDriver()
     {
@@ -84,7 +84,7 @@ public class OldPickupTruck : MonoBehaviour
             foreach(var hit in Physics.OverlapCapsule(point+Vector3.up*.4f,point+Vector3.up*1.5f,.3f,~0,QueryTriggerInteraction.Ignore))
                 if(!hit.transform.IsChildOf(Player) && hit.bounds.max.y>point.y+.15f){blocked=true;break;}
             if(blocked)continue;
-            ForceExit(point);return true;
+            ForceExit(point);GameAudioMix.Instance?.PlayRecorded("truck_door",seat.position,.45f);return true;
         }
         HeistGameManager.Instance.ShowMessage("Sem espaco para sair. Estacione em outro lugar.");return false;
     }

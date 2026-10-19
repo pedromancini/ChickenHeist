@@ -114,6 +114,11 @@ public static class VisitorCinematicReview
                 Check(visitorBody!=null && visitorBody.sharedMaterial!=null && visitorBody.sharedMaterial.GetTexture("_BaseMap")!=null,"Hooded visitor keeps its painted texture");
                 File.WriteAllText(Folder+"/wrists.txt","beat: wrist load (1 = at the joint's limit) and contact error, Elias | visitor\n");
                 Check(stage.GetComponentsInChildren<Light>().Count(l=>l.shadows!=UnityEngine.LightShadows.None)<=1,"Only key light casts additional shadows");
+                {
+                    var keys=new[]{"bell","box_open","cage_lid","camera_alert","chicken","chicken_pickup","chicken_scared","chicken_walk","cow","creak","door","door_creak","engine","gate_metal","knock","latch_click","latch_scrape","latch_slip","night_ambience","porch_step","rooster_morning","shotgun_blast","shotgun_reload","sleep","spray","start","stall","starter","step","truck_door","wake","wire_rattle","wood"};
+                    var missing=keys.Where(k=>SoundLibrary.Load(k)==null).ToArray();
+                    Check(missing.Length==0,"Recorded sound effects load in place of the synthesized ones: "+(keys.Length-missing.Length)+"/"+keys.Length+(missing.Length>0?" missing "+string.Join(",",missing):""));
+                }
                 float total=0;
                 for(int line=0;line<VisitorOpeningDialogue.Text.Length;line++)
                 {
