@@ -100,7 +100,8 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         Remember(neck);Remember(head);
         neck.rotation=Quaternion.AngleAxis(HeadYaw*.3f,transform.up)*Quaternion.AngleAxis(HeadPitch*.3f,transform.right)*neck.rotation;
         head.rotation=Quaternion.AngleAxis(HeadYaw*.7f,transform.up)*Quaternion.AngleAxis(HeadPitch*.7f,transform.right)*head.rotation;
-        ActionState=coop!=null?"Lockpick":ignition?"Ignite":driving?"Drive":phone!=null && phone.IsBusy?"Phone":player.GetComponent<BackpackInventory>()?.chickensCarried>0?"Carry":"Idle";
+        var punch=PlayerPunch.Instance;
+        ActionState=punch!=null && punch.Punching?"Punch":coop!=null?"Lockpick":ignition?"Ignite":driving?"Drive":phone!=null && phone.IsBusy?"Phone":player.GetComponent<BackpackInventory>()?.chickensCarried>0?"Carry":"Idle";
         weight=Mathf.MoveTowards(weight,coop!=null || ignition?1:0,dt*4);
         pick.SetActive(coop!=null);key.SetActive(ignition);ContactError=0;
         if(coop!=null)
@@ -114,6 +115,13 @@ public sealed class ProtagonistArticulation : MonoBehaviour
             }
             pick.transform.position=point-player.forward*.055f+player.right*(coop.PickPosition-.5f)*.018f;
             pick.transform.rotation=player.rotation*Quaternion.Euler(0,(coop.PickPosition-.5f)*22,0);
+        }
+        else if(punch!=null && punch.Punching)
+        {
+            // a right jab: the fist comes from beside the chin, out along the line of sight, palm down, and back
+            float e=punch.Extension;Vector3 look=eyes.forward;
+            Vector3 contact=eyes.position+look*(.30f+.36f*Mathf.Max(0,e)+.06f*Mathf.Min(0,e))+player.right*(.14f-.10f*Mathf.Max(0,e))-player.up*(.20f-.04f*Mathf.Max(0,e));
+            Reach(1,contact,-player.up,look,Mathf.Clamp01(Mathf.Abs(e)*3));
         }
         else if(ignition && !(phone!=null && phone.IsBusy))
         {

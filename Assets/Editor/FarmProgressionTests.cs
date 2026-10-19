@@ -30,7 +30,7 @@ public static class FarmProgressionTests
             var cameras=Object.FindObjectsByType<SecurityCamera>();var traps=Object.FindObjectsByType<TrapSystem>();
             Check(cameras.Length>0 && traps.Length>0,"world contains authored upgrade placements");
             Check(cameras.All(c=>!c.GetComponent<Renderer>().enabled && !c.GetComponent<Collider>().enabled),"all cameras physically absent in untouched region");
-            Check(traps.All(c=>!c.GetComponent<Renderer>().enabled && !c.GetComponent<Collider>().enabled),"all traps physically absent in untouched region");
+            Check(traps.All(c=>c.GetComponentsInChildren<Renderer>().Length>0 && c.GetComponentsInChildren<Renderer>().All(r=>!r.enabled) && c.GetComponentsInChildren<Collider>().All(x=>!x.enabled)),"all traps physically absent in untouched region");
             Check(cameras.All(c=>!c.CanPaintNow()),"absent cameras cannot consume equipment");
             Check(game.StartMission(0),"first unprotected farm can be selected");
             // Deliveries count only at the coop entrance (HomeFlockView.DeliveryPoint).
@@ -40,7 +40,7 @@ public static class FarmProgressionTests
             Check(!economy.Account.regionalSecurity && economy.Account.pendingRaids.Count==1,"real home delivery records robbery without early defenses");
             Check(game.PrepareNextNight() && economy.Account.regionalSecurity && economy.Account.newsUnread,"real rest path installs defenses and queues phone notification");
             Check(!game.PrepareNextNight(),"same rest cannot advance the day twice");
-            Check(cameras.All(c=>c.GetComponent<Renderer>().enabled && c.GetComponent<Collider>().enabled) && traps.All(c=>c.GetComponent<Renderer>().enabled && c.GetComponent<Collider>().enabled),"all regional farms receive physical protection after rest");
+            Check(cameras.All(c=>c.GetComponent<Renderer>().enabled && c.GetComponent<Collider>().enabled) && traps.All(c=>c.GetComponentsInChildren<Renderer>().All(r=>r.enabled) && c.GetComponentsInChildren<Collider>().Length>0 && c.GetComponentsInChildren<Collider>().All(x=>x.enabled)),"all regional farms receive physical protection after rest");
             var saved=checkpoint.Capture();economy.RestoreAccount(new HouseholdAccount());
             Check(checkpoint.Restore(saved,out _) && economy.Account.regionalSecurity && economy.Account.newsUnread,"checkpoint restores security and unread newspaper together");
             ProtagonistPhone.Instance.SetOpen(true);

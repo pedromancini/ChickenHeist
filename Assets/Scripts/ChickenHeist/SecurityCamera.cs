@@ -14,7 +14,13 @@ public class SecurityCamera : MonoBehaviour
     private float disabledUntil;
     readonly RaycastHit[] visibilityHits=new RaycastHit[64];
     public Transform scanHead;
+    // Like a real motion camera it reacts after a moment: Suspicion builds while Elias is in view (DetectSeconds to the
+    // alarm) and drains when he is out of it; Detecting is the alarm state.
+    public const float DetectSeconds=.7f,ForgetSeconds=1.6f,Dwell=1.4f;
     public bool Detecting { get; private set; }
+    public bool Sees { get; private set; }
+    public float Suspicion { get; private set; }
+    float phase;
     public bool Operational => enabled && FarmSecurityProgression.Installed && PaintSecondsRemaining<=0 &&
         HeistGameManager.Instance?.missionEnded==false && HeistGameManager.Instance.IsMissionTarget(this);
     public Vector3 Eye => (scanHead!=null?scanHead:transform).TransformPoint(new Vector3(0,0,.31f));
@@ -66,17 +72,27 @@ public class SecurityCamera : MonoBehaviour
     private void Start()
     {
         startYaw = transform.eulerAngles.y;
+        // cameras of one farm do not sweep in step
+        phase=Mathf.Abs(transform.position.x*.37f+transform.position.z*.73f)%10;
+    }
+    // A pan-tilt camera sweeps from one end of its arc to the other, easing in and out, and holds at each end.
+    public float ScanYaw(float time)
+    {
+        float sweep=2*rotationArc/Mathf.Max(1,rotationSpeed),cycle=2*(sweep+Dwell),t=Mathf.Repeat(time+phase,cycle),s;
+        if(t<Dwell)s=0;else if(t<Dwell+sweep)s=Mathf.SmoothStep(0,1,(t-Dwell)/sweep);else if(t<2*Dwell+sweep)s=1;else s=1-Mathf.SmoothStep(0,1,(t-2*Dwell-sweep)/sweep);
+        return startYaw+Mathf.Lerp(-rotationArc,rotationArc,s);
     }
 
     private void Update()
     {
-        Detecting=false;
-        if(!Operational || GameMenu.BlocksInput)return;
+        if(!Operational){Detecting=false;Sees=false;Suspicion=0;return;}
+        if(GameMenu.BlocksInput)return;
 
-        float yaw = startYaw + Mathf.Sin(Time.time * rotationSpeed * Mathf.Deg2Rad) * rotationArc;
-        (scanHead!=null?scanHead:transform).rotation = Quaternion.Euler(0f, yaw, 0f);
+        (scanHead!=null?scanHead:transform).rotation = Quaternion.Euler(0f, ScanYaw(Time.time), 0f);
 
-        Detecting=player!=null && CanSeePlayer();
+        Sees=player!=null && CanSeePlayer();
+        Suspicion=Mathf.MoveTowards(Suspicion,Sees?1:0,Time.deltaTime/(Sees?DetectSeconds:ForgetSeconds));
+        Detecting=Sees && Suspicion>=1;
         if (Detecting && Time.time >= nextDetectionTime)
         {
             nextDetectionTime = Time.time + detectionCooldown;

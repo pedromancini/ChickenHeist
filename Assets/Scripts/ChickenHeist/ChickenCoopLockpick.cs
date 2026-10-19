@@ -131,7 +131,7 @@ public class ChickenCoopLockpick : MonoBehaviour
         }
         int depth=GUI.depth;GUI.depth=-100;Color oldColor=GUI.color;GUI.skin=UITheme.Skin;
         float width=Mathf.Min(UITheme.Size(700),Screen.width-32);float x=(Screen.width-width)*.5f,y=Screen.height-UITheme.Size(170);
-        UITheme.Panel(new Rect(x,y-UITheme.Size(10),width,UITheme.Size(160)));
+        UITheme.Panel(new Rect(x,y-UITheme.Size(10),width,UITheme.Size(160)));UITheme.Occupy(new Rect(x,y-UITheme.Size(10),width,UITheme.Size(160)));
         var label=new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.MiddleCenter,wordWrap=true};
         string state=Latch.Stress>.65f?"RANGENDO — solte ESPAÇO":Latch.CanSlide(Professional)?"CEDENDO — mantenha a pressão":Latch.HasSlack?"COM FOLGA — ajuste a pressão":"PRESA — experimente outra peça";
         float s=UITheme.Scale;

@@ -154,6 +154,12 @@ public static class UITheme
         var inner=new Rect(r.x+1,r.y+1,Mathf.Max(0,(r.width-2)*Mathf.Clamp01(value)),r.height-2);
         if(inner.width>1)Panel(inner,fill,new Color(0,0,0,0),Mathf.Max(2,(int)(inner.height*.5f)));
     }
+    // Screen space taken this frame (and the last) by prompts, key bars and panels: messages (Toast) keep clear of it.
+    // OnGUI of different components runs in no set order, so the previous frame's rects count too.
+    static readonly System.Collections.Generic.List<Rect> occupied=new System.Collections.Generic.List<Rect>(),occupiedBefore=new System.Collections.Generic.List<Rect>();
+    static int occupiedFrame=-1;
+    static void Roll(){if(Time.frameCount==occupiedFrame)return;occupiedBefore.Clear();occupiedBefore.AddRange(occupied);occupied.Clear();occupiedFrame=Time.frameCount;}
+    public static void Occupy(Rect r){Roll();if(!occupied.Contains(r))occupied.Add(r);}
     // "[E] Abrir porta" prompt centred on x at height y; returns its rect.
     public static Rect KeyPrompt(float centreX,float y,string key,string action)
     {
@@ -163,7 +169,7 @@ public static class UITheme
         var r=new Rect(centreX-w*.5f,y,w,h);Panel(r,PanelSoft);
         GUI.Label(new Rect(r.x+pad,r.y+(h-Size(28))*.5f,keyW,Size(28)),key,keyStyle);
         GUI.Label(new Rect(r.x+pad+keyW+Size(10),r.y,textW+4,h),action,new GUIStyle(text){alignment=TextAnchor.MiddleLeft});
-        return r;
+        Occupy(r);return r;
     }
     // A row of key caps with their actions ("W/S  Acelerar   A/D  Virar ..."), centred at y; optional info line below.
     public static Rect HintBar(float y,string info,params string[] keyAndAction)
@@ -185,7 +191,7 @@ public static class UITheme
             GUI.Label(new Rect(x,r.y,widths[i+1]+4,h),keyAndAction[i+1],new GUIStyle(text){alignment=TextAnchor.MiddleLeft});x+=widths[i+1]+gap;
         }
         if(infoH>0)GUI.Label(new Rect(r.x,r.y+h-Size(6),r.width,infoH),info,new GUIStyle(Style("hudSmall")){alignment=TextAnchor.MiddleCenter});
-        return r;
+        Occupy(r);return r;
     }
     public static void Toast(string text,float alpha=1)
     {
@@ -193,6 +199,15 @@ public static class UITheme
         var style=new GUIStyle(Style("body")){alignment=TextAnchor.MiddleCenter,fontSize=Size(18)};
         float w=Mathf.Min(Screen.width*.6f,Size(760));float h=style.CalcHeight(new GUIContent(text),w-Size(40))+Size(22);
         var r=new Rect((Screen.width-w)*.5f,Screen.height-h-Size(96),w,h);
+        // above whatever key bar or prompt is in the way
+        Roll();bool moved=true;
+        for(int pass=0;pass<6 && moved;pass++)
+        {
+            moved=false;
+            foreach(var list in new[]{occupied,occupiedBefore})foreach(var o in list)
+                if(o.xMax>r.x && o.x<r.xMax && o.yMax+Size(8)>r.y && o.y<r.yMax+Size(8)){r.y=o.y-h-Size(10);moved=true;}
+        }
+        r.y=Mathf.Max(r.y,Screen.height*.12f);
         var old=GUI.color;GUI.color=new Color(1,1,1,alpha);Panel(r,PanelSoft);GUI.Label(new Rect(r.x+Size(20),r.y,r.width-Size(40),r.height),text,style);GUI.color=old;
     }
 }

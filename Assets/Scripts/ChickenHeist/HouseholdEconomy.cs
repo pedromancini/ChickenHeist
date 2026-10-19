@@ -70,6 +70,17 @@ public class HouseholdEconomy : MonoBehaviour
         RecordRaid(a,chickens);
         return true;
     },"As galinhas chegaram ao sitio.");
+    // A mission ends on arriving home: the chickens carried (and the truck's, when it is parked at home) join the flock,
+    // the night is settled once, and the raid goes to the news with everything taken from the farm (`stolen`, the truck's
+    // cargo included even when it is still parked elsewhere).
+    public bool ArriveHome(int delivered,bool unloadTruck,bool settleNight,int stolen)=>Commit(a=>
+    {
+        if(unloadTruck)a.truckChickens=0;
+        if(settleNight)a.ReturnFromHeist(delivered);
+        else if(delivered>0){a.flock+=delivered;a.Record("Entrega adicional: +"+delivered+" galinhas");}
+        if(stolen>0)RecordRaid(a,stolen);
+        return true;
+    },"Missao concluida. Voce voltou ao sitio.");
     static void RecordRaid(HouseholdAccount account,int chickens)
     {
         var game=HeistGameManager.Instance;

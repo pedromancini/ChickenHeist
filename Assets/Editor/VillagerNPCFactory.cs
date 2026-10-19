@@ -3,11 +3,16 @@ using UnityEditor;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
+// The cast rule: every NPC (farmers, residents, the merchant, cutscene extras) is a character of the Free Medieval
+// People pack, recoloured to present-day rural clothes by CastPalette; only Elias and the hooded visitor are not.
+// The pack's king, queen, rich_citizzens_3 and rich_citizzens_4 are never used.
 public static class VillagerNPCFactory
 {
     const string Folder="Assets/ChickenHeistGenerated/Characters/Villagers";
+    public static readonly string[] Allowed={"peasant_1","peasant_2","peasant_3","peasant_4","peasant_5","peasant_6","city_dwellers_1","city_dwellers_2","rich_citizzens_1","rich_citizzens_2"};
     public static GameObject Create(Transform parent,string name,string model,string palette=null)
     {
+        if(!Allowed.Contains(model))throw new System.ArgumentException("NPC model outside the cast (Free Medieval People pack, no king, queen, rich_citizzens_3 or rich_citizzens_4): "+model);
         if(!AssetDatabase.IsValidFolder(Folder))AssetDatabase.CreateFolder("Assets/ChickenHeistGenerated/Characters","Villagers");
         bool medieval=model.StartsWith("peasant") || model.StartsWith("city") || model.StartsWith("rich");
         string path=medieval?"Assets/ImportedMedievalPeople/fbx/people_unity/"+model+".fbx":"Assets/ImportedVillagerNPC/Villager NPC Free/FBX/Characters/"+model+".fbx";

@@ -134,7 +134,7 @@ public class OldPickupTruck : MonoBehaviour
         if(driving)
         {
             UITheme.HintBar(y,null,"W/S","Acelerar e ré","A/D","Virar","Espaço","Frear","F","Sair");
-            var speed=new Rect(Screen.width-UITheme.Size(170),Screen.height-UITheme.Size(110),UITheme.Size(150),UITheme.Size(90));UITheme.Panel(speed,UITheme.PanelSoft);
+            var speed=new Rect(Screen.width-UITheme.Size(170),Screen.height-UITheme.Size(110),UITheme.Size(150),UITheme.Size(90));UITheme.Panel(speed,UITheme.PanelSoft);UITheme.Occupy(speed);
             GUI.Label(new Rect(speed.x,speed.y+UITheme.Size(6),speed.width,UITheme.Size(50)),Mathf.Abs(Speed*3.6f).ToString("0"),new GUIStyle(UITheme.Style("title")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(42)});
             GUI.Label(new Rect(speed.x,speed.y+UITheme.Size(56),speed.width,UITheme.Size(24)),"km/h",new GUIStyle(UITheme.Style("caption")){alignment=TextAnchor.MiddleCenter});
         }

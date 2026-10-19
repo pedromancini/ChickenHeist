@@ -23,7 +23,7 @@ public static partial class PlayerHomeBuilder
     {
         Directory.CreateDirectory("output/villager-review");
         var lines=new List<string>();
-        foreach(string name in new[]{"Blacksmith","Hunter","Child","peasant_1","peasant_2","peasant_3","peasant_4","peasant_5","peasant_6","city_dwellers_1","city_dwellers_2"})
+        foreach(string name in VillagerNPCFactory.Allowed)
         {
             string path="Assets/ImportedVillagerNPC/Villager NPC Free/FBX/Characters/"+name+".fbx";
             if(name.StartsWith("peasant") || name.StartsWith("city"))path="Assets/ImportedMedievalPeople/fbx/people_unity/"+name+".fbx";

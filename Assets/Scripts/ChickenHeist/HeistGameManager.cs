@@ -22,6 +22,10 @@ public class HeistGameManager : MonoBehaviour
     public int MissionFarm { get; private set; } = -1;
     public string MissionName { get; private set; } = "";
     public bool NightSettled => nightSettled;
+    // The mission ends by itself on coming within HomeRadius of the house, once Elias has been out past AwayRadius
+    // since it started (a mission is chosen at home). A teleport (the dev console, loading) does not count as arriving.
+    public const float HomeRadius=20,AwayRadius=45;
+    bool leftHome;Vector3 lastPlayerPosition;
     public bool HasMessage => Time.time < messageUntil;
 
     public string MissionStartBlocker
@@ -49,7 +53,7 @@ public class HeistGameManager : MonoBehaviour
             if(farm.identity==phone.farmNames[index]){target=farm;break;}
         var owner=target!=null?target.GetComponentInChildren<FarmerSleepSystem>():null;
         if(owner==null)return false;
-        MissionActive=true;MissionFarm=index;MissionName=target.identity;farmerSleep=owner;
+        MissionActive=true;MissionFarm=index;MissionName=target.identity;farmerSleep=owner;leftHome=false;
         missionWon=false;nightSettled=false;phone.selectedFarm=index;
         owner.RestoreSleep(owner.startingSleep);
         ShowMessage("Missao iniciada: "+MissionName+". Retorne ao sitio com as galinhas.",5);
@@ -65,7 +69,7 @@ public class HeistGameManager : MonoBehaviour
     public void EndActiveMission()
     {
         MissionNavigation.Instance?.Clear();
-        MissionActive=false;MissionFarm=-1;MissionName="";
+        MissionActive=false;MissionFarm=-1;MissionName="";leftHome=false;
         if(farmerSleep!=null)farmerSleep.RestoreSleep(farmerSleep.minimumSleep);
         farmerSleep=null;
         if(ProtagonistPhone.Instance!=null)ProtagonistPhone.Instance.selectedFarm=-1;
@@ -86,11 +90,14 @@ public class HeistGameManager : MonoBehaviour
         if(GetComponent<InteractionFocusHUD>()==null)gameObject.AddComponent<InteractionFocusHUD>();
         if(GetComponent<MissionNavigation>()==null)gameObject.AddComponent<MissionNavigation>();
         if(player!=null && player.GetComponent<PlayerHealth>()==null)player.gameObject.AddComponent<PlayerHealth>();
+        if(player!=null && player.GetComponent<PlayerPunch>()==null)player.gameObject.AddComponent<PlayerPunch>();
+        if(GetComponent<MissionCompletePopup>()==null)gameObject.AddComponent<MissionCompletePopup>();
     }
 
     private void Update()
     {
         if(GameMenu.IsOpen)return;
+        WatchArrival();
 
         if (MissionActive && !missionEnded && farmerSleep != null && farmerSleep.CurrentSleep >= 100f)
         {
@@ -104,6 +111,37 @@ public class HeistGameManager : MonoBehaviour
             else if (backpack.chickensCarried >= targetChickens)
                 statusMessage = "Voce ja tem o suficiente. Extrair agora seria inteligente.";
         }
+    }
+
+    void WatchArrival()
+    {
+        var home=HouseholdEconomy.Instance?.home;
+        if(player==null || home==null){return;}
+        Vector3 position=player.position;bool jumped=(position-lastPlayerPosition).sqrMagnitude>15*15;lastPlayerPosition=position;
+        if(!MissionActive || missionEnded || GameMenu.BlocksInput)return;
+        Vector3 flat=position-home.position;flat.y=0;float distance=flat.magnitude;
+        if(jumped){leftHome=distance>AwayRadius;return;}
+        if(distance>AwayRadius)leftHome=true;
+        if(leftHome && distance<=HomeRadius)ArriveHome();
+    }
+    // Arriving home with a mission on: the chickens in Elias' arms (and in the truck, when it is home too) go to the
+    // flock, the raid is recorded, the mission ends and "Missão concluída!" shows.
+    public bool ArriveHome()
+    {
+        var economy=HouseholdEconomy.Instance;var home=economy?.home;if(!MissionActive || economy==null || home==null)return false;
+        int carried=backpack!=null?backpack.chickensCarried:0,inTruck=economy.Account.truckChickens;
+        var truck=OldPickupTruck.Instance;
+        bool truckHome=inTruck>0 && truck!=null && Vector3.Distance(truck.transform.position,home.position)<=HomeRadius+10;
+        int delivered=carried+(truckHome?inTruck:0);
+        if(!economy.ArriveHome(delivered,truckHome,!nightSettled,carried+inTruck)){ShowMessage("Nao foi possivel salvar a chegada. Tente novamente.",4);return false;}
+        if(carried>0)backpack.RemoveChickens(carried);
+        if(delivered>0){var flock=DeliveryFlock;if(flock!=null)flock.AnimateDelivery(flock.DeliveryPoint+Vector3.up*.6f);}
+        nightSettled=true;missionWon=true;string farm=MissionName;
+        EndActiveMission();
+        GetComponent<MissionCompletePopup>()?.Show(farm,delivered);
+        if(inTruck>0 && !truckHome)ShowMessage("As galinhas da caminhonete ficaram nela. Traga-a ao sitio e solte-as (G).",7);
+        else ShowMessage(delivered>0?"As galinhas estao no seu galinheiro. A venda do vale esta aberta.":"Missao concluida.",6);
+        return true;
     }
 
     public void RegisterChicken()

@@ -45,7 +45,7 @@ public static partial class PlayerHomeBuilder
         for(int i=0;i<3;i++)Part(root,"Tecla da registradora",new Vector3(.90f+i*.07f,1.419f,-5.11f),new Vector3(.04f,.016f,.055f),cream);
         Place("Box",new Vector3(-2.7f,0,-4.5f),new Vector3(.85f,.8f,.8f),root).name="Caixa de suprimentos";
         Place("Barell",new Vector3(2.7f,0,-4.5f),new Vector3(.75f,1.1f,.75f),root).name="Barril da venda";
-        var npc=VillagerNPCFactory.Create(root,"Seu Anselmo - Comerciante","Blacksmith");npc.transform.localPosition=new Vector3(0,.03f,-4.10f);npc.transform.localRotation=Quaternion.Euler(0,180,0);
+        var npc=VillagerNPCFactory.Create(root,"Seu Anselmo - Comerciante","peasant_1","shop");npc.transform.localPosition=new Vector3(0,.03f,-4.10f);npc.transform.localRotation=Quaternion.Euler(0,180,0);
         var npcCollider=npc.AddComponent<CapsuleCollider>();npcCollider.height=1.8f;npcCollider.radius=.25f;npcCollider.center=Vector3.up*.9f;
         var service=new GameObject("Ponto de atendimento");service.transform.SetParent(root,false);service.transform.localPosition=new Vector3(0,1,-6.0f);
         var market=marketRoot.AddComponent<VillageMarket>();market.counter=service.transform;market.merchant=npc.GetComponent<RuralCharacterAnimator>();

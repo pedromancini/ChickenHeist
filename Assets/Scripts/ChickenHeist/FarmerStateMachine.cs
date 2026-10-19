@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum FarmerActivity { Sleeping,Waking,Leaving,Investigating,Chasing,Aiming,Reloading,Returning }
+public enum FarmerActivity { Sleeping,Waking,Leaving,Investigating,Chasing,Aiming,Reloading,Returning,Stunned }
 
 [Serializable]
 public class FarmerCombatSave
@@ -30,6 +30,12 @@ public class FarmerStateMachine : MonoBehaviour
     public Vector3 LastKnownPosition=>lastKnown;
     public float AimProgress=>Activity==FarmerActivity.Aiming?Mathf.Clamp01(1-(actionUntil-Time.time)/1.35f):0;
     public bool Moving=>controller!=null && new Vector2(controller.velocity.x,controller.velocity.z).sqrMagnitude>.04f;
+    // Where the barrels point while aiming. It follows Elias at a limited speed, so running across his line of fire
+    // leaves the shot behind; walking, or coming straight at him, does not. Up close it follows faster and, more and
+    // more often, leads a moving target.
+    public Vector3 AimPoint {get;private set;}
+    public bool Stunned=>Time.time<stunnedUntil;
+    float stunnedUntil;Vector3 previousTarget;
     CharacterController controller;FarmerResidence home;FarmerShotgun gun;
     NavMeshPath path;int corner,exitStep;
     Vector3 lastKnown,previousGoal,vertical;
@@ -64,6 +70,12 @@ public class FarmerStateMachine : MonoBehaviour
             if(home.AtBed){Activity=FarmerActivity.Sleeping;home.SetDoor(false);Shells=2;return;}
             Activity=FarmerActivity.Returning;ReturnHome();return;
         }
+        if(Activity==FarmerActivity.Stunned)
+        {
+            HasVisualContact=false;sleepSystem.SetVisualContact(false);
+            if(Stunned){Gravity();return;}
+            Activity=FarmerActivity.Investigating;lastKnown=player.position;memoryUntil=Time.time+18;
+        }
         if(Activity==FarmerActivity.Sleeping)
         {
             if(sleepSystem.CurrentSleep<FarmerSleepSystem.WakeThreshold)return;
@@ -90,13 +102,14 @@ public class FarmerStateMachine : MonoBehaviour
         }
         if(HasVisualContact)
         {
-            Face(lastKnown);
+            Face(Activity==FarmerActivity.Aiming?AimPoint:lastKnown);
             if(Vector3.Distance(transform.position,player.position)>25){Activity=FarmerActivity.Chasing;MoveToward(lastKnown,chaseSpeed);return;}
             if(Activity!=FarmerActivity.Aiming)
-            {Activity=FarmerActivity.Aiming;actionUntil=Time.time+1.35f;game.ShowMessage("O fazendeiro esta mirando. Procure cobertura!",1.3f);}
+            {Activity=FarmerActivity.Aiming;actionUntil=Time.time+1.35f;AimPoint=lastKnown;previousTarget=lastKnown;game.ShowMessage("O fazendeiro esta mirando. Corra ou procure cobertura!",1.3f);}
+            Track();Face(AimPoint);
             if(Time.time>=actionUntil)
             {
-                gun.Fire(lastKnown);Shells--;Activity=Shells==0?FarmerActivity.Reloading:FarmerActivity.Aiming;
+                gun.Fire(AimPoint);Shells--;Activity=Shells==0?FarmerActivity.Reloading:FarmerActivity.Aiming;
                 actionUntil=Time.time+(Shells==0?3.2f:1.7f);
             }
             Gravity();return;
@@ -104,6 +117,21 @@ public class FarmerStateMachine : MonoBehaviour
         // Losing sight cancels the shot; search uses only the last observed/heard point.
         if(Time.time<memoryUntil){Activity=FarmerActivity.Investigating;MoveToward(lastKnown,patrolSpeed);}
         else{Activity=FarmerActivity.Returning;ReturnHome();}
+    }
+    // The aim follows Elias at TrackSpeed metres a second (faster up close); near him it often leads a moving target.
+    public static float TrackSpeed(float distance)=>2.4f+6f/Mathf.Max(1,distance);
+    void Track()
+    {
+        Vector3 target=lastKnown;float distance=Vector3.Distance(transform.position,player.position);
+        Vector3 velocity=(target-previousTarget)/Mathf.Max(Time.deltaTime,1e-4f);previousTarget=target;
+        if(UnityEngine.Random.value<Mathf.Clamp01(1.2f-distance/8)*Time.deltaTime*4)target+=Vector3.ProjectOnPlane(velocity,Vector3.up)*.3f;
+        AimPoint=Vector3.MoveTowards(AimPoint,target,TrackSpeed(distance)*Time.deltaTime);
+    }
+    // A punch (PlayerPunch) staggers an awake farmer: no moving and no shooting for `seconds`. Asleep he is in bed.
+    public bool Stun(float seconds)
+    {
+        if(Activity==FarmerActivity.Sleeping || Activity==FarmerActivity.Waking || !float.IsFinite(seconds) || seconds<=0)return false;
+        stunnedUntil=Time.time+seconds;Activity=FarmerActivity.Stunned;HasVisualContact=false;return true;
     }
     Vector3 PlayerTarget=>player.position+Vector3.up*(player.GetComponent<PlayerMovement>()?.estaAgachado==true?.65f:1.35f);
     public bool CanSeePlayer()

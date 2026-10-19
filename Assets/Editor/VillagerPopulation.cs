@@ -18,20 +18,20 @@ public static class VillagerPopulation
         {
             var old=farmer.transform.Find("Visual Villager NPC");if(old!=null)Object.DestroyImmediate(old.gameObject);
             foreach(var renderer in farmer.GetComponentsInChildren<Renderer>())renderer.enabled=false;
-            var visual=VillagerNPCFactory.Create(farmer.transform,"Visual Villager NPC",index++%2==0?"Hunter":"Blacksmith");
+            var visual=VillagerNPCFactory.Create(farmer.transform,"Visual Villager NPC",index++%2==0?"peasant_5":"rich_citizzens_1");
             visual.GetComponent<RuralCharacterAnimator>().farmer=farmer;
         }
         var market=Object.FindFirstObjectByType<VillageMarket>();
         Vector3 localPosition=market.merchant.transform.localPosition;Quaternion localRotation=market.merchant.transform.localRotation;
         Object.DestroyImmediate(market.merchant.gameObject);
-        var merchant=VillagerNPCFactory.Create(market.transform,"Seu Anselmo - Comerciante","Blacksmith");
+        var merchant=VillagerNPCFactory.Create(market.transform,"Seu Anselmo - Comerciante","peasant_1","shop");
         merchant.transform.localPosition=localPosition;merchant.transform.localRotation=localRotation;
         var capsule=merchant.AddComponent<CapsuleCollider>();capsule.height=1.8f;capsule.radius=.25f;capsule.center=Vector3.up*.9f;
         market.merchant=merchant.GetComponent<RuralCharacterAnimator>();
         var oldCrowd=GameObject.Find("Moradores das estradas");if(oldCrowd!=null)Object.DestroyImmediate(oldCrowd);
         var crowd=new GameObject("Moradores das estradas");
         var surfaces=RuralTreeRoots.TerrainSurfaces();var used=new List<Vector3>();
-        string[] models={"peasant_1","Hunter","peasant_2","Blacksmith","peasant_3","peasant_4","peasant_5","peasant_6","city_dwellers_1","city_dwellers_2"};
+        string[] models={"peasant_1","rich_citizzens_2","peasant_2","rich_citizzens_1","city_dwellers_2","peasant_4","peasant_5","peasant_6","city_dwellers_1","peasant_2"};
         var home=HouseholdEconomy.Instance!=null?HouseholdEconomy.Instance.home:GameObject.Find("Casa do Protagonista - Sitio do Recomeco").transform;
         var spans=Object.FindObjectsByType<RuralRoadSpan>(FindObjectsSortMode.None).Where(s=>s.GetComponentInParent<FarmLayoutInfo>()==null && s.GetComponentInParent<VillageMarket>()==null && s.width>=2.5f).OrderBy(s=>(s.start-home.position).sqrMagnitude);
         foreach(var span in spans)

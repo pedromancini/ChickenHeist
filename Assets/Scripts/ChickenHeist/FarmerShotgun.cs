@@ -52,7 +52,8 @@ public class FarmerShotgun : MonoBehaviour
         Vector3 direction=(target-Muzzle.position).normalized;
         var player=HeistGameManager.Instance.player;
         var movement=player.GetComponent<PlayerMovement>();float distance=Vector3.Distance(player.position,transform.position);
-        float spread=4.5f+(movement!=null && movement.estaMovendo?2.5f:0)+(OldPickupTruck.IsDriving?3:0)+distance*.08f;
+        // A tight pattern: whether it hits is decided by the aim (FarmerStateMachine.AimPoint lags a running target)
+        float spread=3.2f+(movement!=null && movement.estaMovendo?1.2f:0)+(OldPickupTruck.IsDriving?3:0)+distance*.03f;
         Quaternion aim=Quaternion.LookRotation(direction);
         for(int pellet=0;pellet<6;pellet++)
         {
@@ -64,7 +65,8 @@ public class FarmerShotgun : MonoBehaviour
                 if(hit.transform.IsChildOf(transform))continue;
                 var health=hit.transform.GetComponentInParent<PlayerHealth>();
                 if(hit.collider.isTrigger && health==null)continue;
-                if(health!=null)LastShotDamage+=Mathf.Lerp(8,3,Mathf.Clamp01(hit.distance/32));
+                // up close every pellet carries more
+                if(health!=null)LastShotDamage+=Mathf.Lerp(14,1.5f,Mathf.Clamp01(hit.distance/20));
                 break;
             }
         }
@@ -88,8 +90,10 @@ public class FarmerShotgun : MonoBehaviour
         // The gun is placed by its butt (the stock reaches 42 cm behind the receiver): aiming, the butt sits in the
         // pocket of the right shoulder and the barrels point ahead; otherwise it rests in front of the right hip with
         // the barrels down (reloading: further down). Recoil pushes it back along its own axis.
-        bool aiming=ai.Activity==FarmerActivity.Aiming;
-        float pitch=aiming?0:ai.Activity==FarmerActivity.Reloading?38:22;
+        bool aiming=ai.Activity==FarmerActivity.Aiming,stunned=ai.Activity==FarmerActivity.Stunned;
+        float pitch=aiming?0:ai.Activity==FarmerActivity.Reloading?38:stunned?55:22;
+        // stunned: he reels, swaying on his feet with the gun hanging down
+        if(body!=null && stunned)body.localRotation=bodyRotation*Quaternion.Euler(-8+Mathf.Sin(Time.time*3.1f)*7,Mathf.Sin(Time.time*1.7f)*12,Mathf.Sin(Time.time*2.3f)*9);
         var rotation=transform.rotation*Quaternion.Euler(pitch,0,0);
         Vector3 butt;
         if(arms[0]!=null && arms[3]!=null)

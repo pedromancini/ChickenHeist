@@ -30,7 +30,8 @@ public class SecurityEquipmentPresentation : MonoBehaviour
     readonly List<Material> materials=new List<Material>();
     SecurityCamera cameraUnit;
     Transform head;
-    Renderer lens,led;
+    Renderer lens,led,rec;Texture2D falloff;
+    readonly Vector2[] uvs=new Vector2[Samples+2];readonly RaycastHit[] ground=new RaycastHit[16];
     Mesh field;
     Mesh hood;
     MeshRenderer fieldRenderer;
@@ -67,11 +68,17 @@ public class SecurityEquipmentPresentation : MonoBehaviour
         {float a=i*Mathf.PI/4;SecurityEquipmentVisual.Part(head,"Infrared emitter",PrimitiveType.Sphere,new Vector3(Mathf.Cos(a)*.092f,Mathf.Sin(a)*.092f,.291f),Vector3.one*.018f,glass);}
         led=SecurityEquipmentVisual.Part(head,"Status LED",PrimitiveType.Sphere,new Vector3(.11f,-.05f,.286f),Vector3.one*.024f,light).GetComponent<Renderer>();
         var hit=head.gameObject.AddComponent<BoxCollider>();hit.center=new Vector3(0,0,.03f);hit.size=new Vector3(.32f,.27f,.60f);
+        // the REC light: a small red lamp blinking on top of the housing
+        rec=SecurityEquipmentVisual.Part(head,"REC light",PrimitiveType.Sphere,new Vector3(0,.115f,.20f),Vector3.one*.018f,Mat("Camera - REC light",new Color(1,.08f,.05f),true)).GetComponent<Renderer>();
+        // What the camera covers, laid on the ground as a soft patch: strongest under the camera, fading towards the
+        // edges and the far end. Faint while it scans, amber while it is taking notice, red when it has seen Elias.
         var overlay=new GameObject("Detection footprint");overlay.transform.SetParent(transform,false);
         field=new Mesh{name="Occluded camera footprint"};field.MarkDynamic();overlay.AddComponent<MeshFilter>().sharedMesh=field;
-        fieldRenderer=overlay.AddComponent<MeshRenderer>();var fm=Mat("Security field",new Color(.2f,.65f,.46f,.14f),true);
-        fm.SetFloat("_Surface",1);fm.SetFloat("_SrcBlend",(float)BlendMode.SrcAlpha);fm.SetFloat("_DstBlend",(float)BlendMode.OneMinusSrcAlpha);
+        fieldRenderer=overlay.AddComponent<MeshRenderer>();
+        var fm=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Security field"};materials.Add(fm);fm.SetFloat("_Smoothness",0);fm.EnableKeyword("_EMISSION");
+        fm.SetFloat("_Surface",1);fm.SetFloat("_Blend",0);fm.SetFloat("_SrcBlend",(float)BlendMode.SrcAlpha);fm.SetFloat("_DstBlend",(float)BlendMode.OneMinusSrcAlpha);
         fm.SetFloat("_ZWrite",0);fm.SetFloat("_Cull",0);fm.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");fm.renderQueue=3000;
+        falloff=Falloff();fm.SetTexture("_BaseMap",falloff);
         fieldRenderer.sharedMaterial=fm;fieldRenderer.shadowCastingMode=ShadowCastingMode.Off;fieldRenderer.receiveShadows=false;
         legacyRenderer=old;legacyCollider=oldCollider;equipmentRenderers=GetComponentsInChildren<Renderer>();
     }
@@ -86,20 +93,47 @@ public class SecurityEquipmentPresentation : MonoBehaviour
         lens.sharedMaterial=painted?coating:glass;
         Color c=painted?new Color(.72f,.39f,.15f):!cameraUnit.Operational?Color.gray:cameraUnit.Detecting?new Color(1,.14f,.08f):new Color(.2f,.9f,.5f);
         stateBlock.SetColor("_BaseColor",c);stateBlock.SetColor("_EmissionColor",c*2);led.SetPropertyBlock(stateBlock);
+        bool recording=cameraUnit.Operational && Mathf.Repeat(Time.time,1.2f)<.55f;
+        rec.enabled=installed;stateBlock.SetColor("_BaseColor",recording?new Color(1,.08f,.05f):new Color(.18f,.03f,.02f));stateBlock.SetColor("_EmissionColor",recording?new Color(2,.15f,.1f):Color.black);rec.SetPropertyBlock(stateBlock);
         fieldRenderer.enabled=installed && cameraUnit.Operational;
         if(!fieldRenderer.enabled || GameMenu.BlocksInput)return;
-        c.a=.13f;fieldRenderer.sharedMaterial.SetColor("_BaseColor",c);fieldRenderer.sharedMaterial.SetColor("_EmissionColor",new Color(c.r,c.g,c.b)*.25f);
+        float s=cameraUnit.Suspicion;
+        Color tint=cameraUnit.Detecting?Color.Lerp(new Color(1,.12f,.08f,.34f),new Color(1,.2f,.12f,.48f),.5f+.5f*Mathf.Sin(Time.time*10))
+            :s>0?Color.Lerp(new Color(.85f,.92f,1,.10f),new Color(1,.62f,.12f,.32f),s):new Color(.85f,.92f,1,.10f);
+        fieldRenderer.sharedMaterial.SetColor("_BaseColor",tint);fieldRenderer.sharedMaterial.SetColor("_EmissionColor",new Color(tint.r,tint.g,tint.b)*.9f);
         if(Time.time<nextField)return;nextField=Time.time+.12f;
-        Vector3 origin=cameraUnit.Eye;origin.y=.045f;vertices[0]=transform.InverseTransformPoint(origin);
+        Vector3 origin=cameraUnit.Eye;vertices[0]=transform.InverseTransformPoint(OnGround(origin));uvs[0]=new Vector2(0,.5f);
         float targetHeight=cameraUnit.player!=null?cameraUnit.player.position.y+(cameraUnit.player.GetComponent<PlayerMovement>()?.estaAgachado==true?.5f:1f):1f;
         for(int i=0;i<=Samples;i++)
         {
             var direction=Quaternion.Euler(0,Mathf.Lerp(-cameraUnit.viewAngle,cameraUnit.viewAngle,(float)i/Samples),0)*head.forward;
             direction.y=0;direction.Normalize();float distance=cameraUnit.ClearRange(direction,targetHeight);
-            vertices[i+1]=transform.InverseTransformPoint(origin+direction*distance);
+            vertices[i+1]=transform.InverseTransformPoint(OnGround(origin+direction*distance));uvs[i+1]=new Vector2(distance/Mathf.Max(.01f,cameraUnit.viewDistance),(float)i/Samples);
             if(i<Samples){triangles[i*3]=0;triangles[i*3+1]=i+1;triangles[i*3+2]=i+2;}
         }
-        field.Clear();field.vertices=vertices;field.triangles=triangles;field.RecalculateNormals();field.RecalculateBounds();
+        field.Clear();field.vertices=vertices;field.uv=uvs;field.triangles=triangles;field.RecalculateNormals();field.RecalculateBounds();
+    }
+    // a point on the ground (or the floor it stands over), lifted a few centimetres so the patch never sinks into slopes
+    Vector3 OnGround(Vector3 p)
+    {
+        int n=Physics.RaycastNonAlloc(new Vector3(p.x,p.y+1.5f,p.z),Vector3.down,ground,12,~0,QueryTriggerInteraction.Ignore);float best=float.PositiveInfinity;
+        for(int i=0;i<n;i++)
+        {
+            var t=ground[i].transform;if(t.IsChildOf(transform) || cameraUnit.player!=null && t.IsChildOf(cameraUnit.player) || ground[i].normal.y<.5f)continue;
+            if(ground[i].distance<best){best=ground[i].distance;p.y=ground[i].point.y+.04f;}
+        }
+        return p;
+    }
+    // alpha falls off with distance (u) and towards both edges of the arc (v)
+    static Texture2D Falloff()
+    {
+        var t=new Texture2D(64,32,TextureFormat.RGBA32,false){wrapMode=TextureWrapMode.Clamp,name="Camera footprint falloff"};
+        for(int y=0;y<32;y++)for(int x=0;x<64;x++)
+        {
+            float u=x/63f,v=y/31f,edge=Mathf.SmoothStep(0,1,Mathf.Min(v,1-v)*6),far=Mathf.Pow(1-u,1.15f)*Mathf.SmoothStep(0,1,(1-u)*5);
+            t.SetPixel(x,y,new Color(1,1,1,edge*far));
+        }
+        t.Apply();return t;
     }
     void CreateHood(Material material)
     {
@@ -114,5 +148,5 @@ public class SecurityEquipmentPresentation : MonoBehaviour
         hood=new Mesh{name="Open-ended curved rain shield"};hood.vertices=v;hood.triangles=t.ToArray();hood.RecalculateNormals();
         var go=new GameObject("Sun and rain shield");go.transform.SetParent(head,false);go.AddComponent<MeshFilter>().sharedMesh=hood;go.AddComponent<MeshRenderer>().sharedMaterial=material;
     }
-    void OnDestroy(){if(field!=null)Destroy(field);if(hood!=null)Destroy(hood);foreach(var m in materials)if(m!=null)Destroy(m);}
+    void OnDestroy(){if(falloff!=null)Destroy(falloff);if(field!=null)Destroy(field);if(hood!=null)Destroy(hood);foreach(var m in materials)if(m!=null)Destroy(m);}
 }
