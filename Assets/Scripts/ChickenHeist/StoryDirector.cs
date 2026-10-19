@@ -51,6 +51,8 @@ public class StoryDirector : MonoBehaviour
         if(HouseholdEconomy.Instance?.home!=null){TabletDeliveryBox.Ensure(HouseholdEconomy.Instance.home);DeskBills.Ensure(HouseholdEconomy.Instance.home);}
     }
     public bool ReplayOpening(){if(!Begin(false))return false;replay=true;freshOpening=false;return true;}
+    // the second cutscene (the vision after the first robbery), watched again without touching the account
+    public bool ReplayVision(){if(!Begin(true))return false;replay=true;return true;}
     public void SetPaused(bool value)
     {
         if(!running || Paused==value)return;Paused=value;

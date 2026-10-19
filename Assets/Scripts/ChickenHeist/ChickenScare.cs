@@ -25,7 +25,7 @@ public class ChickenScare : MonoBehaviour
         wings=bird.gameObject.AddComponent<ChickenWingMotion>();
         oldNear=eye.nearClipPlane;eye.nearClipPlane=.025f;
         fill=new GameObject("Luz breve do susto").AddComponent<Light>();fill.type=LightType.Point;fill.range=2;fill.intensity=.65f;fill.color=new Color(1,.82f,.64f);
-        if(voice==null){var node=new GameObject("Grito da galinha");node.transform.SetParent(transform,false);voice=node.AddComponent<AudioSource>();voice.playOnAwake=false;voice.spatialBlend=0;cry=CreateCry();}
+        if(voice==null){var node=new GameObject("Grito da galinha");node.transform.SetParent(transform,false);voice=node.AddComponent<AudioSource>();voice.playOnAwake=false;voice.spatialBlend=0;cry=SoundLibrary.Or("chicken_scared",CreateCry);}
         voice.PlayOneShot(cry,.45f);return true;
     }
     void LateUpdate()
@@ -61,7 +61,7 @@ public class ChickenScare : MonoBehaviour
         if(Active==this)Active=null;
     }
     void OnDisable(){Cancel();}
-    void OnDestroy(){Cancel();if(cry!=null)Destroy(cry);}
+    void OnDestroy(){Cancel();SoundLibrary.Release(cry);}
     // Original provisional vocal synthesis; final listening/mix pass is still required.
     static AudioClip CreateCry()
     {

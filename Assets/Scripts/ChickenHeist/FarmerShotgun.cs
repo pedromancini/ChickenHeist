@@ -43,7 +43,7 @@ public class FarmerShotgun : MonoBehaviour
         Muzzle=new GameObject("Saida dos canos").transform;Muzzle.SetParent(weapon,false);Muzzle.localPosition=new Vector3(0,.045f,.70f);
         flash=Muzzle.gameObject.AddComponent<Light>();flash.color=new Color(1,.61f,.2f);flash.range=5;flash.intensity=0;
         audioSource=gameObject.AddComponent<AudioSource>();audioSource.spatialBlend=1;audioSource.minDistance=3;audioSource.maxDistance=65;audioSource.rolloffMode=AudioRolloffMode.Linear;audioSource.playOnAwake=false;
-        shot=Sound(true);reload=Sound(false);awakeBlend=ai.Activity==FarmerActivity.Sleeping?0:1;
+        shot=SoundLibrary.Or("shotgun_blast",()=>Sound(true));reload=SoundLibrary.Or("shotgun_reload",()=>Sound(false));awakeBlend=ai.Activity==FarmerActivity.Sleeping?0:1;
     }
     public void Fire(Vector3 target)
     {
@@ -130,5 +130,5 @@ public class FarmerShotgun : MonoBehaviour
         }
         var clip=AudioClip.Create(bang?"Provisional shotgun blast":"Provisional shotgun reload",length,1,rate,false);clip.SetData(data,0);return clip;
     }
-    void OnDestroy(){foreach(var m in materials)if(m!=null)Destroy(m);if(shot!=null)Destroy(shot);if(reload!=null)Destroy(reload);}
+    void OnDestroy(){foreach(var m in materials)if(m!=null)Destroy(m);SoundLibrary.Release(shot);SoundLibrary.Release(reload);}
 }

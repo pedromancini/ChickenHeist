@@ -61,7 +61,7 @@ public class CoopLatchPresentation : MonoBehaviour
         }
         audioSource=AudioNode("Estalos");audioSource.spatialBlend=1;audioSource.minDistance=1;audioSource.maxDistance=12;audioSource.playOnAwake=false;
         friction=AudioNode("Atrito");friction.spatialBlend=1;friction.minDistance=1;friction.maxDistance=5;friction.playOnAwake=false;friction.loop=true;friction.volume=0;
-        click=Sound(false);slip=Sound(true);scrape=Scrape();friction.clip=scrape;
+        click=SoundLibrary.Or("latch_click",()=>Sound(false));slip=SoundLibrary.Or("latch_slip",()=>Sound(true));scrape=SoundLibrary.Or("latch_scrape",Scrape);friction.clip=scrape;
         tool=new GameObject("Ferramenta de tensao").transform;tool.SetParent(root,false);
         SecurityEquipmentVisual.Part(tool,"Lamina",PrimitiveType.Cube,new Vector3(-.10f,0,0),new Vector3(.22f,.012f,.012f),steel);
         SecurityEquipmentVisual.Part(tool,"Cabo",PrimitiveType.Capsule,new Vector3(-.26f,-.02f,0),new Vector3(.045f,.07f,.045f),Mat("Cabo gasto",new Color(.12f,.09f,.065f)),Quaternion.Euler(0,0,70));tool.gameObject.SetActive(false);
@@ -82,5 +82,5 @@ public class CoopLatchPresentation : MonoBehaviour
         var clip=AudioClip.Create("Provisional latch click",samples.Length,1,rate,false);clip.SetData(samples,0);return clip;
     }
     static AudioClip Scrape(){var data=new float[4096];var r=new System.Random(42);for(int i=0;i<data.Length;i++)data[i]=((float)r.NextDouble()*2-1)*.3f;var c=AudioClip.Create("Provisional latch friction",data.Length,1,22050,false);c.SetData(data,0);return c;}
-    void OnDestroy(){EndView();foreach(var m in materials)if(m!=null)Destroy(m);if(click!=null)Destroy(click);if(slip!=null)Destroy(slip);if(scrape!=null)Destroy(scrape);}
+    void OnDestroy(){EndView();foreach(var m in materials)if(m!=null)Destroy(m);SoundLibrary.Release(click);SoundLibrary.Release(slip);SoundLibrary.Release(scrape);}
 }

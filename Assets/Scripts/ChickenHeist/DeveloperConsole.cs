@@ -21,7 +21,7 @@ public class DeveloperConsole : MonoBehaviour
     readonly List<string> history=new List<string>();
     Vector2 scroll;
     GUIStyle text,heading,field;
-    const string Help="/fase N   Inicia e vai ate a fazenda N\n/fases   Lista numeros e nomes\n/speed N   Velocidade x1 a x20 (1 normal)\n/casa   Volta ao sitio\n/mercado   Vai ao entreposto\n/sono N   Define alerta (0 a 100)\n/abrir   Abre o galinheiro da missao\n/fechar   Fecha o galinheiro da missao\n/mochila N   Define galinhas de teste\n/cancelar   Encerra a missao, sem entrega\n/pos   Mostra a posicao atual\n/salvar   Grava o progresso atual\n/limpar   Limpa o historico do chat\n/dev   Mostra ou oculta esta janela";
+    const string Help="/fase N   Inicia e vai ate a fazenda N\n/fases   Lista numeros e nomes\n/speed N   Velocidade x1 a x20 (1 normal)\n/casa   Volta ao sitio\n/mercado   Vai ao entreposto\n/sono N   Define alerta (0 a 100)\n/abrir   Abre o galinheiro da missao\n/fechar   Fecha o galinheiro da missao\n/mochila N   Define galinhas de teste\n/cancelar   Encerra a missao, sem entrega\n/pos   Mostra a posicao atual\n/salvar   Grava o progresso atual\n/limpar   Limpa o historico do chat\n/dev   Mostra ou oculta esta janela\n/cutscene N   Assiste a cutscene 1 (abertura) ou 2 (a visao)";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics(){Instance=null;closedFrame=-1;}
@@ -66,7 +66,7 @@ public class DeveloperConsole : MonoBehaviour
         if(args.Length==0)return false;
         string command=args[0].ToLowerInvariant();
         int number=0;
-        bool numeric=command=="/fase" || command=="/sono" || command=="/mochila" || command=="/speed";
+        bool numeric=command=="/fase" || command=="/sono" || command=="/mochila" || command=="/speed" || command=="/cutscene";
         if((numeric && (args.Length!=2 || !int.TryParse(args[1],out number))) || (!numeric && args.Length!=1))
         {Reply("Argumentos invalidos. Consulte /dev.");return false;}
         switch(command)
@@ -101,6 +101,14 @@ public class DeveloperConsole : MonoBehaviour
             case "/mochila":
                 if(number<0 || number>game.backpack.capacity){Reply("Use /mochila de 0 a "+game.backpack.capacity+".");return false;}
                 game.backpack.RestoreCount(number);Reply("Mochila de teste: "+number+". Entregar ou vender afeta seu progresso.");return true;
+            case "/cutscene":
+                // a replay: nothing in the account changes (the opening does not promise the tablet again, the vision
+                // does not clear the pending one)
+                if(number!=1 && number!=2){Reply("Use /cutscene 1 (abertura) ou /cutscene 2 (a visao).");return false;}
+                if(game.MissionActive){Reply("Cancele a missao antes (/cancelar).");return false;}
+                Close();
+                bool started=number==1?StoryDirector.Instance.ReplayOpening():StoryDirector.Instance.ReplayVision();
+                if(!started)Reply("Nao foi possivel iniciar a cutscene.");return started;
             case "/cancelar":game.EndActiveMission();Reply("Missao cancelada, sem entrega. Mochila preservada.");return true;
             case "/pos":Reply("Posicao: "+game.player.position.ToString("F2"));return true;
             case "/salvar":

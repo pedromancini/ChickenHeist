@@ -127,7 +127,6 @@ public class ChickenCoopLockpick : MonoBehaviour
         if(GameMenu.IsOpen || DeveloperConsole.IsOpen || BackpackPanel.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || Scare?.IsActive==true)return;
         if(!ChallengeActive)
         {
-            if(Active==null && CanReachLock()){GUI.skin=UITheme.Skin;UITheme.KeyPrompt(Screen.width*.5f,Screen.height*.78f,"E","Inspecionar trinco");}
             return;
         }
         int depth=GUI.depth;GUI.depth=-100;Color oldColor=GUI.color;GUI.skin=UITheme.Skin;

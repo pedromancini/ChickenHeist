@@ -66,8 +66,8 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         LightAt("Lampada da varanda",new Vector3(-3.0f,2.65f,1.85f),new Color(1,.80f,.55f),1.1f,3.2f);
         effects=Source("Madeira e objetos",1);effects.transform.position=World(new Vector3(-3.2f,1.7f,2.28f));
         eliasSteps=Source("Passos de Elias",1);visitorSteps=Source("Passos do visitante",1);room=Source("Insetos ao longe",0);
-        knock=Sound("Batidas na madeira",.18f,145,31);footstep=Sound("Passo na varanda",.15f,80,79);creak=Sound("Dobradica gasta",.8f,320,13);
-        night=NightSound();room.clip=night;room.loop=true;room.volume=.025f;room.GetComponent<AudioBusGain>().ambient=true;room.Play();
+        knock=SoundLibrary.Or("knock",()=>Sound("Batidas na madeira",.18f,145,31));footstep=SoundLibrary.Or("porch_step",()=>Sound("Passo na varanda",.15f,80,79));creak=SoundLibrary.Or("door_creak",()=>Sound("Dobradica gasta",.8f,320,13));
+        night=SoundLibrary.Or("night_ambience",NightSound);room.clip=night;room.loop=true;room.volume=.025f;room.GetComponent<AudioBusGain>().ambient=true;room.Play();
     }
     AudioSource Source(string name,float spatial)
     {var node=new GameObject(name);node.transform.SetParent(transform,false);var source=node.AddComponent<AudioSource>();node.AddComponent<AudioBusGain>();source.playOnAwake=false;source.spatialBlend=spatial;source.minDistance=1.5f;source.maxDistance=16;source.rolloffMode=AudioRolloffMode.Linear;return source;}
@@ -258,7 +258,7 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         RenderSettings.ambientMode=ambientMode;RenderSettings.ambientLight=ambient;RenderSettings.ambientIntensity=ambientIntensity;RenderSettings.fog=fog;
         if(eye!=null){eye.clearFlags=clearFlags;eye.backgroundColor=background;eye.nearClipPlane=near;eye.rect=viewport;eye.aspect=aspect;}
         foreach(var source in new[]{effects,eliasSteps,visitorSteps,room})if(source!=null)source.Stop();props?.Dispose();
-        foreach(var clip in new[]{knock,footstep,creak,night})if(clip!=null)Destroy(clip);
+        foreach(var clip in new[]{knock,footstep,creak,night})SoundLibrary.Release(clip);
     }
     void OnDestroy(){Restore();}
 }

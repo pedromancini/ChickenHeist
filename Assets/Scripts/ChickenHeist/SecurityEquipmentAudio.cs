@@ -9,7 +9,7 @@ public class SecurityEquipmentAudio : MonoBehaviour
     {
         source=gameObject.AddComponent<AudioSource>();source.spatialBlend=1;source.minDistance=2;source.maxDistance=24;
         source.rolloffMode=AudioRolloffMode.Linear;source.volume=.35f;source.playOnAwake=false;
-        alert=Make(false);rattle=Make(true);
+        alert=SoundLibrary.Or("camera_alert",()=>Make(false));rattle=SoundLibrary.Or("wire_rattle",()=>Make(true));
     }
     void OnEnable(){NoiseEmitter.NoiseEmitted+=Heard;}
     void OnDisable(){NoiseEmitter.NoiseEmitted-=Heard;if(source!=null)source.Stop();}
@@ -36,5 +36,5 @@ public class SecurityEquipmentAudio : MonoBehaviour
         }
         var clip=AudioClip.Create(metal?"Provisional metal wire rattle":"Provisional camera alert",count,1,rate,false);clip.SetData(samples,0);return clip;
     }
-    void OnDestroy(){if(alert!=null)Destroy(alert);if(rattle!=null)Destroy(rattle);}
+    void OnDestroy(){SoundLibrary.Release(alert);SoundLibrary.Release(rattle);}
 }

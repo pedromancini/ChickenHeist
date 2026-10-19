@@ -54,6 +54,12 @@ public static class DeveloperConsoleTests
             Check(!console.ExecuteCommand("/abrir") && !console.ExecuteCommand("/sono 50"),"mission-only commands guarded");
             Check(console.ExecuteCommand("/mochila 0") && console.ExecuteCommand("/salvar"),"clear inventory and save");
             Check(!console.ExecuteCommand("/qualquer") && !console.ExecuteCommand("/casa extra"),"unknown commands and extra arguments rejected");
+            var account=JsonUtility.ToJson(HouseholdEconomy.Instance.Account);
+            Check(!console.ExecuteCommand("/cutscene 3") && !console.ExecuteCommand("/cutscene") && !StoryDirector.Active,"invalid cutscene numbers rejected");
+            Check(console.ExecuteCommand("/cutscene 2") && StoryDirector.Active && !DeveloperConsole.IsOpen,"cutscene 2 (the vision) plays from the console");StoryDirector.Instance.Complete();
+            Check(console.Open() && console.ExecuteCommand("/cutscene 1") && StoryDirector.Active,"cutscene 1 (the opening) plays from the console");StoryDirector.Instance.Complete();
+            Check(JsonUtility.ToJson(HouseholdEconomy.Instance.Account)==account && !SleepPrompt.IsOpen,"watching cutscenes from the console changes nothing in the save");
+            console.Open();
             console.Close();
             Check(Time.timeScale==time && AudioListener.pause==audio && DeveloperConsole.BlocksInput,"closing restores time and audio but protects same-frame input");
             GameMenu.Instance.Pause();Check(!console.Open() && !console.ExecuteCommand("/fase 1"),"main menu owns input over console");GameMenu.Instance.Resume();

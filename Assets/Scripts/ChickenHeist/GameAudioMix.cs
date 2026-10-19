@@ -75,6 +75,7 @@ public class GameAudioMix : MonoBehaviour
     public AudioClip Clip(string kind)
     {
         if(clips.TryGetValue(kind,out var existing))return existing;
+        var recorded=SoundLibrary.Load(kind);if(recorded!=null){clips[kind]=recorded;return recorded;}
         const int rate=22050;float duration=kind=="engine"?2:kind=="spray"?1.2f:kind=="starter"?1.5f:kind=="cow"?1.4f:kind=="sleep"?1:kind=="bell"?1.15f:kind=="creak"?.75f:.4f;
         var data=new float[(int)(duration*rate)];var random=new System.Random(72);float phase=0,previous=0;
         for(int i=0;i<data.Length;i++)
@@ -99,7 +100,7 @@ public class GameAudioMix : MonoBehaviour
         }
         var clip=AudioClip.Create("Original synthesized "+kind,data.Length,1,rate,false);clip.SetData(data,0);clips[kind]=clip;return clip;
     }
-    void OnDestroy(){NoiseEmitter.NoiseEmitted-=Noise;foreach(var clip in clips.Values)Destroy(clip);if(Instance==this)Instance=null;}
+    void OnDestroy(){NoiseEmitter.NoiseEmitted-=Noise;foreach(var clip in clips.Values)SoundLibrary.Release(clip);if(Instance==this)Instance=null;}
 }
 
 public class AudioBusGain : MonoBehaviour
