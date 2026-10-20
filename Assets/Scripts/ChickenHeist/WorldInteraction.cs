@@ -46,7 +46,8 @@ public static class WorldInteraction
             foreach(var hit in Physics.RaycastAll(eye.transform.position,delta.normalized,delta.magnitude,~0,QueryTriggerInteraction.Ignore))
                 if(!hit.transform.IsChildOf(game.player) && !hit.transform.IsChildOf(item.transform)){blocked=true;break;}
             if(blocked)continue;
-            float score=delta.magnitude+(1-dot)*5;
+            // what Elias is looking at wins over what is merely a little nearer (the bed beside the bedroom door)
+            float score=delta.magnitude*.4f+(1-dot)*12;
             if(score<best){best=score;result=item;}
         }
         return result;

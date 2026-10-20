@@ -120,8 +120,11 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         {
             // a right jab: the fist comes from beside the chin, out along the line of sight, palm down, and back
             float e=punch.Extension;Vector3 look=eyes.forward;
-            Vector3 contact=eyes.position+look*(.30f+.36f*Mathf.Max(0,e)+.06f*Mathf.Min(0,e))+player.right*(.14f-.10f*Mathf.Max(0,e))-player.up*(.20f-.04f*Mathf.Max(0,e));
-            Reach(1,contact,-player.up,look,Mathf.Clamp01(Mathf.Abs(e)*3));
+            float out_=Mathf.Max(0,e),back=Mathf.Min(0,e);
+            Vector3 contact=eyes.position+look*(.34f+.32f*out_+.08f*back)+eyes.right*(.20f-.16f*out_)-eyes.up*(.13f-.07f*out_);
+            Reach(1,contact,-eyes.up,look,Mathf.Clamp01(Mathf.Abs(e)*3));
+            // the head follows the blow a little (PlayerLook sets the view again next frame)
+            eyes.localRotation*=Quaternion.Euler(1.6f*out_,-1.2f*out_,0);
         }
         else if(ignition && !(phone!=null && phone.IsBusy))
         {

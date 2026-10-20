@@ -74,6 +74,14 @@ public class MenuVisualReview : MonoBehaviour
         yield return new WaitForSecondsRealtime(1);
         Check(!GameMenu.IsOpen && !HeistGameManager.Instance.MissionActive,"Start game enters quiet free exploration");
         yield return Shot("07-exploration");
+        // a punch as the player sees it, at full reach
+        {
+            var look=HeistGameManager.Instance.player.GetComponentInChildren<PlayerLook>();if(look!=null)look.RestorePitch(0);
+            Check(PlayerPunch.Instance!=null && PlayerPunch.Instance.TryPunch(),"Left click punch starts in game");
+            yield return new WaitForSecondsRealtime(.18f);yield return new WaitForEndOfFrame();
+            var punch=ScreenCapture.CaptureScreenshotAsTexture();File.WriteAllBytes(Path.Combine(output,"07b-punch.png"),punch.EncodeToPNG());Destroy(punch);
+            yield return new WaitForSecondsRealtime(.8f);
+        }
         var inventoryAccount=JsonUtility.FromJson<HouseholdAccount>(JsonUtility.ToJson(HouseholdEconomy.Instance.Account));
         HouseholdEconomy.Instance.RestoreAccount(new HouseholdAccount{paintUses=6,professionalLockpick=true,feed=1,boards=1});
         Check(BackpackPanel.Instance.Open(),"item slots open in free exploration");

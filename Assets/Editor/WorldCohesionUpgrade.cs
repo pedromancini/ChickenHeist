@@ -231,7 +231,7 @@ public static class WorldCohesionUpgrade
         {
             if(home.outsideDoor==null || home.insideDoor==null)continue;
             var outward=home.outsideDoor.position-home.insideDoor.position;outward.y=0;
-            Lantern(home.transform,home.outsideDoor.position-outward.normalized*.35f+Vector3.up*2.35f+Vector3.Cross(Vector3.up,outward.normalized)*.75f,outward,2.4f);
+            Lantern(home.transform.parent!=null?home.transform.parent:home.transform,home.outsideDoor.position-outward.normalized*.35f+Vector3.up*2.35f+Vector3.Cross(Vector3.up,outward.normalized)*.75f,outward,2.4f);
         }
         var protagonistHome=GameObject.Find("Casa do Protagonista - Sitio do Recomeco");
         var door=protagonistHome!=null?protagonistHome.GetComponentInChildren<HomeDoor>():null;

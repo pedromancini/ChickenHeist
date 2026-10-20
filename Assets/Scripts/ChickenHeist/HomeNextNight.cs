@@ -11,7 +11,8 @@ public class HomeNextNight : MonoBehaviour
     float fade;
     public float distance=1.7f;
     bool prepared;
-    bool Near=>HeistGameManager.Instance?.player!=null && Vector3.Distance(transform.position,HeistGameManager.Instance.player.position+Vector3.up)<distance;
+    // the same reach as the "E  Descansar" prompt (WorldInteraction): where the prompt shows, E sleeps
+    bool Near=>HeistGameManager.Instance?.player!=null && Vector3.Distance(transform.position,HeistGameManager.Instance.player.position+Vector3.up*.5f)<distance+.5f;
     void Update()
     {
         if(WorldInteraction.Pressed(this))TryRest();

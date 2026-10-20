@@ -50,13 +50,16 @@ public class RoadsideWalker : MonoBehaviour
         {
             looking=false;
             if(target==current && !NextStep(net)){Plan(net);return;}
-            Vector3 delta=net.nodes[target]-before;delta.y=0;
-            if(delta.magnitude<.6f){previous=current;current=target;if(!NextStep(net))Linger();}
+            // the path is the road's shoulder line shifted sideways by a slowly wandering amount (up to about two metres
+            // either way), so nobody walks the same straight line
+            Vector3 goal=Wander(net,target);
+            Vector3 delta=goal-before;delta.y=0;
+            if(delta.magnitude<1.0f){previous=current;current=target;if(!NextStep(net))Linger();}
             else
             {
                 // a slow sideways drift off the shoulder line, and a pace that wanders a little
                 Vector3 across=Vector3.Cross(Vector3.up,delta.normalized);
-                float sway=(Mathf.PerlinNoise(seed,Time.time*.08f)-.5f)*.8f;
+                float sway=(Mathf.PerlinNoise(seed,Time.time*.11f)-.5f)*.5f;
                 Vector3 aim=delta+across*sway;
                 transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(aim),Time.deltaTime*3);
                 // Walk where the body faces, so corners are rounded instead of snapped.
@@ -86,10 +89,32 @@ public class RoadsideWalker : MonoBehaviour
         if(blockedTime>1.5f){blockedTime=0;Reversals++;target=current;path.Clear();step=0;Pause(1,2.5f);}
     }
     void OnControllerColliderHit(ControllerColliderHit hit){if(hit.normal.y<.6f)LastObstacle=hit.collider.name+" @"+hit.point.ToString("0");}
+    // The node shifted across the road by the wander amount, pulled back towards the line where the ground is not
+    // free (a fence, a tree, a wall at the side).
+    Vector3 Wander(WalkNetwork net,int node)
+    {
+        if(wanderNode==node)return wanderPoint;
+        wanderNode=node;
+        Vector3 from=net.nodes[current],to=net.nodes[node];Vector3 dir=to-from;dir.y=0;
+        if(dir.sqrMagnitude<.01f){wanderPoint=to;return to;}
+        Vector3 across=Vector3.Cross(Vector3.up,dir.normalized);
+        float offset=(Mathf.PerlinNoise(seed+41,DistanceWalked*.035f)-.5f)*4.4f;
+        for(int k=0;k<4;k++,offset*=.5f)
+        {
+            Vector3 p=to+across*offset;
+            if(Physics.Raycast(p+Vector3.up*2,Vector3.down,out var hit,5,~0,QueryTriggerInteraction.Ignore) && hit.normal.y>.7f && hit.collider.GetComponentInParent<CharacterController>()==null
+                && !Physics.CheckCapsule(hit.point+Vector3.up*.5f,hit.point+Vector3.up*1.4f,.3f,~0,QueryTriggerInteraction.Ignore))
+            {wanderPoint=hit.point;return wanderPoint;}
+        }
+        wanderPoint=to;return to;
+    }
+    int wanderNode=-1;Vector3 wanderPoint;
     bool NextStep(WalkNetwork net)
     {
         if(step>=path.Count)return false;
         target=path[step++];
+        // now and then someone stops on the way to look around
+        if(Random.value<.05f){Pause(2,5,true);return true;}
         // the odd pause at a junction, to look up and down the road
         if(net.links[current].Count>2 && Random.value<.15f)Pause(1,2.5f,true);
         return true;
