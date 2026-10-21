@@ -45,19 +45,26 @@ public class SecurityCamera : MonoBehaviour
         bool coated=PaintSecondsRemaining>0;
         if(paintRenderer!=null && showingPaint!=coated){paintRenderer.SetPropertyBlock(coated?coatedPaint:originalPaint);showingPaint=coated;}
     }
-    public bool CanPaintNow()
+    // What the spray aims at: the camera head (housing and lens). The camera's own origin sits inside the post or the
+    // wall it is mounted on, so aiming there, the post was always in the way from below.
+    public Vector3 PaintTarget=>scanHead!=null?scanHead.position:transform.position;
+    public const float PaintReach=3.3f,PaintAim=28;
+    public enum PaintBlock{None,Unavailable,TooFar,NotAimed,Obstructed}
+    public PaintBlock PaintCheck()
     {
         var game=HeistGameManager.Instance;var eye=Camera.main;
-        if(!FarmSecurityProgression.Installed || game==null || game.missionEnded || !game.IsMissionTarget(this) || eye==null || PaintSecondsRemaining>0)return false;
-        Vector3 delta=transform.position-eye.transform.position;
-        if(delta.sqrMagnitude>3f*3f || Vector3.Dot(eye.transform.forward,delta.normalized)<.86f)return false;
+        if(!FarmSecurityProgression.Installed || game==null || game.missionEnded || !game.IsMissionTarget(this) || eye==null || PaintSecondsRemaining>0)return PaintBlock.Unavailable;
+        Vector3 delta=PaintTarget-eye.transform.position;
+        if(delta.magnitude>PaintReach)return PaintBlock.TooFar;
+        if(Vector3.Angle(eye.transform.forward,delta)>PaintAim)return PaintBlock.NotAimed;
         var hits=Physics.RaycastAll(eye.transform.position,delta.normalized,delta.magnitude,~0,QueryTriggerInteraction.Ignore);
         System.Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
-        // Geometry behind the camera's visible surface must not occlude its lens.
+        // the first thing the spray meets must be the camera itself
         foreach(var hit in hits)
-            if(!hit.transform.IsChildOf(game.player))return hit.transform.IsChildOf(transform);
-        return true;
+            if(!hit.transform.IsChildOf(game.player))return hit.transform.IsChildOf(transform)?PaintBlock.None:PaintBlock.Obstructed;
+        return PaintBlock.None;
     }
+    public bool CanPaintNow()=>PaintCheck()==PaintBlock.None;
     public bool TryPaint()
     {
         if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || !CanPaintNow())return false;
@@ -66,6 +73,8 @@ public class SecurityCamera : MonoBehaviour
         {HeistGameManager.Instance.ShowMessage("Sem tinta. Compre uma lata na loja.",3);return false;}
         if(!economy.UsePaint()){HeistGameManager.Instance.ShowMessage(economy.Message,3);return false;}
         RestorePaint(PaintDuration);
+        // black paint from the can in Elias' right hand onto the lens
+        var view=Camera.main.transform;SprayEffect.Play(view.position+view.right*.16f-view.up*.17f+view.forward*.32f,Eye);
         HeistGameManager.Instance.ShowMessage("Lente coberta por 60 s. Tinta: "+economy.Account.paintUses+" usos restantes.",3);return true;
     }
 

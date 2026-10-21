@@ -56,7 +56,17 @@ public static class PhaseTwoGameplayReview
                 Application.runInBackground=true;GameMenu.Instance.Resume();game=HeistGameManager.Instance;home=game.player.position;
                 game.player.GetComponent<PlayerMovement>().enabled=false;game.player.GetComponentInChildren<PlayerLook>().enabled=false;
                 FarmSecurityProgression.Apply();Check(FarmSecurityProgression.Installed,"Phase two security installed");
-                Wires();step=1;Wait(.3);return;
+                closedGates.Clear();Wires();
+                // every guarded gate opened, from outside on half the farms and from inside on the others
+                for(int i=0;i<closedGates.Count;i++){var g=closedGates[i];g.gate.Toggle(g.wire+g.inward*(i%2==0?-2.5f:4f));}
+                step=70;Wait(1.4);return;
+            }
+            case 70:
+            {
+                int inward=closedGates.Count(g=>Vector3.Dot(Leaf(g.gate)-g.leaf,g.inward)>.5f);
+                Check(closedGates.Count>0 && inward==closedGates.Count,"With a wire outside it, every gate swings into its farm, whichever side it is opened from ("+inward+"/"+closedGates.Count+")");
+                foreach(var g in closedGates)g.gate.Toggle(g.wire);
+                step=1;Wait(1.4);return;
             }
             case 1:
             {
@@ -112,7 +122,7 @@ public static class PhaseTwoGameplayReview
                 var front=farmer.transform.position+farmer.transform.forward*1.2f;Position(front,farmer.transform.position);
                 var eye=game.player.GetComponentInChildren<Camera>().transform;eye.localRotation=Quaternion.identity;
                 farmer.Restore(new FarmerCombatSave{activity=FarmerActivity.Investigating,ammo=2,lastKnown=farmer.transform.position,memoryRemaining=8});
-                Check(PlayerPunch.Instance.TryPunch(),"Left click throws a punch");step=6;Wait(.2);return;
+                Check(PlayerPunch.Instance.TryPunch(),"Left click throws a punch");step=6;Wait(PlayerPunch.ImpactAt*PlayerPunch.Duration+.1);return;
             }
             case 6:
             {
@@ -174,32 +184,49 @@ public static class PhaseTwoGameplayReview
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
     }
     static int arrivalFlock;
-    // every farm's wires: stakes on the ground and clear, square across the way in, not crossing each other
+    // Every farm's wires: one just outside the gate and as wide as it, the other across the coop door; stakes on the
+    // ground and clear, not crossing each other. A sheet of both wires of every farm.
     static void Wires()
     {
-        var sheet=new List<Texture2D>();
+        var sheet=new List<Texture2D>();int farms=0,atGate=0,atCoop=0;
         foreach(var farm in Object.FindObjectsByType<FarmLayoutInfo>().OrderBy(f=>f.identity))
         {
-            var wires=farm.GetComponentsInChildren<TrapSystem>().ToArray();var coop=farm.GetComponentInChildren<ChickenCoopLockpick>();
+            farms++;var wires=farm.GetComponentsInChildren<TrapSystem>().OrderBy(x=>x.name).ToArray();
             foreach(var w in wires)
             {
                 bool grounded=Mathf.Abs(Height(w.StakeLeft)-w.StakeLeft.y)<.08f && Mathf.Abs(Height(w.StakeRight)-w.StakeRight.y)<.08f;
-                Check(grounded && w.Span>=1f,farm.identity+" / "+w.name+": "+w.Span.ToString("0.0")+" m, stakes on the ground");
+                Check(grounded && w.Span>=w.Opening,farm.identity+" / "+(w.Gate!=null?"gate":w.AtCoop?"coop door":w.name)+" wire: "+w.Span.ToString("0.0")+" m across a "+w.Opening.ToString("0.0")+" m opening, stakes on the ground");
             }
             for(int i=0;i<wires.Length;i++)for(int j=i+1;j<wires.Length;j++)
                 Check(SegmentGap(wires[i].StakeLeft,wires[i].StakeRight,wires[j].StakeLeft,wires[j].StakeRight)>.6f,farm.identity+": wires apart");
-            if(farm==Object.FindObjectsByType<FarmLayoutInfo>().OrderBy(f=>f.identity).First() && wires.Length>0)
-            {var w=wires.OrderBy(x=>x.name).First();var mid=(w.StakeLeft+w.StakeRight)*.5f;var t=Shot(mid+w.transform.forward*1.1f+Vector3.up*.55f+(w.StakeRight-w.StakeLeft).normalized*.3f,mid+Vector3.up*.18f,960,540);File.WriteAllBytes(Folder+"/wire-close.png",t.EncodeToPNG());Object.DestroyImmediate(t);}
-            if(coop!=null && wires.Length>0)
+            var gate=wires.FirstOrDefault(x=>x.Gate!=null);var coop=wires.FirstOrDefault(x=>x.AtCoop);
+            if(gate!=null)
             {
-                var c=wires.Aggregate(Vector3.zero,(s,w)=>s+w.transform.position)/wires.Length;var outward=-coop.transform.forward;outward.y=0;
-                sheet.Add(Shot(c+outward.normalized*3.2f+Vector3.up*1.6f+Vector3.Cross(Vector3.up,outward)*1.6f,c+Vector3.up*.15f-outward.normalized*.6f,480,300));
+                var leaf=Leaf(gate.Gate);var mid=(gate.StakeLeft+gate.StakeRight)*.5f;var gap=leaf-mid;gap.y=0;float ahead=Vector3.Dot(gap,gate.Inward);
+                if(ahead>.4f && ahead<1.2f)atGate++;else Check(false,farm.identity+": gate wire "+ahead.ToString("0.00")+" m in front of the gate");
+                closedGates.Add((gate.Gate,leaf,gate.Inward,mid));
+            }
+            if(coop!=null)atCoop++;
+            foreach(var w in new[]{gate,coop})
+            {
+                if(w==null){sheet.Add(new Texture2D(480,300,TextureFormat.RGB24,false));continue;}
+                var mid=(w.StakeLeft+w.StakeRight)*.5f;var side=Vector3.Cross(Vector3.up,w.Inward);
+                sheet.Add(Shot(mid-w.Inward*3.0f+side*1.4f+Vector3.up*1.5f,mid+w.Inward*.6f+Vector3.up*.25f,480,300));
             }
         }
+        Check(atGate==farms && atCoop==farms,"Every farm has a wire just outside its gate and one across its coop door (gate "+atGate+"/"+farms+", coop "+atCoop+"/"+farms+")");
         var all=new Texture2D(480*4,300*((sheet.Count+3)/4),TextureFormat.RGB24,false);
         for(int i=0;i<sheet.Count;i++){all.SetPixels(480*(i%4),all.height-300*(i/4+1),480,300,sheet[i].GetPixels());Object.DestroyImmediate(sheet[i]);}
         all.Apply();File.WriteAllBytes(Folder+"/wires-all-farms.png",all.EncodeToPNG());Object.DestroyImmediate(all);
+        var first=Object.FindObjectsByType<FarmLayoutInfo>().OrderBy(f=>f.identity).First().GetComponentsInChildren<TrapSystem>().OrderBy(x=>x.name).ToArray();
+        foreach(var w in first)
+        {
+            var mid=(w.StakeLeft+w.StakeRight)*.5f;var side=Vector3.Cross(Vector3.up,w.Inward);
+            var t=Shot(mid-w.Inward*1.2f+side*.5f+Vector3.up*.65f,mid+Vector3.up*.18f,960,540);File.WriteAllBytes(Folder+"/wire-close-"+(w.Gate!=null?"gate":"coop")+".png",t.EncodeToPNG());Object.DestroyImmediate(t);
+        }
     }
+    static readonly List<(RuralGate gate,Vector3 leaf,Vector3 inward,Vector3 wire)> closedGates=new List<(RuralGate,Vector3,Vector3,Vector3)>();
+    static Vector3 Leaf(RuralGate gate){var rs=gate.GetComponentsInChildren<Renderer>(true);var b=rs[0].bounds;foreach(var r in rs)b.Encapsulate(r.bounds);return b.center;}
     static float Height(Vector3 p)
     {
         float best=float.PositiveInfinity,y=p.y;

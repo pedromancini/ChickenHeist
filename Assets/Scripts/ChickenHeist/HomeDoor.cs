@@ -2,13 +2,16 @@ using UnityEngine;
 
 public class HomeDoor : MonoBehaviour
 {
+    // The front door opens into the house (negative turn), as front doors do; past 76 degrees it would meet the wall
+    // beside it. It used to open out across the porch. The opening cinematic uses the same swing.
+    public const float OpenAngle=-76f;
     public Transform hinge;
     public Collider doorCollider;
     public bool opened;
     float angle;
     public void RestoreOpen(bool value)
     {
-        opened=value;angle=value?100:0;
+        opened=value;angle=value?OpenAngle:0;
         hinge.localRotation=Quaternion.Euler(0,angle,0);doorCollider.enabled=true;
     }
     void Update()
@@ -23,8 +26,8 @@ public class HomeDoor : MonoBehaviour
                 game.ShowMessage("Afaste-se da passagem para fechar a porta.");
             else opened=!opened;
         }
-        angle=Mathf.MoveTowards(angle,opened?100:0,Time.deltaTime*150);
+        angle=Mathf.MoveTowards(angle,opened?OpenAngle:0,Time.deltaTime*150);
         hinge.localRotation=Quaternion.Euler(0,angle,0);
-        doorCollider.enabled=Mathf.Abs(angle-(opened?100:0))<.1f;
+        doorCollider.enabled=Mathf.Abs(angle-(opened?OpenAngle:0))<.1f;
     }
 }

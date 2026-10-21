@@ -190,14 +190,13 @@ public class ProtagonistPhone : MonoBehaviour
             GUILayout.Label("R$ "+account.balance+",00 disponíveis",new GUIStyle(heading){normal={textColor=UITheme.Accent}});GUILayout.Space(6);
             for(int i=0;i<HouseholdAccount.ProductCount;i++)
             {
+                if(!HouseholdAccount.OnSale(i))continue;
                 GUILayout.BeginVertical(card);
                 GUILayout.BeginHorizontal();
                 GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
                 GUILayout.Label(HouseholdAccount.ProductName(i),rowTitle);
                 GUILayout.Label("R$ "+HouseholdAccount.ProductPrice(i)+",00",new GUIStyle(body){font=UITheme.BodyBold,wordWrap=false,normal={textColor=UITheme.Accent}});
-                if(i==3)GUILayout.Label("Maior tolerância de pressão  ·  equipamento permanente",rowText);
-                if(i==4)GUILayout.Label("3 aplicações  ·  60 s por câmera",rowText);
-                if(i==5)GUILayout.Label("2 galinhas por gaiola  ·  "+account.truckCages+"/4 instaladas  ·  máximo 8 galinhas",rowText);
+                GUILayout.Label(account.ProductDetail(i),rowText);
                 GUILayout.EndVertical();GUILayout.FlexibleSpace();
                 GUI.enabled=economy!=null && economy.Ready && account.CanBuy(i);
                 bool owned=account.OwnsUniqueProduct(i);

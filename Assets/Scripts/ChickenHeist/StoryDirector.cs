@@ -11,6 +11,8 @@ public class StoryDirector : MonoBehaviour
     public static StoryDirector Instance {get;private set;}
 
     public static bool Active=>Instance!=null && Instance.running;
+    // room left under the subtitle as last drawn (pixels; below zero it ran off the screen), for the reviews
+    public static float SubtitleSpare {get;private set;}
 
     public bool running {get;private set;}
 
@@ -233,15 +235,24 @@ public class StoryDirector : MonoBehaviour
 
         GUI.color=vision?new Color(.08f,.04f,.03f,.30f):new Color(0,0,0,.1f);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);
 
-        GUI.color=Color.black;GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height*(vision?.10f:.08f)),Texture2D.whiteTexture);GUI.DrawTexture(new Rect(0,Screen.height*(vision?.78f:.82f),Screen.width,Screen.height*(vision?.22f:.18f)),Texture2D.whiteTexture);
-
-        GUI.color=Color.white;GUI.skin=UITheme.Skin;
+        GUI.skin=UITheme.Skin;
         var style=new GUIStyle(UITheme.Style("body")){fontSize=Mathf.Clamp(Screen.height/34,17,32),wordWrap=true,alignment=TextAnchor.UpperCenter};
-        if(!string.IsNullOrEmpty(Texts[line]))
+        // The line as it wraps at this width: on a narrow or short screen a long one needs more lines than the bar holds,
+        // so it moves up, and the bar with it, instead of running off the bottom of the screen.
+        string said=Texts[line];float top=Screen.height*(vision?.80f:.835f),barTop=Screen.height*(vision?.78f:.82f),needed=0;
+        if(!string.IsNullOrEmpty(said))
         {
-            float top=Screen.height*(vision?.80f:.835f);
+            needed=style.CalcHeight(new GUIContent(said),Screen.width*.8f);
+            float room=Screen.height-UITheme.Size(12)-(top+UITheme.Size(24));
+            if(needed>room){top-=needed-room;barTop=Mathf.Min(barTop,top-UITheme.Size(10));}
+        }
+        SubtitleSpare=Screen.height-(top+UITheme.Size(24)+needed);
+        GUI.color=Color.black;GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height*(vision?.10f:.08f)),Texture2D.whiteTexture);GUI.DrawTexture(new Rect(0,barTop,Screen.width,Screen.height-barTop),Texture2D.whiteTexture);
+        GUI.color=Color.white;
+        if(!string.IsNullOrEmpty(said))
+        {
             GUI.Label(new Rect(Screen.width*.1f,top,Screen.width*.8f,UITheme.Size(24)),Speakers[line].ToUpperInvariant(),new GUIStyle(UITheme.Style("caption")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(15),normal={textColor=UITheme.Accent}});
-            UITheme.Shadowed(new Rect(Screen.width*.1f,top+UITheme.Size(24),Screen.width*.8f,Screen.height*.11f),Texts[line],style);
+            UITheme.Shadowed(new Rect(Screen.width*.1f,top+UITheme.Size(24),Screen.width*.8f,needed+UITheme.Size(4)),said,style);
         }
         if(!vision && line==0)UITheme.Shadowed(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.6f,UITheme.Size(70)),"Uma entrega",new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(46)});
         var hint=new Rect(Screen.width-UITheme.Size(380),UITheme.Size(14),UITheme.Size(360),UITheme.Size(34));

@@ -97,6 +97,8 @@ public static class MocapBake
 
     static bool Humanoid(string path,bool clips)
     {
+        // the takes share the avatar made from their rest T-pose (EliasNativeInstall.ImportTake)
+        if(clips){EliasNativeInstall.ImportTake(path);return true;}
         var importer=(ModelImporter)AssetImporter.GetAtPath(path);
         if(importer.animationType!=ModelImporterAnimationType.Human || importer.avatarSetup!=ModelImporterAvatarSetup.CreateFromThisModel)
         {importer.animationType=ModelImporterAnimationType.Human;importer.avatarSetup=ModelImporterAvatarSetup.CreateFromThisModel;importer.SaveAndReimport();}

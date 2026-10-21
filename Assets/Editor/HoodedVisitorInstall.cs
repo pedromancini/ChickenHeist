@@ -30,7 +30,7 @@ public static class HoodedVisitorInstall
         if(!AssetDatabase.IsValidFolder(Clips.TrimEnd('/')))AssetDatabase.CreateFolder(Folder.TrimEnd('/'),"Clips");
         foreach(var kv in States)
         {
-            AssetDatabase.ImportAsset(Takes+"HumanM@"+kv.Value+".fbx",ImportAssetOptions.ForceSynchronousImport);
+            EliasNativeInstall.ImportTake(Takes+"HumanM@"+kv.Value+".fbx");
             var take=AssetDatabase.LoadAllAssetsAtPath(Takes+"HumanM@"+kv.Value+".fbx").OfType<AnimationClip>().First(c=>!c.name.StartsWith("__preview__"));
             var clip=EliasNativeInstall.Bake(kv.Key,avatar,(target,t)=>take.SampleAnimation(target,t),take.length,Clips+kv.Key+".anim",true,Model,Child,Rig);
             log.Add("baked "+kv.Key+" <- "+kv.Value+" ("+clip.length.ToString("0.00")+" s)");

@@ -160,6 +160,10 @@ public static class UITheme
     static int occupiedFrame=-1;
     static void Roll(){if(Time.frameCount==occupiedFrame)return;occupiedBefore.Clear();occupiedBefore.AddRange(occupied);occupied.Clear();occupiedFrame=Time.frameCount;}
     public static void Occupy(Rect r){Roll();if(!occupied.Contains(r))occupied.Add(r);}
+    // for the layout reviews: what is taken now, and where the last message went
+    public static Rect[] Occupied{get{Roll();var all=new System.Collections.Generic.List<Rect>(occupied);all.AddRange(occupiedBefore);return all.ToArray();}}
+    public static Rect LastToast {get;private set;}
+    public static int LastToastFrame {get;private set;}=-1;
     // "[E] Abrir porta" prompt centred on x at height y; returns its rect.
     public static Rect KeyPrompt(float centreX,float y,string key,string action)
     {
@@ -197,7 +201,17 @@ public static class UITheme
     {
         if(string.IsNullOrEmpty(text))return;
         var style=new GUIStyle(Style("body")){alignment=TextAnchor.MiddleCenter,fontSize=Size(18)};
-        float w=Mathf.Min(Screen.width*.6f,Size(760));float h=style.CalcHeight(new GUIContent(text),w-Size(40))+Size(22);
+        float w=Mathf.Min(Screen.width*.6f,Size(760));
+        // narrower between panels standing at the sides of the lower screen (the mission's route map on a 4:3 screen),
+        // so the message keeps its place at the bottom instead of running under them
+        Roll();float centre=Screen.width*.5f;
+        foreach(var list in new[]{occupied,occupiedBefore})foreach(var o in list)
+        {
+            if(o.yMax<Screen.height*.55f)continue;
+            if(o.x>centre+Screen.width*.15f)w=Mathf.Min(w,(o.x-Size(12)-centre)*2);
+            else if(o.xMax<centre-Screen.width*.15f)w=Mathf.Min(w,(centre-o.xMax-Size(12))*2);
+        }
+        w=Mathf.Max(w,Size(320));float h=style.CalcHeight(new GUIContent(text),w-Size(40))+Size(22);
         var r=new Rect((Screen.width-w)*.5f,Screen.height-h-Size(96),w,h);
         // above whatever key bar or prompt is in the way
         Roll();bool moved=true;
@@ -207,7 +221,7 @@ public static class UITheme
             foreach(var list in new[]{occupied,occupiedBefore})foreach(var o in list)
                 if(o.xMax>r.x && o.x<r.xMax && o.yMax+Size(8)>r.y && o.y<r.yMax+Size(8)){r.y=o.y-h-Size(10);moved=true;}
         }
-        r.y=Mathf.Max(r.y,Screen.height*.12f);
+        r.y=Mathf.Max(r.y,Screen.height*.12f);LastToast=r;LastToastFrame=Time.frameCount;
         var old=GUI.color;GUI.color=new Color(1,1,1,alpha);Panel(r,PanelSoft);GUI.Label(new Rect(r.x+Size(20),r.y,r.width-Size(40),r.height),text,style);GUI.color=old;
     }
 }

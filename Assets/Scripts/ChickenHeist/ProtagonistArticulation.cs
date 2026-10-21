@@ -10,7 +10,7 @@ public sealed class ProtagonistArticulation : MonoBehaviour
     public float HeadPitch {get;private set;}
     public float ContactError {get;private set;}
     public string ActionState {get;private set;}="Idle";
-    Transform player,head,neck;
+    Transform player,head,neck,chest;
     float groundOffset;
     PlayerMovement movement;
     HandheldPhone phone;
@@ -32,7 +32,7 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         var names=new[]{"UpperArmL","ForearmL","HandL","UpperArmR","ForearmR","HandR"};
         foreach(var b in GetComponentsInChildren<Transform>())
         {
-            if(b.name=="Head")head=b;if(b.name=="Neck")neck=b;
+            if(b.name=="Head")head=b;if(b.name=="Neck")neck=b;if(b.name=="Chest")chest=b;
             for(int i=0;i<names.Length;i++)if(b.name==names[i])arms[i]=b;
         }
         if(head==null || neck==null || System.Array.Exists(arms,b=>b==null)){enabled=false;return;}
@@ -72,9 +72,14 @@ public sealed class ProtagonistArticulation : MonoBehaviour
             if(delta.sqrMagnitude>.01f)player.rotation=Quaternion.Slerp(player.rotation,Quaternion.LookRotation(delta),1-Mathf.Exp(-8*Time.deltaTime));
         }
     }
+    // The punch's jolt of the view is an offset on top of PlayerLook's rotation. PlayerLook rewrites the view every frame
+    // it runs; when it does not (a menu, the cursor free), the last jolt is taken off first so it never adds up.
+    Quaternion viewKick=Quaternion.identity,viewWithKick=Quaternion.identity;
     void LateUpdate()
     {
         if(!initialized || eyes==null)return;
+        if(eyes.localRotation==viewWithKick)eyes.localRotation*=Quaternion.Inverse(viewKick);
+        viewKick=Quaternion.identity;
         float dt=GameMenu.BlocksInput?0:Time.deltaTime;
         var coop=ChickenCoopLockpick.Active;var truck=OldPickupTruck.Instance;
         if(coop!=null)
@@ -87,7 +92,10 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         bool ignition=OldPickupTruck.IsDriving && truck.ignition.Active;
         bool driving=OldPickupTruck.IsDriving;
         float target=player.eulerAngles.y;
+        // punching, the shoulders square up to where Elias looks (standing still, the body otherwise lags up to 45 degrees)
+        bool punching=PlayerPunch.Instance!=null && PlayerPunch.Instance.Punching;
         if(driving || coop!=null)bodyYaw=target;
+        else if(punching)bodyYaw=Mathf.MoveTowardsAngle(bodyYaw,target,720*dt);
         else if(movement.estaMovendo || Mathf.Abs(Mathf.DeltaAngle(bodyYaw,target))>45)
             bodyYaw=Mathf.SmoothDampAngle(bodyYaw,target,ref yawVelocity,.16f,360,dt);
         transform.rotation=driving?player.rotation:Quaternion.Euler(0,bodyYaw,0);
@@ -118,13 +126,18 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         }
         else if(punch!=null && punch.Punching)
         {
-            // a right jab: the fist comes from beside the chin, out along the line of sight, palm down, and back
-            float e=punch.Extension;Vector3 look=eyes.forward;
-            float out_=Mathf.Max(0,e),back=Mathf.Min(0,e);
-            Vector3 contact=eyes.position+look*(.34f+.32f*out_+.08f*back)+eyes.right*(.20f-.16f*out_)-eyes.up*(.13f-.07f*out_);
-            Reach(1,contact,-eyes.up,look,Mathf.Clamp01(Mathf.Abs(e)*3));
-            // the head follows the blow a little (PlayerLook sets the view again next frame)
-            eyes.localRotation*=Quaternion.Euler(1.6f*out_,-1.2f*out_,0);
+            // a right jab from a guard (PlayerPunch gives the fists in eye space): the chest turns the right shoulder
+            // into the blow, the left fist guards the chin, the right one snaps out along the line of sight, palm down
+            float w=punch.ArmWeight,e=punch.Extension;
+            if(chest!=null){Remember(chest);chest.rotation=Quaternion.AngleAxis(-16*punch.Twist*w,transform.up)*chest.rotation;}
+            Vector3 Eye(Vector3 v)=>eyes.position+eyes.right*v.x+eyes.up*v.y+eyes.forward*v.z;
+            Reach(0,Eye(punch.LeftFist),eyes.right,(eyes.up*.55f+eyes.forward*.85f).normalized,w);
+            // the jab: the arm straightens from the shoulder towards the aim point, as far as it reaches
+            var shoulder=arms[3].position;float length=Vector3.Distance(arms[3].position,arms[4].position)+Vector3.Distance(arms[4].position,arms[5].position);
+            Vector3 aim=Eye(punch.JabAim);Vector3 jab=shoulder+(aim-shoulder).normalized*Mathf.Min(length*.97f,Vector3.Distance(aim,shoulder));
+            Reach(1,Vector3.Lerp(Eye(punch.RightBase),jab,e),-eyes.up,eyes.forward,w);
+            // the head follows the blow a little, and jolts when it lands
+            viewKick=Quaternion.Euler(1.4f*e+2.2f*punch.Kick,-1.1f*e,1.2f*punch.Kick);eyes.localRotation*=viewKick;viewWithKick=eyes.localRotation;
         }
         else if(ignition && !(phone!=null && phone.IsBusy))
         {

@@ -48,8 +48,17 @@ public class BackpackPanel : MonoBehaviour
             FindObjectsByType<ChickenCoopLockpick>().Any(c=>c.ChallengeActive))return false;
         if(game.backpack.chickensCarried>0){game.ShowMessage("Guarde a galinha na gaiola para liberar as maos.",2);return false;}
         var target=FindObjectsByType<SecurityCamera>().Where(c=>c.CanPaintNow())
-            .OrderBy(c=>(c.transform.position-Camera.main.transform.position).sqrMagnitude).FirstOrDefault();
-        if(target==null){game.ShowMessage("Nenhuma camera ao alcance da tinta.",2);return false;}
+            .OrderBy(c=>(c.PaintTarget-Camera.main.transform.position).sqrMagnitude).FirstOrDefault();
+        if(target==null)
+        {
+            // say what is missing for the nearest camera of this farm
+            var near=FindObjectsByType<SecurityCamera>().Where(c=>game.IsMissionTarget(c) && c.PaintSecondsRemaining<=0 && FarmSecurityProgression.Installed)
+                .OrderBy(c=>(c.PaintTarget-Camera.main.transform.position).sqrMagnitude).FirstOrDefault();
+            var why=near!=null && (near.PaintTarget-Camera.main.transform.position).magnitude<9?near.PaintCheck():SecurityCamera.PaintBlock.Unavailable;
+            game.ShowMessage(why==SecurityCamera.PaintBlock.TooFar?"Chegue mais perto da camera (ate 3 m).":why==SecurityCamera.PaintBlock.NotAimed?"Mire na camera para pintar a lente.":
+                why==SecurityCamera.PaintBlock.Obstructed?"Tem algo entre voce e a camera.":"Nenhuma camera ao alcance da tinta.",2.5f);
+            return false;
+        }
         return target.TryPaint();
     }
     public bool Equip(bool professional)

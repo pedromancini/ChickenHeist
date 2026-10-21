@@ -12,7 +12,14 @@ public class RuralGate : MonoBehaviour
         if(GameMenu.BlocksInput || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return;
         var game=HeistGameManager.Instance;if(game?.player==null || !WorldInteraction.Pressed(this))return;
         Ensure();if(Vector3.Distance(game.player.position+Vector3.up,hinge.InteractionPoint)>3.2f)return;
-        opened=!opened;hinge.SetOpen(opened,false,game.player.position);GameAudioMix.Instance?.PlayRecorded("gate_metal",hinge.InteractionPoint,.4f);NoiseEmitter.EmitGlobal(NoiseSource.FloorCreak,hinge.InteractionPoint);
+        Toggle(game.player.position);
+    }
+    // Opened or shut by someone standing at `from`: it swings away from them, or into the farm when an alarm wire runs
+    // across the way in just outside it (TrapSystem), so the leaf never sweeps through the wire.
+    public void Toggle(Vector3 from)
+    {
+        Ensure();opened=!opened;hinge.SetOpen(opened,false,TrapSystem.Guards(this)?(Vector3?)null:from);
+        GameAudioMix.Instance?.PlayRecorded("gate_metal",hinge.InteractionPoint,.4f);NoiseEmitter.EmitGlobal(NoiseSource.FloorCreak,hinge.InteractionPoint);
         MissionNavigation.Instance?.Refresh();
     }
 }

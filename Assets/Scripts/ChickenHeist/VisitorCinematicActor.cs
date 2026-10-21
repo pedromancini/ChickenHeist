@@ -16,6 +16,12 @@ public sealed class VisitorCinematicActor
     // the chest back and forth all through a conversation, as if the actors were swaying on their feet.
     const float TrunkSway=.22f;
     readonly int[] trunk;readonly Quaternion[] trunkCalm;readonly Transform hips;readonly Vector3 hipsCalm;
+    // Metres one cycle of each walk covers, and how far its pelvis comes up or down so that the foot on the floor
+    // stands where the feet stand at rest (the takes were captured on another body), both measured from the clips: the
+    // cycle follows the distance walked, so the foot on the floor stays where it was put down, and the feet neither
+    // float nor sink.
+    readonly struct Gait{public readonly float stride;public readonly Vector3 lift;public Gait(float stride,Vector3 lift){this.stride=stride;this.lift=lift;}}
+    readonly Gait walkGait,backGait;Vector3 walkHips;
     // The arms (shoulders to hands) keep an eighth of the idle and talk takes' gestures: the takes wave them about all
     // through a line, and against the other actor, the door or the porch posts that read as glitches.
     public static float ArmSway=.12f;
@@ -50,7 +56,10 @@ public sealed class VisitorCinematicActor
         head=Bone("Head");spine=Bone("Chest");leftHand=Bone("HandL");rightHand=Bone("HandR");
         bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];talkPose=new Quaternion[bones.Length];
         // the trunk's still pose: the idle take's first frame
-        idle.SampleAnimation(animation.gameObject,0);hips=Bone("Hips");hipsCalm=hips.localPosition;
+        hips=Bone("Hips");var toeL=Bone("ToeL");var toeR=Bone("ToeR");
+        idle.SampleAnimation(animation.gameObject,0);float standing=Mathf.Min(root.InverseTransformPoint(toeL.position).y,root.InverseTransformPoint(toeR.position).y);
+        walkGait=Measure(walk,toeL,toeR,standing);backGait=walkBack!=null?Measure(walkBack,toeL,toeR,standing):walkGait;
+        idle.SampleAnimation(animation.gameObject,0);hipsCalm=hips.localPosition;
         trunk=Enumerable.Range(0,bones.Length).Where(i=>new[]{"Hips","Spine","Spine2","Chest","Neck"}.Contains(bones[i].name)).ToArray();
         trunkCalm=trunk.Select(i=>bones[i].localRotation).ToArray();
         var armNames=new[]{"Shoulder","UpperArm","Forearm","ForearmTwist","Hand"}.SelectMany(n=>new[]{n+"L",n+"R"}).ToArray();
@@ -72,6 +81,33 @@ public sealed class VisitorCinematicActor
             knuckles[i]=n>0?sum/n:grips[i].FingersLocal*.08f;
         }
     }
+    Gait Measure(AnimationClip clip,Transform toeL,Transform toeR,float standing)
+    {
+        var (stride,planted)=Stride(clip,animation.gameObject,root,toeL,toeR);
+        return new Gait(stride,hips.parent.InverseTransformVector(root.up*(standing-planted)));
+    }
+    // Metres a walk take covers per cycle, and the height of a foot on the floor. Under the body a planted foot slides
+    // against the travel as far as the body moves on. Near the floor most steps are planted ones, so the way most of
+    // them go tells planted from swinging (walking backwards the toe goes down first and skims the floor as it swings).
+    public static (float stride,float planted) Stride(AnimationClip clip,GameObject animated,Transform frame,Transform toeL,Transform toeR)
+    {
+        const int n=24;var toes=new Vector3[2,n+1];
+        for(int i=0;i<=n;i++)
+        {
+            clip.SampleAnimation(animated,clip.length*i/n);
+            toes[0,i]=frame.InverseTransformPoint(toeL.position);toes[1,i]=frame.InverseTransformPoint(toeR.position);
+        }
+        var steps=new System.Collections.Generic.List<(Vector3 move,float height)>();
+        for(int s=0;s<2;s++)
+        {
+            float floor=float.PositiveInfinity;for(int i=0;i<=n;i++)floor=Mathf.Min(floor,toes[s,i].y);
+            for(int i=0;i<n;i++)if(toes[s,i].y<floor+.03f && toes[s,i+1].y<floor+.03f){var d=toes[s,i+1]-toes[s,i];d.y=0;steps.Add((d,(toes[s,i].y+toes[s,i+1].y)*.5f));}
+        }
+        var way=steps.Aggregate(Vector3.zero,(sum,x)=>sum+x.move.normalized);
+        var down=steps.Where(x=>Vector3.Dot(x.move,way)>0).ToList();
+        if(down.Count==0)return (1,0);
+        return (Mathf.Max(.3f,down.Average(x=>x.move.magnitude)*n),down.Select(x=>x.height).OrderBy(h=>h).ElementAt(down.Count/2));
+    }
     AnimationClip Clip(params string[] names){foreach(var n in names){var c=animation.GetClip(n);if(c!=null)return c;}return null;}
     Transform Bone(params string[] names)=>root.GetComponentsInChildren<Transform>(true).First(t=>names.Contains(t.name));
     // backward: stepping back (the backward walk take, shorter strides)
@@ -81,8 +117,9 @@ public sealed class VisitorCinematicActor
         if(moving)
         {
             var steps=backward?walkBack:walk;
-            steps.SampleAnimation(animation.gameObject,Mathf.Repeat(distance/(backward?.8f:1.05f),1)*steps.length);
-            for(int i=0;i<bones.Length;i++)walkPose[i]=bones[i].localRotation;
+            var gait=backward?backGait:walkGait;
+            steps.SampleAnimation(animation.gameObject,Mathf.Repeat(distance/gait.stride,1)*steps.length);
+            for(int i=0;i<bones.Length;i++)walkPose[i]=bones[i].localRotation;walkHips=hips.localPosition+gait.lift;
         }
         talkWeight=Mathf.MoveTowards(talkWeight,speaking && !moving && talk!=null?1:0,Time.deltaTime*2.2f);
         if(talkWeight>0)
@@ -95,7 +132,7 @@ public sealed class VisitorCinematicActor
         for(int k=0;k<trunk.Length;k++)bones[trunk[k]].localRotation=Quaternion.Slerp(trunkCalm[k],bones[trunk[k]].localRotation,TrunkSway);
         hips.localPosition=Vector3.Lerp(hipsCalm,hips.localPosition,TrunkSway);
         for(int k=0;k<armBones.Length;k++)bones[armBones[k]].localRotation=Quaternion.Slerp(armCalm[k],bones[armBones[k]].localRotation,ArmSway);
-        if(moving)for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,walkPose[i],walkWeight);
+        if(moving){for(int i=0;i<bones.Length;i++)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,walkPose[i],walkWeight);hips.localPosition=Vector3.Lerp(hips.localPosition,walkHips,walkWeight);}
         ContactError=0;WristLoad=0;Trace="";
         root.localPosition=position;root.localRotation=Quaternion.Euler(0,yaw,0);
         spine.rotation=Quaternion.AngleAxis(lean,root.right)*spine.rotation;

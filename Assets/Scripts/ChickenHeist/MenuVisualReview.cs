@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -77,9 +78,21 @@ public class MenuVisualReview : MonoBehaviour
         // a punch as the player sees it, at full reach
         {
             var look=HeistGameManager.Instance.player.GetComponentInChildren<PlayerLook>();if(look!=null)look.RestorePitch(0);
-            Check(PlayerPunch.Instance!=null && PlayerPunch.Instance.TryPunch(),"Left click punch starts in game");
-            yield return new WaitForSecondsRealtime(.18f);yield return new WaitForEndOfFrame();
-            var punch=ScreenCapture.CaptureScreenshotAsTexture();File.WriteAllBytes(Path.Combine(output,"07b-punch.png"),punch.EncodeToPNG());Destroy(punch);
+            // four moments of one punch, on the punch's own clock (the first frames of a build can be slow): drawn back
+            // with the guard up, the jab on its way, at full reach, coming back. The right wrist never comes within 18 cm
+            // of the camera, the knuckles some 8 cm further (the view moved 22 cm ahead after the arms were posed put it
+            // at 5 cm, the fist filling half the screen); the arm's reach keeps it at about 22 cm at full stretch.
+            foreach(var (label,at) in new[]{("a",.16f),("b",.32f),("c",.50f),("d",.76f)})
+            {
+                yield return new WaitForSecondsRealtime(.8f);
+                Check(PlayerPunch.Instance!=null && PlayerPunch.Instance.TryPunch(),"Left click punch starts in game ("+label+")");
+                while(PlayerPunch.Instance.Progress<at)yield return null;
+                yield return new WaitForEndOfFrame();
+                var punch=ScreenCapture.CaptureScreenshotAsTexture();File.WriteAllBytes(Path.Combine(output,"07b-punch-"+label+".png"),punch.EncodeToPNG());Destroy(punch);
+                var eye=Camera.main.transform;var hand=HeistGameManager.Instance.player.GetComponentsInChildren<Transform>().First(t=>t.name=="HandR");
+                var fist=eye.InverseTransformPoint(hand.position);
+                Check(fist.magnitude>.18f,"Punch ("+label+", at "+PlayerPunch.Instance.Progress.ToString("0.00")+" of the swing) keeps the fist off the camera: wrist at "+fist.ToString("0.00")+" m in eye space");
+            }
             yield return new WaitForSecondsRealtime(.8f);
         }
         var inventoryAccount=JsonUtility.FromJson<HouseholdAccount>(JsonUtility.ToJson(HouseholdEconomy.Instance.Account));

@@ -11,6 +11,8 @@ public sealed class CoopPressureLatch
     public int Selected {get;private set;}
     public int NextPiece=>Completed<3?order[Completed]:-1;
     public float Travel(int piece)=>offsets[Mathf.Clamp(piece,0,2)];
+    // the pieces come free in a shuffled order: whether this one is free (not how many are)
+    public bool Released(int piece)=>Travel(piece)>=1;
     public float RequiredPressure=>Completed>=3?0:.27f+.17f*NextPiece+.035f*Completed+.12f*offsets[NextPiece];
     public bool HasSlack=>Selected==NextPiece;
     public float Tolerance(bool professional)=>professional?.095f:.062f;

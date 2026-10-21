@@ -27,9 +27,14 @@ public sealed class VisitorCinematicStage : MonoBehaviour
     AudioSource effects,eliasSteps,visitorSteps,room;AudioClip knock,footstep,creak,night;
     readonly System.Collections.Generic.HashSet<int> playedSounds=new System.Collections.Generic.HashSet<int>();
     Vector3 desk=new Vector3(-5.80f,1.43f,3.05f);
-    readonly Vector3 atDesk=new Vector3(-5.8f,.63f,3.70f),atDoor=new Vector3(-3.06f,.63f,2.62f),atPorch=new Vector3(-2.96f,.63f,1.73f);
-    // The door opens outwards across the porch (1.47 m wide): the visitor knocks from close, backs out of its swing
-    // while Elias comes, and steps up again once it is open, near enough to talk face to face.
+    readonly Vector3 atDesk=new Vector3(-5.8f,.63f,3.70f),atDoor=new Vector3(-3.06f,.63f,2.62f),atPorch=new Vector3(-2.96f,.63f,1.20f);
+    // The door opens into the house, as a front door does: Elias pulls it open stepping back to the latch side, out of
+    // its swing (aside), and later shuts it from inside. The visitor knocks from close, steps back while Elias comes,
+    // and once the door is open stands a metre out on the porch, the way a stranger at night keeps his distance (and
+    // far enough for the doorway to frame him without its jambs).
+    // (aside: 1.90 m from the hinge, clear of the 1.46 m leaf sweeping in, and off the line from the room to the porch
+    // so the opening shows the visitor beside him)
+    readonly Vector3 aside=new Vector3(-2.30f,.63f,3.20f);
     readonly Vector3 atKnock=new Vector3(-3.01f,.63f,1.76f),atWait=new Vector3(-2.86f,.63f,.83f),arrival=new Vector3(-3.3f,0,-4.3f),departure=new Vector3(-3.8f,0,-4.6f);
     public static VisitorCinematicStage Create(Transform home,Camera camera)
     {
@@ -88,6 +93,9 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         if(line==2){float back=Ease((localTime-.3f)/1.3f);vfrom=atKnock;vto=atWait;vp=Vector3.Lerp(atKnock,atWait,back);vmove=back>0 && back<1;vback=true;}
         if(line>=3 && line<=5)vp=atWait;
         if(line==6){float step=Ease((localTime-.2f)/1.3f);vfrom=atWait;vto=atPorch;vp=Vector3.Lerp(atWait,atPorch,step);vmove=step>0 && step<1;}
+        // pulling the door open he steps back to the latch side, out of its swing; then back into the doorway
+        if(line==5){float back=Ease((localTime-.8f)/1.3f);ep=Vector3.Lerp(atDoor,aside,back);emove=back>0 && back<1;eback=true;}
+        if(line==6){float step=Ease((localTime-.4f)/1.2f);ep=Vector3.Lerp(aside,atDoor,step);emove=step>0 && step<1;}
         if(line==1){float travel=Ease((localTime-1.2f)/(duration-1.2f));ep=Vector3.Lerp(atDesk,new Vector3(-4,.63f,3.9f),travel);eyaw=Mathf.Lerp(180,120,travel);emove=travel>0 && travel<1;}
         if(line==2){ep=Vector3.Lerp(new Vector3(-4,.63f,3.9f),atDoor,Ease(localTime/1.6f));eyaw=Mathf.Lerp(120,180,p);emove=localTime<1.6f;}
         if(line==28){float move=Ease((localTime-.85f)/(duration-.85f));vfrom=atPorch;vto=departure;vp=Vector3.Lerp(atPorch,departure,move);vyaw=Mathf.Lerp(0,188,Ease(localTime/.85f));vmove=localTime>.85f && move<1;}
@@ -96,10 +104,19 @@ public sealed class VisitorCinematicStage : MonoBehaviour
             vp=departure;visitor.gameObject.SetActive(false);ep=atDesk;
             if(line==29)
             {
-                // The door opens outwards: Elias steps out beside it, takes the inner lever with his left hand and
-                // walks back in pulling it shut behind him; then he goes back to the desk.
-                if(localTime<CloseGrab){float go=Ease(localTime/CloseGrab);ep=Vector3.Lerp(atDoor,Closing(76),go);eyaw=Mathf.LerpAngle(180,180+76,Ease((localTime-.5f)/.7f));emove=go<1;}
-                else if(localTime<CloseEnd){float a=DoorAngle(29,localTime);ep=Closing(a);eyaw=180+a;emove=localTime>ClosePull && a>.5f;eback=true;}
+                // The door stands open into the room: Elias walks round its edge to the inside of it, takes the inner
+                // lever with his left hand and pushes it shut, never stepping out of the house; then he goes back to
+                // the desk.
+                if(localTime<CloseGrab)
+                {
+                    float go=Ease(localTime/CloseGrab);var round=AroundDoor();var grab=Closing(DoorOpen);
+                    float first=Vector3.Distance(atDoor,round),route=first+Vector3.Distance(round,grab),along=go*route;
+                    ep=along<first?Vector3.Lerp(atDoor,round,along/first):Vector3.Lerp(round,grab,(along-first)/Mathf.Max(.01f,route-first));
+                    var heading=along<first?round-atDoor:grab-round;float walkYaw=Mathf.Atan2(heading.x,heading.z)*Mathf.Rad2Deg;
+                    eyaw=go<.85f?Mathf.LerpAngle(180,walkYaw,Ease(localTime/.4f)):Mathf.LerpAngle(walkYaw,180+DoorOpen,Ease((go-.85f)/.15f));emove=go<1;
+                }
+                // pushing it shut he walks forward with it, facing its inner side
+                else if(localTime<CloseEnd){float a=DoorAngle(29,localTime);ep=Closing(a);eyaw=180+a;emove=localTime>ClosePull && Mathf.Abs(a)>.5f;}
                 else
                 {
                     float move=Ease((localTime-CloseEnd-.3f)/(duration-CloseEnd-.3f));var from=Closing(0);ep=Vector3.Lerp(from,atDesk,move);
@@ -113,10 +130,12 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         if(vfrom!=vto)vdistance=Vector3.Distance(vfrom,vp);
         if(line==1)edistance=Vector3.Distance(atDesk,ep);
         if(line==2)edistance=Vector3.Distance(atDesk,new Vector3(-4,.63f,3.9f))+Vector3.Distance(new Vector3(-4,.63f,3.9f),ep);
-        if(line==29)edistance=localTime<CloseGrab?Vector3.Distance(atDoor,ep):localTime<CloseEnd?Vector3.Distance(Closing(76),ep):Vector3.Distance(Closing(0),ep);
-        ew=Mathf.Clamp01(edistance*6)*Mathf.Clamp01(Vector3.Distance(ep,line==1?new Vector3(-4,.63f,3.9f):line==2?atDoor:atDesk)*6);
+        if(line==29)edistance=localTime<CloseGrab?PathWalked(ep):localTime<CloseEnd?Vector3.Distance(Closing(DoorOpen),ep):Vector3.Distance(Closing(0),ep);
+        if(line==5)edistance=Vector3.Distance(atDoor,ep);
+        if(line==6 && ep!=atDoor)edistance=Vector3.Distance(aside,ep);
+        ew=Mathf.Clamp01(edistance*6)*Mathf.Clamp01(Vector3.Distance(ep,line==1?new Vector3(-4,.63f,3.9f):line==2 || line==6?atDoor:line==5?aside:line==29 && localTime<CloseGrab?Closing(DoorOpen):atDesk)*6);
         vw=Mathf.Clamp01(vdistance*5)*Mathf.Clamp01(Vector3.Distance(vp,Ground(vto))*5);
-        if(door!=null){float angle=line<5?0:line==5?Mathf.Lerp(0,76,Ease((localTime-.5f)/(duration-.8f))):line<29?76:line==29?DoorAngle(29,localTime):0;door.hinge.localRotation=Quaternion.Euler(0,angle,0);}
+        if(door!=null){float angle=line<5?0:line==5?Mathf.Lerp(0,DoorOpen,Ease((localTime-.5f)/(duration-.8f))):line<29?DoorOpen:line==29?DoorAngle(29,localTime):0;door.hinge.localRotation=Quaternion.Euler(0,angle,0);}
         // they look each other in the face; the visitor glances past Elias at the bill on the desk while he mentions it
         Vector3 egaze=line==0 || line>=29?desk:vp+Vector3.up*1.58f;
         Vector3 vgaze=line==6?desk:ep+Vector3.up*1.57f;
@@ -150,20 +169,38 @@ public sealed class VisitorCinematicStage : MonoBehaviour
             second.Knock(true,door.hinge.TransformPoint(knuckle),door.hinge.forward,raise);
         }
         // the left hand presses the inner lever and lets go once the door swings out of reach
-        if(line==5 && door!=null)first.Bar(false,door.hinge.TransformPoint(new Vector3(1.30f,1.06f,.10f)),door.hinge.right,-home.up,.018f,Ease(localTime/.45f)*(1-Ease((localTime-1.35f)/.45f)));
+        if(line==5 && door!=null)first.Bar(false,door.hinge.TransformPoint(new Vector3(1.30f,1.06f,.10f)),door.hinge.right,-home.up,.018f,Ease(localTime/.45f)*(1-Ease((localTime-.95f)/.4f)));
         // no tablet changes hands at the door: the visitor only promises it, in a box by the door the next morning
         // (TabletDeliveryBox)
         props.tablet.gameObject.SetActive(false);
-        // closing the door: the left hand on the inner lever while he pulls it shut
+        // closing the door: the left hand on the inner lever while he pushes it shut
         if(line==29 && door!=null)first.Bar(false,door.hinge.TransformPoint(new Vector3(1.30f,1.06f,.10f)),door.hinge.right,-home.up,.018f,Ease((localTime-.9f)/.35f)*(1-Ease((localTime-CloseEnd+.15f)/.3f)));
         first.Twist();second.Twist();
         Direct(camera,line,p,ep,vp);
         SoundEvents(line,localTime,emove,vmove,change,edistance,vdistance);
         previousLocal=localTime;
     }
-    // Shutting the door (line 29): Elias reaches the lever by CloseGrab, pulls from ClosePull, the door is shut at CloseEnd.
-    const float CloseGrab=1.2f,ClosePull=1.55f,CloseEnd=3.4f;
-    float DoorAngle(int line,float t)=>line==29?Mathf.Lerp(76,0,Ease((t-ClosePull)/(CloseEnd-ClosePull-.15f))):76;
+    // Shutting the door (line 29): Elias is at the lever, round the open door, by CloseGrab, pushes from ClosePull, the
+    // door is shut at CloseEnd.
+    public const float CloseGrab=2.1f,ClosePull=2.4f,CloseEnd=4.4f;
+    // How far the front door stands open into the room while they talk (negative: inwards; past 76 degrees it would
+    // meet the wall beside it). Opening out across the porch, its leaf stood right by the camera filming the visitor
+    // and filled a third of those shots, and shutting it Elias had to step out of the house.
+    public const float DoorOpen=HomeDoor.OpenAngle;
+    // the way round the open door's edge into the room, a little clear of it
+    Vector3 AroundDoor()
+    {
+        if(door==null)return atDoor;
+        var edge=home.InverseTransformPoint(door.hinge.parent.TransformPoint(door.hinge.localPosition+Quaternion.Euler(0,DoorOpen,0)*new Vector3(1.46f,0,0)));
+        var p=edge+new Vector3(.25f,0,.45f);p.y=atDoor.y;return p;
+    }
+    // how far along the way round the door Elias has walked (for his steps)
+    float PathWalked(Vector3 at)
+    {
+        var round=AroundDoor();float first=Vector3.Distance(atDoor,round);
+        return Vector3.Distance(atDoor,at)<=first+.01f && Vector3.Distance(at,round)>.02f?Vector3.Distance(atDoor,at):first+Vector3.Distance(round,at);
+    }
+    float DoorAngle(int line,float t)=>line==29?Mathf.Lerp(DoorOpen,0,Ease((t-ClosePull)/(CloseEnd-ClosePull-.15f))):DoorOpen;
     // Where Elias stands while the door is at `angle`: facing its inner face, his left shoulder half a metre in front of
     // the inner lever, on the floor. With the lever in front of his middle the left arm crossed his body and the forearm
     // sank into his belly.
@@ -184,21 +221,25 @@ public sealed class VisitorCinematicStage : MonoBehaviour
     {
         Vector3 from,target;float fov=46;
         // All dialogue coverage remains on the east side of the Elias/visitor axis.
-        // the desk from behind his left shoulder: him leaning on it, his head, the bill and the calculator
-        if(line==0){Shot=0;from=Vector3.Lerp(new Vector3(-4.62f,2.70f,4.35f),new Vector3(-4.80f,2.52f,4.16f),p);target=desk+new Vector3(0,.42f,.30f);fov=50;}
+        // the desk from in front of him, off to his left: him leaning on it, his face, both hands flat on it (the right on
+        // the bill), the bill and the calculator; from behind his shoulder his right hand was hidden by his back
+        if(line==0){Shot=0;from=Vector3.Lerp(new Vector3(-4.90f,2.55f,2.80f),new Vector3(-5.05f,2.42f,2.92f),p);target=desk+new Vector3(0,.32f,.22f);fov=50;}
         else if(line==1){Shot=1;from=new Vector3(-1.40f,2.32f,.30f)+Vector3.forward*p*.16f;target=new Vector3(-3.13f,1.80f,2.05f);fov=48;}
         // The door is still closed while the visitor answers, so this line is covered from the porch.
         // the door is still shut while the visitor answers: on the porch, in front of him, under the porch lamp
-        // line 5 too: the door is still swinging open between them, and from inside it hides him
-        else if(line==3 || line==5){Shot=11;from=new Vector3(-2.42f,1.95f,1.86f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.47f,0);fov=44;}
+        else if(line==3){Shot=11;from=new Vector3(-2.42f,1.95f,1.86f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.47f,0);fov=44;}
         // "Trabalho? A essa hora?" through the still shut door: over his right shoulder, the door in front of him
         else if(line==4){Shot=2;from=ep+new Vector3(.42f,EliasEye+.12f,.70f)+Vector3.back*p*.05f;target=ep+new Vector3(0,EliasEye-.25f,-.45f);fov=50;}
         else if(line==2 || line==7 || line==26)
         {Shot=2;from=line<5?new Vector3(-1.80f,2.12f,3.40f):new Vector3(-2.80f,2.10f,1.88f);target=ep+new Vector3(0,EliasEye-.05f,-.05f);fov=48;from+=Vector3.forward*p*.04f;}
+        // opening the door: from the room behind him, his left hand pulling the lever, the door swinging in towards the
+        // hinge side and the visitor showing in the doorway beside him once he steps aside (from the latch side the wall
+        // filled a third of the picture and he backed into the camera)
+        else if(line==5){Shot=12;from=Vector3.Lerp(new Vector3(-2.62f,2.26f,4.80f),new Vector3(-2.66f,2.24f,4.66f),p);target=new Vector3(-3.12f,1.56f,2.30f);fov=42;}
         // high over Elias' right shoulder, looking down through the doorway: the visitor's face above his shoulder, the
         // walls and the open door kept to the edges
         else if(line==10 || line==11 || line==15 || line==16 || line==18 || line==23 || line==24 || line==25)
-        {Shot=5;from=new Vector3(-2.66f,2.46f,3.12f)+new Vector3(-.04f,0,.05f)*p;target=new Vector3(-2.98f,2.02f,1.98f);fov=44;}
+        {Shot=5;from=new Vector3(-2.66f,2.46f,3.12f)+new Vector3(-.04f,0,.05f)*p;target=vp+new Vector3(-.02f,1.35f,.30f);fov=44;}
         // Elias in close-up from the porch side of the doorway, drifting a little across each line
         else if(VisitorOpeningDialogue.Speakers[line]=="Elias")
         {Shot=10;from=Vector3.Lerp(new Vector3(-2.80f,0,1.88f),new Vector3(-2.68f,0,1.97f),p)+Vector3.up*(ep.y+EliasEye-.28f);target=ep+Vector3.up*(EliasEye-.04f);fov=45;}
@@ -206,8 +247,9 @@ public sealed class VisitorCinematicStage : MonoBehaviour
         // from inside the room through the doorway: Elias on the porch, the door coming shut behind him
         else if(line==29){Shot=7;from=new Vector3(-2.62f,2.30f,4.85f)+Vector3.left*p*.35f;target=ep+Vector3.up*(EliasEye-.35f);fov=52;}
         else if(line==30){Shot=8;from=Vector3.Lerp(desk+new Vector3(.95f,1.45f,.95f),desk+new Vector3(.80f,1.25f,.85f),p);target=desk+new Vector3(.18f,.30f,.10f);fov=50;}
-        // the visitor, chest up, from the doorway: far enough for the hood and the mask to read, lit by the porch lamp
-        else{Shot=9;from=new Vector3(-2.74f,2.02f,2.58f)+Vector3.back*p*.05f;target=vp+new Vector3(0,1.46f,0);fov=line==14 || line==20?36:41;}
+        // the visitor, chest up, from the outer edge of the doorway: he stands a metre out on the porch, so the doorway's
+        // jambs stay beside and behind the camera and the door, open into the room, behind it; lit by the porch lamp
+        else{Shot=9;from=new Vector3(-2.74f,2.05f,2.00f)+Vector3.back*p*.03f;target=vp+new Vector3(.02f,1.44f,0);fov=line==14 || line==20?38:43;}
         camera.transform.SetPositionAndRotation(World(from),Quaternion.LookRotation(World(target)-World(from),home.up));camera.fieldOfView=fov;
     }
     Vector3 Ground(Vector3 position)

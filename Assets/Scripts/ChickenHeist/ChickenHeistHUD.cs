@@ -11,6 +11,8 @@ public class ChickenHeistHUD : MonoBehaviour
     void OnGUI()
     {
         var game=HeistGameManager.Instance;
+        // a cutscene has the screen to itself: a message still up from play went over its subtitles
+        if(StoryDirector.Active){messageAlpha=0;return;}
         if(game==null || GameMenu.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return;
         GUI.skin=UITheme.Skin;
         float s=UITheme.Scale;

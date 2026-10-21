@@ -36,13 +36,15 @@ Hoje todos os efeitos do jogo são sintetizados pelo próprio código, como sons
 | `latch_slip.wav` | Trinco escapando/emperrando (falha) | 0,3 s | Erro no minigame do trinco. |
 | `latch_scrape.wav` | Metal raspando de leve | 0,2–0,5 s, **loop** | Enquanto mexe no trinco. |
 | `creak.wav` | Portinhola/dobradiça pequena rangendo | ~0,7 s | Portinhola do galinheiro de casa. |
-| `wire_rattle.wav` | Tela/cerca de arame balançando | ~0,4 s | Esbarrar na cerca. |
+| `wire_rattle.wav` | Latas com pedrinhas chacoalhando num arame | ~0,6 s | Quando o Elias esbarra no fio de alarme (porteira e galinheiro). O arquivo atual é de tela de cerca balançando; vale regravar com latas. |
 | `camera_alert.wav` | Bipe eletrônico de alerta da câmera de segurança | ~0,3 s | Quando a câmera te vê. |
 | `spray.wav` | Lata de spray pintando | ~1,2 s | Pintar a lente da câmera. |
 | `sleep.wav` | Ronco do fazendeiro dormindo | ~1 s | Fazendeiro na cama. |
 | `wake.wav` | Fazendeiro acordando (resmungo, "hã?") | ~1 s | Quando ele acorda. |
 | `shotgun_blast.wav` | Tiro de espingarda (ao ar livre) | ~0,7 s | Fazendeiro atirando. |
 | `shotgun_reload.wav` | Recarga de espingarda (abrir, cartucho, fechar) | ~1,1 s | |
+| `punch_swing.wav` | Soco cortando o ar (um "fuuh" curto) | ~0,25 s | Cada soco do Elias (botão esquerdo). Hoje toca um som provisório. |
+| `punch_hit.wav` | Soco acertando alguém (pancada abafada, em roupa) | ~0,2 s | Quando o soco acerta o fazendeiro. Hoje toca um som provisório. |
 
 ### Passos e casa
 | Arquivo | O que é | Duração | Observação |

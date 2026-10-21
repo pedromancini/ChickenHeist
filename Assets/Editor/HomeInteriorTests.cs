@@ -57,7 +57,7 @@ public static class HomeInteriorTests
         var report=new List<string>();
         try
         {
-            door.hinge.localRotation=Quaternion.Euler(0,100,0);Physics.SyncTransforms();
+            door.hinge.localRotation=Quaternion.Euler(0,HomeDoor.OpenAngle,0);Physics.SyncTransforms();
             for(int i=0;i<100;i++)cc.Move(Vector3.forward*.04f);
             report.Add("After movement: "+root.InverseTransformPoint(probe.transform.position));
             for(float z=.8f;z<4.1f;z+=.2f)
@@ -137,7 +137,7 @@ public static class HomeInteriorTests
         float elapsed=now-started,delta=Mathf.Min(.1f,now-lastTick);lastTick=now;
         if(elapsed>1 && phase==0)
         {
-            if(Quaternion.Angle(home.GetComponentInChildren<HomeDoor>().hinge.localRotation,Quaternion.Euler(0,100,0))>1 && elapsed<8)return;
+            if(Quaternion.Angle(home.GetComponentInChildren<HomeDoor>().hinge.localRotation,Quaternion.Euler(0,HomeDoor.OpenAngle,0))>1 && elapsed<8)return;
             // Fixed movement increments isolate doorway clearance from editor frame rate.
             for(int step=0;step<100;step++)controller.Move(Vector3.forward*.04f);
             walking=true;started=now-4;

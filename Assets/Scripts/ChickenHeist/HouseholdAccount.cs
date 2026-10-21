@@ -30,7 +30,7 @@ public class HouseholdAccount
     public int EggIncome=>6+CoopLevel*2;
     public int FeedPortions=>5+CoopLevel;
     public int NextCoopBoards=>CoopLevel>=3?0:CoopLevel+1;
-    public string CoopBenefit=>CoopLevel==0?"Base: abrigo gasto":CoopLevel==1?"Estrutura reforcada | 6 porcoes por racao | R$ 8 por galinha alimentada":CoopLevel==2?"Cobertura e tela | 7 porcoes por racao | R$ 10 por galinha alimentada":"Ninhos e comedouro | 8 porcoes por racao | R$ 12 por galinha alimentada";
+    public string CoopBenefit=>(CoopLevel==0?"Base: abrigo gasto":CoopLevel==1?"Estrutura reforçada":CoopLevel==2?"Cobertura e tela":"Ninhos e comedouro")+"  ·  "+FeedPortions+" porções por ração  ·  R$ "+EggIncome+" por galinha alimentada";
     public bool professionalLockpick, professionalEquipped;
     public int paintUses;
     public int truckCages=1;
@@ -61,7 +61,17 @@ public class HouseholdAccount
     }
     public const int PaintUsesPerCan=3;
     public const int ProductCount=6;
-    public static string ProductName(int id)=>id==0?"Racao - 5 porcoes":id==1?"Kit de tabuas e pregos":id==2?"Mochila de ferramentas +3 slots":id==3?"Lockpick profissional":id==4?"Tinta spray - 3 usos":id==5?"Gaiola para caminhonete - 2 galinhas":"Produto invalido";
+    public static string ProductName(int id)=>id==0?"Ração de galinha":id==1?"Kit de tábuas e pregos":id==2?"Mochila de ferramentas +3 slots":id==3?"Lockpick profissional":id==4?"Tinta spray - 3 usos":id==5?"Gaiola para caminhonete - 2 galinhas":"Produto invalido";
+    // What a product does, for the shop lists (the tablet and the market). The feed is for the chickens at home: one
+    // bag fills their feeder with more portions as the coop gets better.
+    public string ProductDetail(int id)=>id==0?"Para as galinhas do sítio  ·  enche o comedouro com "+FeedPortions+" porções  ·  cada galinha alimentada rende R$ "+EggIncome+" em ovos"
+        :id==1?(CoopLevel<3?"Conserta e melhora o galinheiro do sítio  ·  o nível "+(CoopLevel+1)+" pede "+NextCoopBoards+(NextCoopBoards==1?" kit":" kits"):"O galinheiro já está completo (nível 3/3)")
+        :id==3?"Maior tolerância de pressão  ·  permanente  ·  equipe na mochila (B)"
+        :id==4?"3 aplicações  ·  60 s por câmera"
+        :id==5?"2 galinhas por gaiola  ·  "+truckCages+"/4 instaladas  ·  máximo 8 galinhas":"";
+    // The tool backpack's extra slots hold nothing yet (five kinds of item fit the six slots it starts with): it is not
+    // offered until it does something.
+    public static bool OnSale(int id)=>id!=2;
     public static int ProductPrice(int id)=>id==0?25:id==1?35:id==2?90:id==3?180:id==4?30:id==5?100:0;
     public bool OwnsUniqueProduct(int id)=>(id==2 && backpackUpgrade) || (id==3 && professionalLockpick);
     // The backpack is a one-time upgrade, not a disabled item.  The unique

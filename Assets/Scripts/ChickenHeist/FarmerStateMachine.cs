@@ -73,7 +73,11 @@ public class FarmerStateMachine : MonoBehaviour
         if(Activity==FarmerActivity.Stunned)
         {
             HasVisualContact=false;sleepSystem.SetVisualContact(false);
-            if(Stunned){Gravity();return;}
+            if(Stunned)
+            {
+                if(Time.time-stunnedAt<.25f && controller.enabled)controller.Move(knock*(Time.deltaTime/.25f));
+                Gravity();return;
+            }
             Activity=FarmerActivity.Investigating;lastKnown=player.position;memoryUntil=Time.time+18;
         }
         if(Activity==FarmerActivity.Sleeping)
@@ -128,11 +132,14 @@ public class FarmerStateMachine : MonoBehaviour
         AimPoint=Vector3.MoveTowards(AimPoint,target,TrackSpeed(distance)*Time.deltaTime);
     }
     // A punch (PlayerPunch) staggers an awake farmer: no moving and no shooting for `seconds`. Asleep he is in bed.
-    public bool Stun(float seconds)
+    public bool Stun(float seconds)=>Stun(seconds,Vector3.zero);
+    // `push`: how far the blow knocks him back (metres, horizontal), spread over a quarter of a second
+    public bool Stun(float seconds,Vector3 push)
     {
         if(Activity==FarmerActivity.Sleeping || Activity==FarmerActivity.Waking || !float.IsFinite(seconds) || seconds<=0)return false;
-        stunnedUntil=Time.time+seconds;Activity=FarmerActivity.Stunned;HasVisualContact=false;return true;
+        stunnedUntil=Time.time+seconds;stunnedAt=Time.time;knock=new Vector3(push.x,0,push.z);Activity=FarmerActivity.Stunned;HasVisualContact=false;return true;
     }
+    float stunnedAt;Vector3 knock;
     Vector3 PlayerTarget=>player.position+Vector3.up*(player.GetComponent<PlayerMovement>()?.estaAgachado==true?.65f:1.35f);
     public bool CanSeePlayer()
     {

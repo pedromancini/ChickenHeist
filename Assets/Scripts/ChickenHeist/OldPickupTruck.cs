@@ -92,6 +92,13 @@ public class OldPickupTruck : MonoBehaviour
     {
         if(Player==null)return;
         driving=false;ignition.StopEngine();vehicle.SetInput(0,0,true,false);Player.position=position;
+        // Driving, Elias takes the truck's whole rotation, its tilt on a slope included: he gets out standing upright,
+        // turned to where he was looking, with his head level (the view was left rolled and turned before).
+        var look=Player.GetComponentInChildren<PlayerLook>();
+        Vector3 view=look!=null?look.transform.forward:Player.forward;view.y=0;
+        if(view.sqrMagnitude<.001f){view=transform.forward;view.y=0;}
+        Player.rotation=Quaternion.LookRotation(view.normalized,Vector3.up);
+        look?.RestorePitch(0);
         Player.GetComponent<CharacterController>().enabled=true;Player.GetComponent<PlayerMovement>().enabled=movementEnabled;
     }
     public bool LoadOne()

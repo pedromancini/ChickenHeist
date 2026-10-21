@@ -11,7 +11,7 @@ public class VillageMarket : MonoBehaviour
     public bool PlayerInRange => counter!=null && HeistGameManager.Instance?.player!=null
         && Vector3.Distance(HeistGameManager.Instance.player.position+Vector3.up,counter.position)<range;
     bool ownsPanel;
-    int quantity=1,tab;
+    int quantity=1,tab;Vector2 supplies;
     bool backpack=true;
     string feedback="Pago R$ 45 por galinha. Sem perguntas.";
     CursorLockMode previousLock;bool previousCursor;
@@ -56,7 +56,8 @@ public class VillageMarket : MonoBehaviour
         var economy=HouseholdEconomy.Instance;if(economy==null)return;
         GUI.skin=UITheme.Skin;
         var label=UITheme.Style("body");var caption=UITheme.Style("caption");var button=UITheme.Skin.button;var tabStyle=UITheme.Style("tab");var primary=UITheme.Style("primary");
-        float w=Mathf.Min(UITheme.Size(640),Screen.width-UITheme.Size(40)),h=Mathf.Min(UITheme.Size(600),Screen.height-UITheme.Size(40));
+        // the supplies list (each product with a line on what it does) gets a taller panel
+        float w=Mathf.Min(UITheme.Size(640),Screen.width-UITheme.Size(40)),h=Mathf.Min(UITheme.Size(tab==1?680:600),Screen.height-UITheme.Size(40));
         var panel=new Rect((Screen.width-w)*.5f,(Screen.height-h)*.5f,w,h);
         UITheme.Panel(panel,UITheme.PanelFill,UITheme.Edge,16);
         float pad=UITheme.Size(28);
@@ -95,17 +96,24 @@ public class VillageMarket : MonoBehaviour
         }
         else
         {
+            // each product with what it does under its name; the list scrolls when the screen is short
+            float textWidth=panel.width-pad*2-UITheme.Size(236);
+            supplies=GUILayout.BeginScrollView(supplies,GUILayout.ExpandHeight(true));
             for(int i=0;i<HouseholdAccount.ProductCount;i++)
             {
-                if(i==2)continue;
+                if(!HouseholdAccount.OnSale(i))continue;
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(HouseholdAccount.ProductName(i),new GUIStyle(label){alignment=TextAnchor.MiddleLeft},GUILayout.Height(UITheme.Size(44)));GUILayout.FlexibleSpace();
+                GUILayout.BeginVertical(GUILayout.Width(textWidth));
+                GUILayout.Label(HouseholdAccount.ProductName(i),new GUIStyle(label){alignment=TextAnchor.MiddleLeft,wordWrap=true});
+                GUILayout.Label(economy.Account.ProductDetail(i),new GUIStyle(UITheme.Style("small")){wordWrap=true});
+                GUILayout.EndVertical();GUILayout.FlexibleSpace();
                 GUILayout.Label("R$ "+HouseholdAccount.ProductPrice(i),new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.MiddleRight,normal={textColor=UITheme.Accent}},GUILayout.Height(UITheme.Size(44)));GUILayout.Space(UITheme.Size(12));
                 GUI.enabled=economy.Ready && economy.Account.CanBuy(i);
                 if(GUILayout.Button("Comprar",button,GUILayout.Width(UITheme.Size(120)),GUILayout.Height(UITheme.Size(44)))){economy.Buy(i);feedback=economy.Message;merchant?.Gesture();}
                 GUI.enabled=true;
-                GUILayout.EndHorizontal();
+                GUILayout.EndHorizontal();GUILayout.Space(UITheme.Size(10));
             }
+            GUILayout.EndScrollView();
         }
         GUILayout.FlexibleSpace();GUILayout.Label(feedback,UITheme.Style("small"));
         GUILayout.EndArea();

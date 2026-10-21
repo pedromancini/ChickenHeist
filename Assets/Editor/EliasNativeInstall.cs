@@ -37,7 +37,7 @@ public static class EliasNativeInstall
     {
         var log=new List<string>();
         Import(Model,ModelImporterAnimationType.Legacy);Import(HumanoidCopy,ModelImporterAnimationType.Human);
-        foreach(var take in Captured.Values)Import(Takes+"HumanM@"+take+".fbx",ModelImporterAnimationType.Human);
+        foreach(var take in Captured.Values)ImportTake(Takes+"HumanM@"+take+".fbx");
         var avatar=Avatar(HumanoidCopy);var oldAvatar=Avatar(OldHumanoid);
         if(avatar==null || oldAvatar==null)throw new InvalidOperationException("Humanoid avatars missing");
         var clips=new Dictionary<string,AnimationClip>();
@@ -277,6 +277,39 @@ public static class EliasNativeInstall
         if(type==ModelImporterAnimationType.Human && importer.avatarSetup!=ModelImporterAvatarSetup.CreateFromThisModel){importer.avatarSetup=ModelImporterAvatarSetup.CreateFromThisModel;dirty=true;}
         if(path==Model && (importer.importAnimation || !importer.isReadable)){importer.importAnimation=false;importer.isReadable=true;dirty=true;}
         if(dirty)importer.SaveAndReimport();
+    }
+    // The takes keep the character's T-pose only as the armature's rest pose: each file's nodes default to that take's
+    // first frame, and an avatar made from a take treats that frame as its T-pose. Retargeted, the legs carried the
+    // difference as a constant offset per take (a foot rolled onto its edge and turned inwards walking backwards, one
+    // foot on tiptoe while the other hovered walking forwards). Every take converts through one avatar made from the
+    // rest pose instead (HumanM_TPose.fbx, exported by Tools/SourceArt/HumanBasicMotions/export_tpose.py).
+    internal const string TakeAvatarModel=Takes+"HumanM_TPose.fbx";
+    internal static void ImportTake(string path)
+    {
+        AssetDatabase.ImportAsset(TakeAvatarModel,ImportAssetOptions.ForceSynchronousImport);
+        var model=(ModelImporter)AssetImporter.GetAtPath(TakeAvatarModel);
+        if(model.animationType!=ModelImporterAnimationType.Human || model.avatarSetup!=ModelImporterAvatarSetup.CreateFromThisModel || model.importAnimation)
+        {model.animationType=ModelImporterAnimationType.Human;model.avatarSetup=ModelImporterAvatarSetup.CreateFromThisModel;model.importAnimation=false;model.SaveAndReimport();}
+        var avatar=Avatar(TakeAvatarModel);if(avatar==null)throw new InvalidOperationException("No humanoid avatar in "+TakeAvatarModel);
+        AssetDatabase.ImportAsset(path,ImportAssetOptions.ForceSynchronousImport);
+        var importer=(ModelImporter)AssetImporter.GetAtPath(path);
+        if(importer.animationType!=ModelImporterAnimationType.Human || importer.avatarSetup!=ModelImporterAvatarSetup.CopyFromOther || importer.sourceAvatar!=avatar)
+        {importer.animationType=ModelImporterAnimationType.Human;importer.avatarSetup=ModelImporterAvatarSetup.CopyFromOther;importer.sourceAvatar=avatar;importer.SaveAndReimport();}
+    }
+    // Bakes the captured walks and runs again, in place, through the takes' shared avatar, then grounds them again.
+    // Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EliasNativeInstall.RebakeLocomotion
+    public static void RebakeLocomotion()
+    {
+        var avatar=Avatar(HumanoidCopy);if(avatar==null)throw new InvalidOperationException("Humanoid avatar missing");
+        var log=new List<string>();
+        foreach(var kv in Captured.Where(c=>c.Key.StartsWith("Walk") || c.Key.StartsWith("Run")))
+        {
+            ImportTake(Takes+"HumanM@"+kv.Value+".fbx");var take=Take(kv.Value);
+            Bake(kv.Key,avatar,(target,t)=>take.SampleAnimation(target,t),take.length);log.Add(kv.Key+" <- "+kv.Value);
+        }
+        AssetDatabase.SaveAssets();
+        Debug.Log("ELIAS LOCOMOTION REBAKED\n"+string.Join("\n",log));
+        ClipGrounding.Run();
     }
     internal static Avatar Avatar(string path){var a=AssetDatabase.LoadAllAssetsAtPath(path).OfType<Avatar>().FirstOrDefault();return a!=null && a.isHuman && a.isValid?a:null;}
     static AnimationClip Take(string take)=>AssetDatabase.LoadAllAssetsAtPath(Takes+"HumanM@"+take+".fbx").OfType<AnimationClip>().First(c=>!c.name.StartsWith("__preview__"));

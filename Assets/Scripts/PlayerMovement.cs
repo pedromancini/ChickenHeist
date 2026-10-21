@@ -26,6 +26,15 @@ public class PlayerMovement : MonoBehaviour
     const float JumpGrace=.15f;
     public static bool SprintToggle;bool sprintLatched;
     float lastGrounded=-1,jumpQueuedUntil;
+    // Off the ground the horizontal speed stays what it was at takeoff: Shift pressed in the air used to double it at
+    // once, a dash forward. Sprinting starts and stops only on the ground.
+    float airSpeed=-1;bool airSprint;
+    public float SpeedFor(bool grounded)
+    {
+        float speed=CurrentMoveSpeed;
+        if(grounded){airSpeed=speed;airSprint=estaSprinting;return speed;}
+        return airSpeed>=0?Mathf.Min(speed,airSpeed):speed;
+    }
 
     [Header("Agachar")]
     public float alturaEmPe = 2f;
@@ -85,9 +94,10 @@ public class PlayerMovement : MonoBehaviour
             if(!estaMovendo || estaAgachado)sprintLatched=false;
         }
         bool sprintKey=SprintToggle?sprintLatched:Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-        estaSprinting = sprintKey && !estaAgachado && estaMovendo;
+        bool grounded=groundedBeforeMove || controller.isGrounded;
+        estaSprinting = grounded ? sprintKey && !estaAgachado && estaMovendo : airSprint && estaMovendo;
         Vector3 movimento = transform.right * x + transform.forward * z;
-        movimento=Vector3.ClampMagnitude(movimento,1)*CurrentMoveSpeed*Time.deltaTime;
+        movimento=Vector3.ClampMagnitude(movimento,1)*SpeedFor(grounded)*Time.deltaTime;
         // While grounded, press into the ground so running downhill does not leave it every few frames.
         if(groundedBeforeMove && velocidadeVertical.y<=0)movimento.y=-controller.stepOffset;
         controller.Move(movimento);
@@ -106,7 +116,10 @@ public class PlayerMovement : MonoBehaviour
         float alturaAlvo = estaAgachado ? alturaAgachado : alturaEmPe;
         controller.height = Mathf.Lerp(controller.height, alturaAlvo, velocidadeAgachar * Time.deltaTime);
         controller.center=Vector3.up*(controller.height*.5f);
-        if(eyes!=null)eyes.localPosition=new Vector3(0,controller.height-.35f,0);
+        // the view's height follows the controller; how far forward it sits is PlayerFirstPersonView's (22 cm ahead of
+        // the shoulders). Zeroed here every frame, the arms posed from the view before that script runs (the punch,
+        // ProtagonistArticulation) came out 22 cm too close: the fist filled the screen.
+        if(eyes!=null)eyes.localPosition=new Vector3(0,controller.height-.35f,eyes.localPosition.z);
     }
 
     void HandleGravity()

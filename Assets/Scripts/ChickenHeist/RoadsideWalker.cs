@@ -15,6 +15,8 @@ public class RoadsideWalker : MonoBehaviour
     public bool IsWalking {get;private set;}
     public float DistanceWalked {get;private set;}
     public int Reversals {get;private set;}
+    // standing a while on purpose: at the end of an errand, at a junction (not held up by something in the way)
+    public bool Resting=>Time.time<waitUntil;
     public string LastObstacle {get;private set;}="";
     CharacterController controller;
     Vector3 home;int current=-1,previous=-1,target=-1;

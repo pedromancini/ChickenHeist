@@ -239,7 +239,8 @@ public class MissionNavigation : MonoBehaviour
         if(Game==null || !Game.MissionActive || Game.missionEnded || GameMenu.IsOpen || ChickenCoopLockpick.Active!=null || ChickenScare.Active!=null || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || roads==null)return;
         GUI.skin=UITheme.Skin;float s=UITheme.Scale;
         float size=Mathf.Min(UITheme.Size(230),Screen.width*.25f);Rect area=new Rect(Screen.width-size-UITheme.Size(28),Screen.height-size-UITheme.Size(84),size,size);
-        UITheme.Panel(new Rect(area.x-10*s,area.y-42*s,size+20*s,size+92*s),UITheme.PanelSoft);
+        // the route map's panel: messages keep clear of it (UITheme.Toast)
+        var panel=new Rect(area.x-10*s,area.y-42*s,size+20*s,size+92*s);UITheme.Panel(panel,UITheme.PanelSoft);UITheme.Occupy(panel);
         GUI.Label(new Rect(area.x,area.y-36*s,26*s,26*s),"N",UITheme.Style("key"));
         GUI.Label(new Rect(area.x+34*s,area.y-38*s,size-34*s,30*s),ReturningHome?"Voltar à fazenda":"Rota para o sítio",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleLeft,normal={textColor=UITheme.Ink}});
         mapSize=size;GUI.BeginGroup(area);Color previousColor=GUI.color;GUI.color=new Color(.06f,.10f,.10f,.94f);GUI.DrawTexture(new Rect(0,0,size,size),Texture2D.whiteTexture);GUI.color=previousColor;

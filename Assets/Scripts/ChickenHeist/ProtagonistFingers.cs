@@ -62,14 +62,13 @@ public sealed class ProtagonistFingers : MonoBehaviour
         {
             if(wheelGrip[f.right?1:0]>0){f.curl=0;continue;}
             string state=phone!=null && phone.IsBusy && f.right?"Phone":action.ActionState;
-            // the right hand closes into a fist for a punch
-            if(state=="Punch" && f.right)
+            // both hands close into fists for a punch
+            if(state=="Punch")
             {
                 float fist=PlayerPunch.Instance!=null?PlayerPunch.Instance.Fist:0;f.curl=(f.name=="Thumb"?40:88)*fist;
                 if(f.curl>.1f)f.bone.localRotation=Quaternion.Slerp(f.previous,f.rest*Quaternion.AngleAxis(f.spread,f.spreadAxis)*Quaternion.AngleAxis(f.curl,f.axis),Mathf.Clamp01(f.curl/12));
                 continue;
             }
-            if(state=="Punch")state="Idle";
             float angle=state=="Drive"?38:state=="Carry"?28:state=="Phone"?10:state=="Lockpick" || state=="Ignite"?24:0;
             if(f.name=="Thumb")angle*=.45f;
             if((state=="Lockpick" || state=="Ignite") && f.name=="Index")angle=18+Mathf.Sin(Time.time*5)*4;

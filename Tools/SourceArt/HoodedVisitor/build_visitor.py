@@ -482,6 +482,39 @@ for vi in mask_set:
     for g in [g.group for g in me.vertices[vi].groups]: ob.vertex_groups[g].remove([vi])
     for g in me.vertices[src].groups: ob.vertex_groups[g.group].add([vi], g.weight, 'REPLACE')
 log('face mask vertices weighted like the face under them', len(mask_set))
+# ---------------------------------------------------------------- low poly
+# The supplied mesh is dense and uneven (34 thousand small facets, like a scan): next to Elias' large flat facets it
+# read as another style. It is collapsed to about VISITOR_TRIS triangles (0 keeps it whole). The hands keep more of
+# theirs (the fingers fold round the tablet and knock in close-ups), and so does the band of the face between the mask
+# and the hood, where the eyes are. The modifier carries the skin weights and the UVs over.
+LOW_POLY = int(os.environ.get('VISITOR_TRIS', '11000'))
+def triangles(): return sum(len(p.vertices) - 2 for p in me.polygons)
+# the band of the face between the mask and the hood: the eyes and brows
+def in_eyes(p): return head_pivot.z + .02 < p.z < head_pivot.z + .13 and abs(p.x) < .08 and p.y < head_pivot.y - .02
+if LOW_POLY > 0 and triangles() > LOW_POLY:
+    detail = ob.vertex_groups.new(name='_detail')
+    hand_groups = {g.index for g in ob.vertex_groups if g.name.startswith('Hand') or any(g.name.startswith(f) for f in FINGERS)}
+    def in_hand(v): return sum(g.weight for g in v.groups if g.group in hand_groups) > .3
+    kept = [v.index for v in me.vertices if in_hand(v) or in_eyes(v.co)]
+    detail.add(kept, 1.0, 'REPLACE')
+    def region_tris():
+        ks = set(kept); return sum(len(p.vertices) - 2 for p in me.polygons if all(i in ks for i in p.vertices))
+    before, before_detail = triangles(), region_tris()
+    # in the collapse, a low weight makes an edge costly: the inverted group protects the hands and the eyes
+    mod = ob.modifiers.new('low poly', 'DECIMATE'); mod.decimate_type = 'COLLAPSE'; mod.use_collapse_triangulate = True
+    mod.ratio = LOW_POLY / before; mod.vertex_group = detail.name; mod.invert_vertex_group = True; mod.vertex_group_factor = 4
+    bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.modifier_apply(modifier=mod.name); me = ob.data
+    detail = ob.vertex_groups.get('_detail')
+    kept = [v.index for v in me.vertices if any(g.group == detail.index and g.weight > .5 for g in v.groups)]
+    log('low poly: triangles', before, '->', triangles(), '; hands and eyes', before_detail, '->', region_tris())
+    ob.vertex_groups.remove(detail)
+    # at most four influences, normalised, again (the collapse blends the weights of merged vertices)
+    for v in me.vertices:
+        gs = sorted(((g.group, g.weight) for g in v.groups), key=lambda x: -x[1])
+        keepg = gs[:4]; t = sum(w for _, w in keepg) or 1
+        for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
+        for g, w in keepg: ob.vertex_groups[g].add([v.index], w / t, 'REPLACE')
 for p_ in me.polygons: p_.use_smooth = False
 
 def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
@@ -501,7 +534,9 @@ def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
         if w <= 0: continue
         key.data[i].co = p.lerp(pivot + rot @ (p - pivot), w); moved += 1
     log(label, 'speech shape: vertices moving with the jaw', moved)
-speech_shape(ob, Vector((0, head_pivot.y, head_pivot.z + .01)), head_pivot.z - .017, 9, .08, head_pivot.z - .105, 'body')
+# the jaw drops 15 degrees at full voice: under the mask, 9 barely moved the cloth, and the close-ups of him talking frame
+# the mask
+speech_shape(ob, Vector((0, head_pivot.y, head_pivot.z + .01)), head_pivot.z - .017, 15, .08, head_pivot.z - .105, 'body')
 used = {x.group for v in me.vertices for x in v.groups}
 for g in [g for g in ob.vertex_groups if g.index not in used]: ob.vertex_groups.remove(g)
 log('triangles', sum(len(p.vertices) - 2 for p in me.polygons), 'vertices', len(me.vertices))
@@ -510,6 +545,8 @@ log('triangles', sum(len(p.vertices) - 2 for p in me.polygons), 'vertices', len(
 # the UV triangles, for pad_texture.py (fills the texture's gaps between islands with the islands' own colours)
 me.calc_loop_triangles(); uvd = me.uv_layers.active.data
 np.save(os.path.join(GEN, 'visitor_uv.npy'), np.array([[uvd[l].uv[:] for l in t.loops] for t in me.loop_triangles], dtype=np.float32))
+# and which of them lie in the band of the eyes (pad_texture.py keeps their drawing, in a few flat colours)
+np.save(os.path.join(GEN, 'visitor_eyes.npy'), np.array([in_eyes(sum((me.vertices[i].co for i in t.vertices), Vector()) / 3) for t in me.loop_triangles], dtype=bool))
 if EXPORT:
     bpy.ops.object.select_all(action='DESELECT')
     for o in (rig, ob): o.select_set(True)
