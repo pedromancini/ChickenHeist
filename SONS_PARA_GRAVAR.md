@@ -79,3 +79,7 @@ Hoje todos os efeitos do jogo são sintetizados pelo próprio código, como sons
 
 ## 3. Vozes (opcional)
 As falas da abertura hoje são só legendas, e a boca dos personagens se mexe pelo texto. Se quiser gravar as vozes, me avise: eu passo a lista das 30 falas com o nome de cada arquivo (`visitor_opening_00_elias.wav`, `visitor_opening_03_visitante.wav`…).
+
+A cutscene 2 ("O dia seguinte") também ficou só com legendas: as vozes antigas (`decline_01_joana.wav`…`decline_12_lia.wav`) eram do roteiro anterior e não são mais usadas. São 9 falas novas (Joana, Osvaldo, Bento e Elias); se quiser gravar, eu passo a lista.
+
+Sons novos que a cutscene 2 já usa se existirem: `day_ambience.wav` (manhã no campo, passarinhos, **loop** de 20–30 s, estéreo).

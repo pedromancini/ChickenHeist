@@ -58,7 +58,7 @@ public sealed class PlayerPunch : MonoBehaviour
     static float Ease(float x){x=Mathf.Clamp01(x);return 1-(1-x)*(1-x);}
     void Awake()
     {
-        Instance=this;
+        Instance=this;if(GetComponent<FirstPersonFist>()==null)gameObject.AddComponent<FirstPersonFist>();
         // on its own child: the effects bus gain (AudioBusGain) filters only this source
         var node=new GameObject("Som do soco");node.transform.SetParent(transform,false);node.AddComponent<AudioBusGain>();
         voice=node.AddComponent<AudioSource>();voice.playOnAwake=false;voice.spatialBlend=0;voice.volume=.5f;

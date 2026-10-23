@@ -17,6 +17,9 @@ public class RoadsideWalker : MonoBehaviour
     public int Reversals {get;private set;}
     // standing a while on purpose: at the end of an errand, at a junction (not held up by something in the way)
     public bool Resting=>Time.time<waitUntil;
+    // standing still for a reason: resting at the end of an errand (or just setting off from one), or giving way
+    public bool Pausing=>Time.time<waitUntil+1f || givingWay;
+    bool givingWay;
     public string LastObstacle {get;private set;}="";
     CharacterController controller;
     Vector3 home;int current=-1,previous=-1,target=-1;
@@ -43,7 +46,7 @@ public class RoadsideWalker : MonoBehaviour
         Vector3 before=transform.position;
         var player=HeistGameManager.Instance?.player;
         // Only stop when practically touching the player; otherwise walk around them.
-        bool giveWay=player!=null && (player.position-before).sqrMagnitude<.8f*.8f;
+        bool giveWay=givingWay=player!=null && (player.position-before).sqrMagnitude<.8f*.8f;
         if(Time.time<waitUntil || giveWay)
         {
             if(looking)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,lookYaw,0),Time.deltaTime*1.5f);

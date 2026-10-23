@@ -85,6 +85,27 @@ public sealed class CinematicPlaybackReview : MonoBehaviour
             yield return new WaitForSecondsRealtime(.2f);yield return new WaitForEndOfFrame();Capture("subtitles-"+size.x+"x"+size.y);
             director.Complete();yield return null;Check(Vector3.Distance(playerPosition,player.position)<.05f,"Replay preserves player position");
         }
+        // cutscene 2 ("O dia seguinte") in real time, as it comes the first night after a raid: every line rendered with
+        // its subtitle, played to its end, and the world put back
+        {
+            var farms=FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None);System.Array.Sort(farms,(x,y)=>x.layoutIndex.CompareTo(y.layoutIndex));
+            string robbed=farms[Mathf.Min(2,farms.Length-1)].identity;Screen.SetResolution(1280,800,false);yield return new WaitForSecondsRealtime(.5f);
+            economy.Commit(a=>{a.news=new List<FarmRaidNews>{new FarmRaidNews{farm=robbed,chickens=4,day=a.day}};a.pendingVision=true;return true;},"Review raid");
+            var ambient=RenderSettings.ambientLight;var view=Camera.main.rect;
+            Check(director.Begin(true),"Cutscene 2 starts after a raid");
+            var seen=new HashSet<int>();float end=Time.realtimeSinceStartup+120;var stage=FindAnyObjectByType<DeclineCinematicStage>();
+            Check(stage!=null && stage.Farm==robbed,"Cutscene 2 plays at the raided farm: "+(stage!=null?stage.Farm:"no stage"));
+            Check(director.LineText(4)=="Quatro.","Osvaldo counts the birds taken: "+director.LineText(4));
+            while(StoryDirector.Active && Time.realtimeSinceStartup<end)
+            {
+                int line=director.CurrentLine;
+                if(!seen.Contains(line) && (float)LineClock.GetValue(director)>director.LineDuration*.45f){seen.Add(line);yield return new WaitForEndOfFrame();Capture("vision-"+line.ToString("00"));}
+                yield return null;
+            }
+            Check(!StoryDirector.Active && seen.Count==StoryDialogue.declineText.Length,"Cutscene 2 plays through, every line on screen: "+seen.Count+"/"+StoryDialogue.declineText.Length);
+            yield return null;
+            Check(FindAnyObjectByType<DeclineCinematicStage>()==null && RenderSettings.ambientLight==ambient && Camera.main.rect==view,"After cutscene 2 the world, its light and the view are back");
+        }
         report.Add("Observed frames: "+frames+"; longest frame including image capture overhead: "+longest.ToString("F3")+"s. Not a performance benchmark.");File.WriteAllLines(Path.Combine(folder,"playback-checks.txt"),report);
         Application.Quit(failed?1:0);
     }

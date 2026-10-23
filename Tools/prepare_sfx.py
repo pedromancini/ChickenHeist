@@ -66,14 +66,9 @@ one_shot('door', longest=1.4); one_shot('door_creak', longest=2.6); one_shot('ca
 first_hit('knock', longest=.3); first_hit('sleep', longest=2.2); first_hit('wood', longest=.45)
 for key in ['engine', 'latch_scrape', 'chicken_walk']:
     x = mono(load(key)); s, e = active(x, 45); save(key, normalize(loop(x[s:e])))
-# the night: grains of the one-second take laid over each other into a 20 s stereo loop
-x = load('night_ambience'); rng = np.random.default_rng(3); n = 20 * SR; g = SR; out = np.zeros((n, 2)); win = np.hanning(g)
-for start in range(0, n, g // 2):
-    for c in range(2):
-        off = rng.integers(0, len(x)); grain = np.roll(x[:, c % x.shape[1]], -off)[:g]
-        if len(grain) < g: grain = np.pad(grain, (0, g - len(grain)))
-        seg = grain * win * rng.uniform(.8, 1.0); end = min(n, start + g); out[start:end, c] += seg[:end - start]
-save('night_ambience', normalize(loop(out, .5), -6))
+# the night is built by Tools/make_night_ambience.py (the one-second night take, stretched, read as a constant hiss)
+# the morning in the fields (cutscene 2's second scene): the 20 s take, its ends run into each other
+x = load('day_ambience'); s0, e0 = active(x, 50); save('day_ambience', normalize(loop(x[s0:e0], 1.0), -9))
 # the truck: the starter take is the cranking; the start is cranking that catches into the idle; the stall is the idle
 # slowing down and dying
 crank = mono(load('starter')); s, e = active(crank); crank = crank[s:e]

@@ -92,6 +92,15 @@ public class MenuVisualReview : MonoBehaviour
                 var eye=Camera.main.transform;var hand=HeistGameManager.Instance.player.GetComponentsInChildren<Transform>().First(t=>t.name=="HandR");
                 var fist=eye.InverseTransformPoint(hand.position);
                 Check(fist.magnitude>.18f,"Punch ("+label+", at "+PlayerPunch.Instance.Progress.ToString("0.00")+" of the swing) keeps the fist off the camera: wrist at "+fist.ToString("0.00")+" m in eye space");
+                // what shows is the first-person fist (FirstPersonFist), not the body's arms: out on the jab it sits on screen,
+                // knuckles 35-55 cm out, below and right of the middle; drawn back and coming home it stays low
+                var arms=HeistGameManager.Instance.player.GetComponentInChildren<FirstPersonArms>();var view=PlayerPunch.Instance.GetComponent<FirstPersonFist>();
+                Check(arms==null || arms.full==null || !arms.full.enabled,"Punch ("+label+") hides the body's arms in first person");
+                if(label=="b" || label=="c")
+                {
+                    var on=view!=null && view.Showing?Camera.main.WorldToViewportPoint(view.View.position):Vector3.zero;
+                    Check(view!=null && view.Showing && on.z>.3f && on.z<.6f && on.x>.3f && on.x<.85f && on.y>.08f && on.y<.5f,"Punch ("+label+") shows the first-person fist out in front: at ("+on.x.ToString("0.00")+", "+on.y.ToString("0.00")+") of the screen, "+on.z.ToString("0.00")+" m away");
+                }
             }
             yield return new WaitForSecondsRealtime(.8f);
         }

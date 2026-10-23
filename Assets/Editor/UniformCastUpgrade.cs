@@ -204,6 +204,7 @@ public static class UniformCastUpgrade
         }
         finally{PrefabUtility.UnloadPrefabContents(root);}
         log.Add("Decline stage: Osvaldo peasant_5 farmerKhaki, Joana peasant_2 dress");
+        CutsceneTwoInstall.Install();   // Bento, Elias and the villagers' speech shapes
     }
     static GameObject Actor(Transform old,string name,(string model,string palette) cast)
     {

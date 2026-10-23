@@ -9,33 +9,32 @@ public class GameAudioMix : MonoBehaviour
     readonly Dictionary<HomeDoor,bool> doors=new Dictionary<HomeDoor,bool>();readonly Dictionary<FarmerStateMachine,FarmerActivity> farmers=new Dictionary<FarmerStateMachine,FarmerActivity>();
     readonly Dictionary<FarmerStateMachine,float> steps=new Dictionary<FarmerStateMachine,float>();
     HomeDoor[] doorNodes;FarmerStateMachine[] farmerNodes;
-    AudioSource engine;float nextScan,nextStep;bool wasIgniting,wasRunning;int paintUses=-1;
+    AudioSource engine;float nextScan;bool wasIgniting,wasRunning;int paintUses=-1;
     public int ActiveEffects {get{int n=0;foreach(var s in pool)if(s.isPlaying)n++;return n;}}
     void Awake(){Instance=this;NoiseEmitter.NoiseEmitted+=Noise;}
     void Start()
     {
-        for(int i=0;i<12;i++)pool.Add(Source("Efeito espacial "+i));engine=Source("Motor continuo");engine.loop=true;engine.clip=Clip("engine");engine.volume=0;
+        for(int i=0;i<12;i++)pool.Add(Effect("Efeito espacial "+i));engine=Source("Motor continuo");engine.loop=true;engine.clip=Clip("engine");engine.volume=0;
         doorNodes=FindObjectsByType<HomeDoor>(FindObjectsSortMode.None);farmerNodes=FindObjectsByType<FarmerStateMachine>(FindObjectsSortMode.None);
         foreach(var d in doorNodes)doors[d]=d.opened;
         foreach(var f in farmerNodes){farmers[f]=f.Activity;steps[f]=0;}
-        foreach(var key in new[]{"engine","starter","start","stall","step","wood","door","sleep","wake","chicken","cow","spray"})Clip(key);
-        // the night all round (crickets, insects, far frogs), quiet, on the ambience volume
+        foreach(var key in new[]{"engine","starter","start","stall","wood","door","sleep","wake","chicken","cow","spray"})Clip(key);
+        // the night all round: a breeze through the grass and trees, quiet, on the ambience volume (NightLife adds the
+        // crickets, frogs and the owl, here and there, with silences between)
         var night=SoundLibrary.Load("night_ambience");
         if(night!=null){var bed=Source("Noite no vale");bed.spatialBlend=0;bed.loop=true;bed.clip=night;bed.volume=.22f;bed.GetComponent<AudioBusGain>().ambient=true;bed.time=Random.Range(0,night.length);bed.Play();}
-        // hens scratching about in every coop, heard only up close
-        var scratching=SoundLibrary.Load("chicken_walk");
-        if(scratching!=null)foreach(var coop in FindObjectsByType<ChickenCoopLockpick>(FindObjectsSortMode.None))
-        {
-            var node=new GameObject("Galinhas ciscando");node.transform.SetParent(coop.transform,false);node.AddComponent<AudioBusGain>().ambient=true;
-            var s=node.AddComponent<AudioSource>();s.clip=scratching;s.loop=true;s.spatialBlend=1;s.minDistance=1.5f;s.maxDistance=14;s.rolloffMode=AudioRolloffMode.Linear;s.volume=.32f;
-            s.pitch=Random.Range(.93f,1.07f);s.time=Random.Range(0,scratching.length);s.Play();
-        }
         // a new day: the rooster, a moment after waking up
         if(HomeNextNight.JustWoke){HomeNextNight.JustWoke=false;var home=HouseholdEconomy.Instance?.home;if(home!=null)StartCoroutine(Rooster(home.position+home.right*14+home.forward*9));}
     }
     System.Collections.IEnumerator Rooster(Vector3 at){yield return new WaitForSeconds(1.2f);PlayRecorded("rooster_morning",at,.5f);}
     // A recorded effect only: silent while the file is missing (no synthesized stand-in for these).
     public void PlayRecorded(string key,Vector3 position,float volume=.35f){if(SoundLibrary.Load(key)!=null)Play(key,position,volume);}
+    // One of the pool's slots: no bus filter on it (a filter on a source without a clip turns it into a generator that
+    // Unity reports as playing forever: the slots all looked busy and no effect ever played); Play scales its volume.
+    AudioSource Effect(string label)
+    {
+        var node=new GameObject(label);node.transform.SetParent(transform,false);var s=node.AddComponent<AudioSource>();s.playOnAwake=false;s.spatialBlend=1;s.minDistance=1.5f;s.maxDistance=35;s.rolloffMode=AudioRolloffMode.Linear;return s;
+    }
     AudioSource Source(string label)
     {
         var node=new GameObject(label);node.transform.SetParent(transform,false);node.AddComponent<AudioBusGain>();var s=node.AddComponent<AudioSource>();s.playOnAwake=false;s.spatialBlend=1;s.minDistance=1.5f;s.maxDistance=35;s.rolloffMode=AudioRolloffMode.Linear;return s;
@@ -44,7 +43,7 @@ public class GameAudioMix : MonoBehaviour
     {
         if(GameMenu.IsOpen || ActiveEffects>=12)return;
         if(Camera.main!=null && (Camera.main.transform.position-position).sqrMagnitude>35*35)return;
-        foreach(var source in pool)if(!source.isPlaying){source.GetComponent<AudioBusGain>().ambient=sound=="chicken" || sound=="cow";source.transform.position=position;source.clip=Clip(sound);source.volume=volume;source.pitch=Random.Range(.95f,1.05f);source.Play();return;}
+        foreach(var source in pool)if(!source.isPlaying){bool ambient=sound=="chicken" || sound=="cow";source.transform.position=position;source.clip=Clip(sound);source.volume=volume*(ambient?Ambience:Effects);source.pitch=Random.Range(.95f,1.05f);source.Play();return;}
     }
     void Noise(NoiseSource noise,Vector3 position,float strength)
     {
@@ -52,30 +51,39 @@ public class GameAudioMix : MonoBehaviour
         else if(noise==NoiseSource.CowMoo)Play("cow",position,.2f);
         else if(noise==NoiseSource.FloorCreak)Play("wood",position,.17f);
     }
+    // Something alive in the dark every so often, never on a beat: a cricket's bout close by, frogs or an owl far off,
+    // from a direction of its own, with silences of 6-24 s between (a constant chorus read as a buzzing machine).
+    readonly AudioSource[] nightLife=new AudioSource[2];float nextLife=4;
+    static readonly string[] Life={"night_cricket_1","night_cricket_2","night_cricket_3","night_cricket_1","night_cricket_2","night_frogs","night_owl"};
+    void NightLife(Vector3 around)
+    {
+        if(Time.time<nextLife)return;nextLife=Time.time+Random.Range(6f,24f);
+        string key=Life[Random.Range(0,Life.Length)];var clip=SoundLibrary.Load(key);if(clip==null)return;
+        var source=nightLife[0]!=null && nightLife[0].isPlaying?nightLife[1]:nightLife[0];
+        if(source==null){source=Effect("Vida noturna");source.minDistance=4;source.maxDistance=70;nightLife[nightLife[0]==null?0:1]=source;}
+        if(source.isPlaying)return;
+        bool far=key=="night_owl" || key=="night_frogs";float angle=Random.Range(0,2*Mathf.PI),distance=far?Random.Range(28f,45f):Random.Range(7f,18f);
+        source.transform.position=around+new Vector3(Mathf.Cos(angle),far?3:.2f,Mathf.Sin(angle))*distance;
+        source.clip=clip;source.pitch=Random.Range(.94f,1.06f);source.volume=(far?.55f:.35f)*Ambience;source.Play();
+    }
     void Update()
     {
         if(Time.unscaledTime>=nextScan)
         {
             nextScan=Time.unscaledTime+1;
-            foreach(var source in FindObjectsByType<AudioSource>())if(source.GetComponent<AudioBusGain>()==null && source.GetComponents<AudioSource>().Length==1 && source.GetComponent<AudioListener>()==null)
+            foreach(var source in FindObjectsByType<AudioSource>())if(source.transform.parent!=transform && source.GetComponent<AudioBusGain>()==null && source.GetComponents<AudioSource>().Length==1 && source.GetComponent<AudioListener>()==null)
             {var gain=source.gameObject.AddComponent<AudioBusGain>();gain.narration=source.GetComponent<StoryDirector>()!=null;gain.ambient=source.GetComponentInParent<InteractableChicken>()!=null || source.GetComponentInParent<SimpleAnimalWander>()!=null;}
         }
         if(GameMenu.BlocksInput)return;
         var game=HeistGameManager.Instance;if(game?.player==null)return;
-        var movement=game.player.GetComponent<PlayerMovement>();
-        if(movement.enabled && movement.estaMovendo && Time.time>=nextStep)
-        {
-            nextStep=Time.time+Mathf.Clamp(.7f/Mathf.Max(.4f,movement.CurrentMoveSpeed),.23f,.8f);
-            bool wood=Physics.Raycast(game.player.position+Vector3.up*.3f,Vector3.down,out var hit,1) && (hit.transform.name.Contains("Assoalho") || hit.transform.name.Contains("Tabua") || hit.transform.name.Contains("Piso"));
-            Play(wood?"wood":"step",game.player.position,movement.estaAgachado?.08f:.18f);
-        }
+        NightLife(game.player.position);
         foreach(var door in doorNodes)if(door!=null && doors[door]!=door.opened){Play("door",door.transform.position,.3f);doors[door]=door.opened;}
         foreach(var farmer in farmerNodes)
         {
             if(farmer==null)continue;
             if(farmer.Activity!=farmers[farmer]){if(farmer.Activity==FarmerActivity.Waking)Play("wake",farmer.transform.position,.25f);farmers[farmer]=farmer.Activity;}
-            if(Time.time>=steps[farmer] && (farmer.Moving || farmer.Activity==FarmerActivity.Sleeping))
-            {steps[farmer]=Time.time+(farmer.Moving?.45f:4);Play(farmer.Moving?"step":"sleep",farmer.transform.position,farmer.Moving?.16f:.06f);}
+            if(Time.time>=steps[farmer] && farmer.Activity==FarmerActivity.Sleeping)
+            {steps[farmer]=Time.time+4;Play("sleep",farmer.transform.position,.06f);}
         }
         var truck=OldPickupTruck.Instance;
         if(truck!=null)

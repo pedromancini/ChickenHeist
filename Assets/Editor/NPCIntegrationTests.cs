@@ -40,7 +40,8 @@ public static class NPCIntegrationTests
         {
             // a resident may be standing a while at the end of an errand (3 to 9 s) through the whole window: that is
             // not being stuck
-            result.Add((pair.Key.DistanceWalked-pair.Value>.15f || pair.Key.Resting?"PASS ":"FAIL ")+pair.Key.name+": moved on street during gameplay"+(pair.Key.DistanceWalked-pair.Value>.15f?"":" (resting at a stop)"));
+            bool moved=pair.Key.DistanceWalked-pair.Value>.15f;
+            result.Add((moved || pair.Key.Pausing?"PASS ":"FAIL ")+pair.Key.name+": moved on street during gameplay"+(moved?"":pair.Key.Pausing?" (pausing at a stop or giving way)":" (stood still with no reason)"));
             var driver=pair.Key.GetComponentInChildren<RuralCharacterAnimator>();
             var feet=driver.GetComponent<NPCFootContact>();
             result.Add((feet!=null && Mathf.Abs(feet.LowestSole-(pair.Key.transform.position.y-.04f))<.12f?"PASS ":"FAIL ")+pair.Key.name+": animated feet remain grounded");

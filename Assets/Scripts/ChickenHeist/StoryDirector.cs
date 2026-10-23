@@ -20,7 +20,11 @@ public class StoryDirector : MonoBehaviour
 
     public static readonly string[] Decline=StoryDialogue.declineText;
 
-    string[] Texts=>vision?Decline:Opening;
+    // cutscene 2 with the night's real count filled in (StoryDialogue.Decline), set when it begins
+    string[] declineLines=Decline;
+    string[] Texts=>vision?declineLines:Opening;
+    public int LineCount=>Texts.Length;
+    public string LineText(int index)=>Texts[index];
 
     string[] Speakers=>vision?StoryDialogue.declineSpeakers:VisitorOpeningDialogue.Speakers;
 
@@ -34,7 +38,7 @@ public class StoryDirector : MonoBehaviour
     public float Elapsed=>clock;
 
     public float LineDuration=>Duration;
-    float Duration=>voice.clip!=null?voice.clip.length+.8f:vision?Mathf.Max(2.5f,Texts[line].Split(' ').Length*.36f+1.2f):VisitorOpeningDialogue.Durations[line];
+    float Duration=>voice.clip!=null?voice.clip.length+.8f:vision?StoryDialogue.declineDurations[line]:VisitorOpeningDialogue.Durations[line];
 
     void StartLine(){voice.Stop();voice.volume=Mathf.Clamp01(GameAudioMix.Voice);var file=vision?Files[line]:VisitorOpeningDialogue.VoiceFile(line);voice.clip=string.IsNullOrEmpty(file)?null:Resources.Load<AudioClip>("Dialogue/"+file);if(voice.clip!=null)voice.Play();}
 
@@ -70,7 +74,9 @@ public class StoryDirector : MonoBehaviour
         if(running || Camera.main==null || HouseholdEconomy.Instance?.home==null)return false;
         if(!decline && Resources.Load<GameObject>("Cinematics/VisitorStage")==null){Debug.LogError("VisitorStage prefab is missing; opening was not marked complete.");return false;}
 
-        vision=decline;finished=onDone;eye=Camera.main;position=eye.transform.localPosition;rotation=eye.transform.localRotation;fov=eye.fieldOfView;
+        vision=decline;finished=onDone;
+        if(decline){var news=HouseholdEconomy.Instance.Account.news;var last=news!=null && news.Count>0?news[0]:null;declineLines=StoryDialogue.Decline(last!=null?last.chickens:0,last!=null && last.emptied);}
+        eye=Camera.main;position=eye.transform.localPosition;rotation=eye.transform.localRotation;fov=eye.fieldOfView;
         replay=false;freshOpening=!decline && !HouseholdEconomy.Instance.Account.introSeen;Paused=false;skipHeld=0;
 
         clock=0;lineClock=0;line=0;shot=-1;running=true;illustration=Resources.Load<Texture2D>("Cinematics/"+(vision?"decline":"opening"));StartLine();
@@ -80,7 +86,7 @@ public class StoryDirector : MonoBehaviour
         try
         {
             ProtagonistPhone.Instance?.SetOpen(false);
-            if(vision){BuildRuins();declineStage=DeclineCinematicStage.Create(HouseholdEconomy.Instance.home);}else openingStage=VisitorCinematicStage.Create(HouseholdEconomy.Instance.home,eye);
+            if(vision){declineStage=DeclineCinematicStage.Create(HouseholdEconomy.Instance.home);}else openingStage=VisitorCinematicStage.Create(HouseholdEconomy.Instance.home,eye);
         }
         catch(Exception error){Restore();finished=null;Debug.LogException(error);return false;}
 
@@ -233,7 +239,7 @@ public class StoryDirector : MonoBehaviour
 
         }
 
-        GUI.color=vision?new Color(.08f,.04f,.03f,.30f):new Color(0,0,0,.1f);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);
+        GUI.color=new Color(0,0,0,.1f);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);
 
         GUI.skin=UITheme.Skin;
         var style=new GUIStyle(UITheme.Style("body")){fontSize=Mathf.Clamp(Screen.height/34,17,32),wordWrap=true,alignment=TextAnchor.UpperCenter};
@@ -254,6 +260,9 @@ public class StoryDirector : MonoBehaviour
             GUI.Label(new Rect(Screen.width*.1f,top,Screen.width*.8f,UITheme.Size(24)),Speakers[line].ToUpperInvariant(),new GUIStyle(UITheme.Style("caption")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(15),normal={textColor=UITheme.Accent}});
             UITheme.Shadowed(new Rect(Screen.width*.1f,top+UITheme.Size(24),Screen.width*.8f,needed+UITheme.Size(4)),said,style);
         }
+        // cutscene 2 names where and when each of its scenes happens
+        string place=!vision || declineStage==null?null:line==0?declineStage.Farm+"  ·  antes de amanhecer":line==9?"A mesma manhã":line==13?"Casa do Elias":null;
+        if(place!=null)UITheme.Shadowed(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.8f,UITheme.Size(60)),place,new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(34)});
         if(!vision && line==0)UITheme.Shadowed(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.6f,UITheme.Size(70)),"Uma entrega",new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(46)});
         var hint=new Rect(Screen.width-UITheme.Size(380),UITheme.Size(14),UITheme.Size(360),UITheme.Size(34));
         GUI.Label(new Rect(hint.x,hint.y+UITheme.Size(4),UITheme.Size(44),UITheme.Size(26)),"Esc",UITheme.Style("key"));

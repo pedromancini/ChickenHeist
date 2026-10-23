@@ -15,7 +15,8 @@ public sealed class FirstPersonArms : MonoBehaviour
         get
         {
             string state=driver!=null?driver.CurrentState:"";
-            return (action!=null && action.ActionState!="Idle") || state=="Pickup" || state=="Trade";
+            // a punch shows the first-person fist instead (FirstPersonFist)
+            return (action!=null && action.ActionState!="Idle" && action.ActionState!="Punch") || state=="Pickup" || state=="Trade";
         }
     }
     void LateUpdate()
