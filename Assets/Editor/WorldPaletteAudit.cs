@@ -6,8 +6,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Lists every world material with its colour, texture and how many renderers use it.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod WorldPaletteAudit.Run
 public static class WorldPaletteAudit
 {
     public static void Run()

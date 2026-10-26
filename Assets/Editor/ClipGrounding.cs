@@ -5,14 +5,6 @@ using UnityEditor;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Elias' clips come from different sources (motion capture, Mixamo, authored poses) and do not all put the feet at
-// the same height: once retargeted, the walks sank up to 11 cm into the floor mid-step and the crouches 13-15 cm. For
-// every grounded state, the pelvis is moved up or down key by key so that the lowest point of the body in each frame
-// sits at the lowest point of the standing Idle; runs are only raised, so their flight phase stays.
-// Seated and airborne states are left alone. Run after EliasNativeInstall.Install and MixamoInstall.Run (MixamoInstall
-// calls it). Report: output/mixamo/grounding.txt.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod ClipGrounding.Run
-// (add -groundingStats to only measure every clip, without changing anything: output/mixamo/grounding-stats.txt)
 public static class ClipGrounding
 {
     static readonly string[] Skip={"Drive","Ignite","Jump","Fall"};
@@ -47,9 +39,6 @@ public static class ClipGrounding
                 Directory.CreateDirectory("output/mixamo");File.WriteAllLines("output/mixamo/grounding-stats.txt",log);Object.DestroyImmediate(baked);return;
             }
             log.Add($"reference: Idle lowest point {reference*100:F1} cm");
-            // Per frame: one foot always stands on the floor, so the lowest point of every frame goes to the standing
-            // level (the pelvis curve moves by that amount, smoothed over three frames). Runs only come up where they
-            // sink: their flight phase, with both feet up, stays.
             foreach(AnimationState state in body)
             {
                 var clip=state.clip;if(clip==null || clip==idle || Skip.Contains(state.name))continue;
@@ -78,7 +67,6 @@ public static class ClipGrounding
                 var after=times.Select(t=>Lowest(clip,t)-reference).ToArray();
                 log.Add($"{state.name,-18} lowest point per frame {before.Min()*100:+0.0;-0.0}..{before.Max()*100:+0.0;-0.0} cm -> {after.Min()*100:+0.0;-0.0}..{after.Max()*100:+0.0;-0.0} cm"+(raiseOnly?" (run: flight kept)":""));
             }
-            // eye height of the crouches, for the first-person camera
             var head=body.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Head");
             foreach(var name in new[]{"Idle","CrouchIdle","Crouch"})
             {

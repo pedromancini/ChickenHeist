@@ -6,9 +6,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Diagnostic: samples every clip of the protagonist body (Protagonist.prefab) at four moments and renders
-// side and three-quarter views, so each animation can be checked on the current Elias model.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EliasClipSheet.Run
 public static class EliasClipSheet
 {
     const string Folder="output/elias-v3/clips";

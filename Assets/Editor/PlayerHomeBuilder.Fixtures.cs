@@ -23,7 +23,6 @@ public static partial class PlayerHomeBuilder
         var coop = home.transform.Find("Galinheiro gasto - Ultimo Recurso");
         if (coop != null)
         {
-            // Replace only the four roof sheets, retaining the existing run and its props.
             foreach (var filter in coop.GetComponentsInChildren<MeshFilter>())
             {
                 if (!filter.name.StartsWith("Chapa ondulada rasgada") || filter.sharedMesh.name.EndsWith(" - solid")) continue;
@@ -87,7 +86,6 @@ public static partial class PlayerHomeBuilder
             panel.GetComponent<MeshFilter>().sharedMesh=ChamferedFixtureBox(panel.localScale,name=="Gabinete esmaltado"?.022f:.012f);
             panel.localScale=Vector3.one;
         }
-        // Only the cabinet needs collision; small decorative pieces cannot snag the player.
         foreach (var collider in fridge.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(collider);
         var body = fridge.gameObject.AddComponent<BoxCollider>();
         body.center = new Vector3(0,.83f,-.03f); body.size = new Vector3(.72f,1.66f,.79f);
@@ -107,7 +105,6 @@ public static partial class PlayerHomeBuilder
         var frame = new GameObject("Batente completo da entrada").transform;
         frame.SetParent(interior, false);
         var wood = WornMaterial("Batente de madeira usada", new Color(.28f,.245f,.19f));
-        // Returns cap the wall opening, while stops overlap the closed leaf behind its swing.
         for (int side=-1;side<=1;side+=2)
         {
             Part(frame, "Ombreira macica", new Vector3(-3.22f+side*.80f,1.73f,2.29f), new Vector3(.12f,2.34f,.68f), wood);
@@ -140,7 +137,6 @@ public static partial class PlayerHomeBuilder
                 counts[key]++;
             }
         }
-        // Close every boundary, including the deliberately torn part of the old sheet.
         foreach (var pair in edges)
         {
             if (counts[pair.Key]!=1) continue;
@@ -164,7 +160,6 @@ public static partial class PlayerHomeBuilder
             int first=vertices.Count;vertices.AddRange(points);
             for(int i=1;i<points.Length-1;i++)indices.AddRange(new[]{first,first+i,first+i+1});
         };
-        // Six inset faces, twelve bevel strips and eight corner triangles keep the mesh closed.
         for(int axis=0;axis<3;axis++)for(int sign=-1;sign<=1;sign+=2)
         {
             int u=(axis+1)%3,v=(axis+2)%3;

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Additive look and object contact run after clip sampling and before phone/carry IK.
 [DefaultExecutionOrder(250)]
 public sealed class ProtagonistArticulation : MonoBehaviour
 {
@@ -38,7 +37,6 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         if(head==null || neck==null || System.Array.Exists(arms,b=>b==null)){enabled=false;return;}
         bodyYaw=player.eulerAngles.y;
         standingPosition=transform.localPosition;standingScale=transform.localScale;
-        // A grounded CharacterController rests skinWidth above the ground; standing, the body follows the ground.
         var controller=player.GetComponent<CharacterController>();groundOffset=controller!=null?controller.skinWidth:0;
         for(int i=0;i<2;i++)grip[i]=new HandGripPose(arms[i*3+2],transform);
         metal=new Material(Shader.Find("Universal Render Pipeline/Lit"));metal.color=new Color(.28f,.3f,.32f);metal.SetFloat("_Metallic",.8f);
@@ -64,7 +62,6 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         var coop=ChickenCoopLockpick.Active;
         if(coop!=null)
         {
-            // Approach through CharacterController collisions, keeping feet on the ground.
             Vector3 delta=coop.InteractionPoint-player.position;delta.y=0;
             float step=Mathf.Min(Mathf.Max(0,delta.magnitude-.43f),Time.deltaTime*1.5f);
             var cc=player.GetComponent<CharacterController>();
@@ -72,8 +69,6 @@ public sealed class ProtagonistArticulation : MonoBehaviour
             if(delta.sqrMagnitude>.01f)player.rotation=Quaternion.Slerp(player.rotation,Quaternion.LookRotation(delta),1-Mathf.Exp(-8*Time.deltaTime));
         }
     }
-    // The punch's jolt of the view is an offset on top of PlayerLook's rotation. PlayerLook rewrites the view every frame
-    // it runs; when it does not (a menu, the cursor free), the last jolt is taken off first so it never adds up.
     Quaternion viewKick=Quaternion.identity,viewWithKick=Quaternion.identity;
     void LateUpdate()
     {
@@ -92,7 +87,6 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         bool ignition=OldPickupTruck.IsDriving && truck.ignition.Active;
         bool driving=OldPickupTruck.IsDriving;
         float target=player.eulerAngles.y;
-        // punching, the shoulders square up to where Elias looks (standing still, the body otherwise lags up to 45 degrees)
         bool punching=PlayerPunch.Instance!=null && PlayerPunch.Instance.Punching;
         if(driving || coop!=null)bodyYaw=target;
         else if(punching)bodyYaw=Mathf.MoveTowardsAngle(bodyYaw,target,720*dt);
@@ -126,17 +120,13 @@ public sealed class ProtagonistArticulation : MonoBehaviour
         }
         else if(punch!=null && punch.Punching)
         {
-            // a right jab from a guard (PlayerPunch gives the fists in eye space): the chest turns the right shoulder
-            // into the blow, the left fist guards the chin, the right one snaps out along the line of sight, palm down
             float w=punch.ArmWeight,e=punch.Extension;
             if(chest!=null){Remember(chest);chest.rotation=Quaternion.AngleAxis(-16*punch.Twist*w,transform.up)*chest.rotation;}
             Vector3 Eye(Vector3 v)=>eyes.position+eyes.right*v.x+eyes.up*v.y+eyes.forward*v.z;
             Reach(0,Eye(punch.LeftFist),eyes.right,(eyes.up*.55f+eyes.forward*.85f).normalized,w);
-            // the jab: the arm straightens from the shoulder towards the aim point, as far as it reaches
             var shoulder=arms[3].position;float length=Vector3.Distance(arms[3].position,arms[4].position)+Vector3.Distance(arms[4].position,arms[5].position);
             Vector3 aim=Eye(punch.JabAim);Vector3 jab=shoulder+(aim-shoulder).normalized*Mathf.Min(length*.97f,Vector3.Distance(aim,shoulder));
             Reach(1,Vector3.Lerp(Eye(punch.RightBase),jab,e),-eyes.up,eyes.forward,w);
-            // the head follows the blow a little, and jolts when it lands
             viewKick=Quaternion.Euler(1.4f*e+2.2f*punch.Kick,-1.1f*e,1.2f*punch.Kick);eyes.localRotation*=viewKick;viewWithKick=eyes.localRotation;
         }
         else if(ignition && !(phone!=null && phone.IsBusy))

@@ -11,7 +11,6 @@ public static class HomeMeshOpening
             position=Vector3.Lerp(a.position,b.position,t),normal=Vector3.Lerp(a.normal,b.normal,t).normalized,
             home=Vector3.Lerp(a.home,b.home,t),uv=Vector2.Lerp(a.uv,b.uv,t)};
     }
-    // Subtract a box by clipping polygons, retaining the source UVs and submeshes.
     public static Mesh Subtract(MeshFilter filter,Transform home,Bounds opening)
     {
         Mesh source=filter.sharedMesh;

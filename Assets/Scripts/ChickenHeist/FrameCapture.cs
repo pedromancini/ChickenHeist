@@ -2,9 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-// Review captures that have to show the frame as drawn: rendered from LateUpdate after every pose (clip sampling, the
-// arms' IK in ProtagonistArticulation, the fingers) has been applied. A capture taken from the editor's update loop
-// lands between frames, after the poses were reset for the next one.
 [DefaultExecutionOrder(10000)]
 public sealed class FrameCapture : MonoBehaviour
 {
@@ -13,9 +10,7 @@ public sealed class FrameCapture : MonoBehaviour
     readonly List<Request> requests=new List<Request>();
     public static int Pending=>instance!=null?instance.requests.Count:0;
     static FrameCapture Instance{get{if(instance==null){var go=new GameObject("Capturas de revisao");instance=go.AddComponent<FrameCapture>();}return instance;}}
-    // a camera at `from` looking at `at`, `after` seconds from now (0: this frame)
     public static void Shot(string path,Vector3 from,Vector3 at,float fov=50,float after=0)=>Instance.requests.Add(new Request{path=path,from=from,at=at,fov=fov,when=Time.time+after});
-    // what a scene camera sees (the player's eyes)
     public static void Through(string path,Camera camera)=>Instance.requests.Add(new Request{path=path,camera=camera,when=Time.time});
     void LateUpdate()
     {

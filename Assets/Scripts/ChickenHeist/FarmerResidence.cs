@@ -12,8 +12,6 @@ public class FarmerResidence : MonoBehaviour
     {DoorOpen=open;if(immediate){angle=open?105:0;Apply();}}
     public bool DoorReady=>DoorOpen && angle>100;
     void Apply(){if(doorHinge!=null)doorHinge.localRotation=Quaternion.Euler(0,angle,0);}
-    // The porch lantern (WorldCohesionUpgrade) was hung under the farmer himself: when he got up and walked, the lit
-    // glass and its light went with him, floating at his side. It belongs to the house.
     void Awake(){var lantern=transform.Find("Lanterna da varanda");if(lantern!=null)lantern.SetParent(transform.parent,true);}
     void Update(){if(GameMenu.BlocksInput)return;angle=Mathf.MoveTowards(angle,DoorOpen?105:0,100*Time.deltaTime);Apply();}
 }

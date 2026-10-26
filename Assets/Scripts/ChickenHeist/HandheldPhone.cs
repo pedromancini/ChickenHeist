@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// Serialized compatibility only: the tablet opens directly as a screen overlay.
 public class HandheldPhone : MonoBehaviour
 {
     public Transform eyes,handset,upperArm,forearm,hand;

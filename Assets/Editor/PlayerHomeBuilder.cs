@@ -59,7 +59,6 @@ public static partial class PlayerHomeBuilder
             board.transform.localRotation=Quaternion.Euler(0,i*4-6,0);
             board.GetComponent<Renderer>().sharedMaterial=wood;
         }
-        // Fence pieces retain their imported orientation and are joined using measured bounds.
         for (int i=0;i<7;i++)
         {
             if (i==2) continue;
@@ -85,7 +84,6 @@ public static partial class PlayerHomeBuilder
         if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets/ChickenHeistGenerated","PlayerHome");
         PrefabUtility.SaveAsPrefabAsset(root,folder+"/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
-        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
         HomeWornUpgrade.Install();
         Capture(root,Output+"/home-front.png",new Vector3(-22,12,-29),new Vector3(0,2,1));
         Capture(root,Output+"/home-yard.png",new Vector3(26,17,-25),new Vector3(1,1,1));
@@ -148,7 +146,6 @@ public static partial class PlayerHomeBuilder
         RuralWorldReview.PersistGeneratedAssets(scene);
         PrefabUtility.SaveAsPrefabAsset(root,"Assets/ChickenHeistGenerated/PlayerHome/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
-        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
         HomeWornUpgrade.Install();
         Capture(root,Output+"/home-front.png",new Vector3(-22,12,-29),new Vector3(0,2,1));
         Capture(root,Output+"/home-yard.png",new Vector3(26,17,-25),new Vector3(1,1,1));

@@ -47,7 +47,7 @@ public static class RealisticPickupUpgrade
                 if(name=="Rubber")color=new Color(.028f,.030f,.027f);
                 m.color=color;m.SetFloat("_Metallic",name=="WornSteel"?.65f:name=="Headlamp"?.2f:.06f);
                 m.SetFloat("_Smoothness",name=="WornSteel"?.4f:.22f);
-                m.SetFloat("_Cull",0); // Interior faces of the stamped shell remain visible.
+                m.SetFloat("_Cull",0);
                 if(name=="WindowGlass")
                 {
                     m.color=new Color(.37f,.49f,.50f,.16f);m.SetFloat("_Surface",1);m.SetFloat("_ZWrite",0);

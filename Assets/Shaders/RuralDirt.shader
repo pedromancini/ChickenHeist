@@ -31,7 +31,6 @@ Shader "ChickenHeist/RuralDirt"
             {
                 half3 soil=SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,i.uv).rgb;
                 half grain=dot(soil,half3(0.3,0.59,0.11));
-                // Retain granular soil detail without a near-black, asphalt-like base.
                 half3 albedo=half3(0.36,0.245,0.135)*(0.72+grain*1.7)*i.color.rgb;
                 Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));
                 half3 light=SampleSH(half3(0,1,0))+sun.color*saturate(sun.direction.y)*sun.shadowAttenuation;

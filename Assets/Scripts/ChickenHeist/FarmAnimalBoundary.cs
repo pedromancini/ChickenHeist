@@ -10,8 +10,6 @@ public class FarmAnimalBoundary : MonoBehaviour
 
     private void OnEnable() { animals.Add(this); }
 
-    // Cows keep their distance by a circle around their pivot, which is not at the middle of the body: use the
-    // farthest point of the model from the pivot (head or tail), so two cows never walk into each other.
     private void Start()
     {
         if (GetComponent<SimpleAnimalWander>() == null) return;

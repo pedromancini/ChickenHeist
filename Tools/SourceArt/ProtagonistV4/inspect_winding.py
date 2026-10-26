@@ -1,4 +1,3 @@
-# Winding consistency of the meshes in generated/Elias_v4.blend: signed volume and edges whose two faces disagree.
 import bpy, bmesh
 for name in ('ProtagonistBody', 'ProtagonistHead'):
     ob = bpy.data.objects[name]; bm = bmesh.new(); bm.from_mesh(ob.data); bm.normal_update()
@@ -7,7 +6,6 @@ for name in ('ProtagonistBody', 'ProtagonistHead'):
     for e in bm.edges:
         if len(e.link_faces) != 2: continue
         f1, f2 = e.link_faces; v1, v2 = e.verts
-        # consistent winding: the shared edge runs in opposite directions in the two faces
         def runs(f):
             vs = list(f.verts); i = vs.index(v1); return vs[(i + 1) % len(vs)] == v2
         if runs(f1) == runs(f2): bad += 1

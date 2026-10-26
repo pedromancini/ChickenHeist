@@ -1,13 +1,3 @@
-# Elias v3: the AI-generated protagonist (source/Elias_AI_source.fbx) converted to the project's
-# low-poly cast style and rebuilt on the ProtagonistRig bone convention, so EliasNativeInstall can
-# re-bake every gameplay and cinematic clip for it.
-#   - painted dirt and rips replaced by a flat colour palette (one swatch per face, like the NPC atlas)
-#   - head reduced to the cast's proportions, whole body scaled to 1.78 m
-#   - bones renamed (Hips, Spine, Spine2, Chest, Neck, Head, ShoulderL, UpperArmL, ...), Root added
-#   - five fingers with three phalanges per hand (Thumb/Index/Middle/Ring/Little 1-3 L/R)
-#   - head split from the body (hidden in first person)
-# Run:  blender -b --factory-startup --python build_elias_v3.py              (previews only)
-#       ELIAS_EXPORT=1 blender -b --factory-startup --python build_elias_v3.py (also writes the FBX)
 import bpy, bmesh, os, math, random
 from mathutils import Vector, Matrix
 from collections import Counter
@@ -19,7 +9,7 @@ OUT_DIR = os.path.join(PROJECT, 'Assets', 'ChickenHeistGenerated', 'Characters',
 GEN = os.path.join(ROOT, 'generated'); os.makedirs(GEN, exist_ok=True)
 EXPORT = os.environ.get('ELIAS_EXPORT') == '1'
 HEAD_SCALE = float(os.environ.get('ELIAS_HEAD_SCALE', '0.68'))
-HEIGHT = float(os.environ.get('ELIAS_HEIGHT', '1.74'))   # hair included; the cast stands 1.67-1.72 m
+HEIGHT = float(os.environ.get('ELIAS_HEIGHT', '1.74'))
 HAND_SCALE = float(os.environ.get('ELIAS_HAND_SCALE', '0.85'))
 TRIS = int(os.environ.get('ELIAS_TRIS', '13000'))
 HEAD_KEEP = float(os.environ.get('ELIAS_HEAD_KEEP', '0.35'))
@@ -30,7 +20,6 @@ src_arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
 ob = next(o for o in bpy.data.objects if o.type == 'MESH')
 J = {b.name: (src_arm.matrix_world @ b.head_local, src_arm.matrix_world @ b.tail_local) for b in src_arm.data.bones}
 
-# ---------------------------------------------------------------- mesh to world space, seams welded
 mw = ob.matrix_world.copy()
 ob.parent = None; ob.modifiers.clear()
 ob.data.transform(mw); ob.matrix_world = Matrix.Identity(4)
@@ -40,7 +29,6 @@ bm = bmesh.new(); bm.from_mesh(me)
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
 bm.to_mesh(me); bm.free()
 
-# ---------------------------------------------------------------- weights renamed to ProtagonistRig
 RN = {'Hips': 'Hips', 'Spine02': 'Spine', 'Spine01': 'Spine2', 'Spine': 'Chest', 'neck': 'Neck',
       'Head': 'Head', 'head_end': 'Head', 'headfront': 'Head'}
 for s, side in (('Left', 'L'), ('Right', 'R')):
@@ -56,7 +44,6 @@ for v in me.vertices:
     W.append(d)
 P = [v.co.copy() for v in me.vertices]
 
-# ---------------------------------------------------------------- joints (world)
 def h(n): return J[n][0].copy()
 joint = {
     'Root': (Vector((0, 0, 0)), h('Hips')),
@@ -72,7 +59,6 @@ for s, side in (('Left', 'L'), ('Right', 'R')):
     joint['Foot' + side] = (h(s + 'Foot'), h(s + 'ToeBase'))
     joint['Toe' + side] = (h(s + 'ToeBase'), J[s + 'ToeBase'][1].copy())
 
-# ---------------------------------------------------------------- head to cast proportions
 pivot = joint['Head'][0].copy()
 for i, p in enumerate(P):
     wh = W[i].get('Head', 0)
@@ -80,21 +66,19 @@ for i, p in enumerate(P):
 head_top = max(P[i].z for i in range(len(P)) if W[i].get('Head', 0) > .5)
 joint['Head'] = (pivot, Vector((pivot.x, pivot.y, pivot.z + (head_top - pivot.z) * .55)))
 
-# ---------------------------------------------------------------- 1.78 m, feet on the ground
 z0 = min(p.z for p in P); scale = HEIGHT / (max(p.z for p in P) - z0)
 def S(p): return Vector((p.x * scale, p.y * scale, (p.z - z0) * scale))
 P = [S(p) for p in P]
 joint = {k: (S(a), S(b)) for k, (a, b) in joint.items()}
 joint['Root'] = (Vector((0, 0, 0)), joint['Hips'][0].copy())
 
-# ---------------------------------------------------------------- fingers
 FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little']
 report = []
 def build_hand(side):
     hand = 'Hand' + side
     wrist, tail = joint[hand]
     a = (tail - wrist).normalized()
-    n = Vector((0, 0, -1)); n = (n - a * n.dot(a)).normalized()          # palm normal (palms down in T-pose)
+    n = Vector((0, 0, -1)); n = (n - a * n.dot(a)).normalized()
     lat = n.cross(a).normalized()
     H = [i for i in range(len(P)) if W[i].get(hand, 0) >= .5]
     s = {i: (P[i] - wrist).dot(a) for i in H}; l = {i: (P[i] - wrist).dot(lat) for i in H}
@@ -104,7 +88,6 @@ def build_hand(side):
     gaps = sorted(range(1, len(ls)), key=lambda k: l[ls[k]] - l[ls[k - 1]], reverse=True)[:3]
     cuts = sorted(gaps); clusters = []; start = 0
     for c in cuts + [len(ls)]: clusters.append(ls[start:c]); start = c
-    # thumb lies on the -Y (front) side of the hand: order clusters index..little from the front
     clusters.sort(key=lambda c: sum(P[i].y for i in c) / len(c))
     chains = {}
     s_root = .43 * smax
@@ -116,7 +99,6 @@ def build_hand(side):
         k = (s_root - (c0 - wrist).dot(a)) / max(1e-4, d.dot(a)); root = c0 + d * k
         chains[name] = (root, tip)
     index_front = min(sum(P[i].y for i in clusters[0]) / len(clusters[0]), 0) if False else None
-    # thumb: hand vertices in front of the index line, before the knuckles
     iroot, itip = chains['Index']; idir = (itip - iroot).normalized()
     front = Vector((0, -1, 0))
     T = []
@@ -131,14 +113,11 @@ def build_hand(side):
     base = base.lerp(wrist + a * .25 * smax, .35)
     chains['Thumb'] = (base, tip)
     report.append('%s hand: verts %d fingers %s thumb verts %d' % (side, len(H), [len(c) for c in clusters], len(T)))
-    # joints for the three phalanges
     for name, (root, tip) in chains.items():
         fr = (0, .4, .72, 1.0) if name == 'Thumb' else (0, .45, .75, 1.0)
         pts = [root.lerp(tip, f) for f in fr]
         for k in range(3): joint['%s%d%s' % (name, k + 1, side)] = (pts[k], pts[k + 1])
-    # hand bone ends at the middle knuckle
     joint[hand] = (wrist, chains['Middle'][0])
-    # skin: past the knuckle line every hand vertex follows its nearest finger; thumb vertices follow the thumb
     Tset = set(T)
     def seg_param(name, p):
         root, tip = chains[name]; seg = tip - root; L2 = seg.length_squared; t = (p - root).dot(seg) / L2
@@ -167,7 +146,6 @@ def build_hand(side):
                 bn = '%s%d%s' % (name, k + 1, side); W[i][bn] = W[i].get(bn, 0) + wh * f * phal[k]
 build_hand('L'); build_hand('R')
 
-# cartoon hands reduced to the cast's proportions, around the wrist
 for side in 'LR':
     wrist = joint['Hand' + side][0]
     for i, d in enumerate(W):
@@ -177,12 +155,10 @@ for side in 'LR':
         if k == 'Hand' + side or (k.startswith(tuple(FINGERS)) and k.endswith(side)):
             a, b = joint[k]; joint[k] = (wrist + (a - wrist) * HAND_SCALE, wrist + (b - wrist) * HAND_SCALE)
 
-# normalise, keep 4 strongest influences
 for i, d in enumerate(W):
     top = sorted(d.items(), key=lambda x: -x[1])[:4]; t = sum(w for _, w in top)
     W[i] = {b: w / t for b, w in top} if t > 0 else {'Hips': 1.0}
 
-# ---------------------------------------------------------------- write back mesh + armature
 for i, v in enumerate(me.vertices): v.co = P[i]
 ob.vertex_groups.clear()
 names = list(joint.keys())
@@ -210,10 +186,8 @@ bpy.ops.object.mode_set(mode='OBJECT')
 ob.parent = rig
 mod = ob.modifiers.new('Armature', 'ARMATURE'); mod.object = rig
 
-# ---------------------------------------------------------------- decimate, protecting hands and face
 keep = ob.vertex_groups.new(name='_keep')
 for i, d in enumerate(W):
-    # hands are always in view; neck, chest, shoulders and upper arms sit ~20 cm under the first-person camera
     k = sum(w for b, w in d.items() if b.startswith(('Hand',) + tuple(FINGERS))) + HEAD_KEEP * d.get('Head', 0)         + .5 * sum(w for b, w in d.items() if b in ('Neck', 'Chest') or b.startswith(('Shoulder', 'UpperArm')))
     if k > 0: keep.add([i], min(1, k), 'REPLACE')
 tri0 = sum(len(p.vertices) - 2 for p in me.polygons)
@@ -225,7 +199,6 @@ bpy.ops.object.modifier_apply(modifier='dec')
 ob.vertex_groups.remove(ob.vertex_groups['_keep'])
 me = ob.data
 
-# ---------------------------------------------------------------- flat palette
 img = next(i for i in bpy.data.images if i.size[0] > 0)
 IW, IH = img.size; px = img.pixels[:]
 def sample(u, v):
@@ -265,7 +238,6 @@ def kmeans(items, k, iters=30):
             acc[j][3] += a
         cent = [tuple(s[t] / s[3] for t in range(3)) if s[3] > 0 else cent[j] for j, s in enumerate(acc)]
     return cent
-# per-region palettes: each body part keeps only its own dominant materials
 REG_K = {'head': 8, 'neck': 2, 'hand': 2, 'forearm': 3, 'upperarm': 2, 'torso': 3, 'leg': 2, 'foot': 2}
 REG_MIN = {'head': .002, 'neck': .15, 'hand': .2, 'forearm': .15, 'upperarm': .25, 'torso': .12, 'leg': .2, 'foot': .2}
 palette = []; label = [0] * len(fcol)
@@ -280,7 +252,6 @@ for reg, k in REG_K.items():
     for i in ids:
         if lab[i] not in allowed:
             lab[i] = min(allowed, key=lambda j: sum((fcol[i][t] - cent[j][t]) ** 2 for t in range(3)))
-    # neighbour vote inside the region (stains, rips, stray triangles)
     nb = {i: [g.index for e in bm.faces[i].edges for g in e.link_faces if g.index != i and regions[g.index] == reg] for i in ids}
     for _ in range(0 if reg == 'head' else 3):
         new = dict(lab)
@@ -291,7 +262,6 @@ for reg, k in REG_K.items():
         lab = new
     base = len(palette); palette += cent
     for i in ids: label[i] = base + lab[i]
-# merge near-identical swatches across regions (shared skin, shirt...)
 merged = []; remap = {}
 for j, c in enumerate(palette):
     for m, d in enumerate(merged):
@@ -299,9 +269,7 @@ for j, c in enumerate(palette):
     else: remap[j] = len(merged); merged.append(c)
 label = [remap[j] for j in label]; palette = merged
 used = sorted(set(label)); compact = {j: k for k, j in enumerate(used)}; label = [compact[j] for j in label]; palette = [palette[j] for j in used]
-# lift the painted-in shading a little so the swatches read like the cast atlas
 palette = [tuple(min(1, c[t] * 1.12 + .02) for t in range(3)) for c in palette]
-# the source skin is a saturated orange; settle it on a natural tan with the cast's saturation
 TAN = (.80, .60, .49)
 def skin_like(c): return c[0] > .45 and c[0] > c[1] * 1.25 and c[1] > c[2] and c[1] > .25
 palette = [tuple(c[t] * .45 + TAN[t] * .55 * (sum(c) / sum(TAN)) for t in range(3)) if skin_like(c) else c for c in palette]
@@ -326,7 +294,6 @@ tex = mat.node_tree.nodes.new('ShaderNodeTexImage'); tex.image = pal_img; tex.in
 mat.node_tree.links.new(tex.outputs[0], next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED').inputs[0])
 me.materials.clear(); me.materials.append(mat)
 
-# ---------------------------------------------------------------- split head
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
 hg = ob.vertex_groups['Head'].index
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='DESELECT'); bpy.ops.object.mode_set(mode='OBJECT')
@@ -336,8 +303,6 @@ bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.separate(type='SELECTED'); bp
 parts = [o for o in bpy.data.objects if o.type == 'MESH']
 head = max(parts, key=lambda o: min(v.co.z for v in o.data.vertices)); body = next(o for o in parts if o != head)
 head.name = head.data.name = 'ProtagonistHead'; body.name = body.data.name = 'ProtagonistBody'
-# close the neck where the head was split off: in first person the camera looks down at the collar,
-# and the open tube (seen from inside through the two-sided first-person material) reads as broken geometry
 bm = bmesh.new(); bm.from_mesh(body.data); uvl = bm.loops.layers.uv.active
 neck_z = joint['Neck'][0].z
 ring = [e for e in bm.edges if e.is_boundary and all(v.co.z > neck_z - .03 and abs(v.co.x) < .2 for v in e.verts)]
@@ -370,7 +335,6 @@ if EXPORT:
     report.append('exported to ' + OUT_DIR)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(GEN, 'Elias_v3.blend'))
 
-# ---------------------------------------------------------------- previews
 sc = bpy.context.scene; sc.render.engine = 'BLENDER_WORKBENCH'; sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'TEXTURE'
 cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
 def shot(name, loc, look, lens=50, res=(900, 1100)):
@@ -381,7 +345,6 @@ shot('v3_front.png', (0, -4.6, 1.0), (0, 0, .92))
 shot('v3_threequarter.png', (2.6, -3.8, 1.2), (0, 0, .92))
 shot('v3_face.png', (.35, -1.2, 1.62), (0, 0, 1.6), 85, (900, 900))
 shot('v3_hand.png', (.78, -.25, 2.0), (.78, -.02, 1.35), 85, (900, 700))
-# pose test: bend elbows, curl fingers, step
 pb = rig.pose.bones
 for side, sgn in (('L', 1), ('R', -1)):
     pb['Forearm' + side].rotation_mode = 'XYZ'; pb['Forearm' + side].rotation_euler = (0, 0, math.radians(70) * sgn)

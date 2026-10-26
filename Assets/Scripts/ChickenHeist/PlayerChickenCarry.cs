@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Uses the protagonist's real skeleton, so the same hands and bird are visible
-// in first person, shadows and mirrors. The backpack remains authoritative.
 [DefaultExecutionOrder(350)]
 public class PlayerChickenCarry : MonoBehaviour
 {
@@ -10,8 +8,6 @@ public class PlayerChickenCarry : MonoBehaviour
     public Vector3 BirdPosition => visual != null ? visual.transform.position : transform.position;
     public float HandError { get; private set; }
     public float WristBend {get;private set;}
-    // Pickup: the bird waits where it was until the hands of the Pickup clip come down to it, rides up between them
-    // while the body straightens, then moves to the carry spot as the arm IK blends in over LiftBlend.
     const float LiftDuration = .85f, LiftBlend = .28f;
     float liftLength = LiftDuration; bool grabbed, followHands; Vector3 grabFrom; float grabTime;
     Transform player, eyes;
@@ -53,9 +49,6 @@ public class PlayerChickenCarry : MonoBehaviour
         if(bird==null)return;
         LiftFrom(bird.gameObject,bird.transform.position+Vector3.up*.12f);
     }
-    // Shared by the farm pickup and unloading a bird from the truck cages (origin: where the bird is taken from).
-    // fromGround: bend down with the Pickup clip and take the bird from between the hands; otherwise (a raised cage)
-    // reach forward with the Trade gesture and bring the bird straight to the arms.
     public void LiftFrom(GameObject source,Vector3 origin,bool fromGround=true)
     {
         CreateVisual(source);
@@ -75,7 +68,6 @@ public class PlayerChickenCarry : MonoBehaviour
         visual=new GameObject("Galinha no colo - visual");
         visual.transform.SetParent(player,false);
         visual.transform.SetPositionAndRotation(Vector3.zero,Quaternion.identity);
-        // Copy geometry only: no AI, pickup scripts, triggers or checkpoint IDs.
         foreach(var filter in source.GetComponentsInChildren<MeshFilter>(true))
         {
             var renderer=filter.GetComponent<MeshRenderer>();
@@ -140,8 +132,6 @@ public class PlayerChickenCarry : MonoBehaviour
                 if(side==1 && truck.ignition.Active && animator.GetComponent<ProtagonistArticulation>()!=null)continue;
                 if(wheelGrips[side]==null)wheelGrips[side]=new HandGripPose(bones[side*3+2],animator.transform,true,true);
                 CharacterGripHands.Attach(animator.transform).SetPose(bones[side*3+2],CharacterGripHands.Pose.Wheel);
-                // The rim runs through the closed hand (ProtagonistFingers closes it): palm towards the wheel's
-                // centre, knuckles towards the dashboard (wheel forward points away from the driver), thumb up.
                 var wheel=truck.steeringWheel;var inward=wheel.right*(side==0?1:-1);
                 var centre=truck.SteeringGrip(side==0?-1:1);
                 var rotation=wheelGrips[side].Rotation(inward,(wheel.forward*.92f+inward*.38f).normalized);
@@ -169,14 +159,10 @@ public class PlayerChickenCarry : MonoBehaviour
         float elapsed=Time.time-liftStarted;
         if(followHands && elapsed<liftLength+LiftBlend && bones[2]!=null && bones[5]!=null)
         {
-            // Hands of the Pickup clip: the bird is taken when they come down to it (or half way through the clip)
-            // and stays between the palms while the body straightens; no arm IK until the clip ends.
             for(int side=0;side<2;side++)if(grips[side]==null)grips[side]=new HandGripPose(bones[side*3+2],animator.transform);
             var hands=(grips[0].Contact+grips[1].Contact)*.5f-Vector3.up*.03f;
             if(elapsed<liftLength)
             {
-                // the bird is drawn into the hands while they come down (from a fifth of the clip to just before
-                // the lowest point), so it never jumps; then it rides between the palms
                 if(!grabbed && elapsed>liftLength*.2f){grabbed=true;grabFrom=visual.transform.position;grabTime=Time.time;}
                 visual.transform.position=grabbed?Vector3.Lerp(grabFrom,hands,Mathf.SmoothStep(0,1,(Time.time-grabTime)/(liftLength*.28f))):liftOrigin;
                 poseWeight=0;HandError=0;return;
@@ -201,7 +187,6 @@ public class PlayerChickenCarry : MonoBehaviour
             if(animator.GetComponent<ProtagonistArticulation>()!=null)
             {
                 if(grips[side]==null)grips[side]=new HandGripPose(bones[side*3+2],animator.transform);
-                // Keep the wrist neutral and put the grip roll into the forearm.
                 var hand=bones[side*3+2];var forearm=bones[side*3+1];
                 for(int iteration=0;iteration<2;iteration++)
                 {

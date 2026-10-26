@@ -1,5 +1,3 @@
-# Open and non-manifold edges of a source model after welding coincident vertices.
-# Run: blender -b --factory-startup --python inspect_closed.py -- <file>
 import bpy, bmesh, sys
 src = sys.argv[sys.argv.index("--") + 1]
 bpy.ops.wm.read_factory_settings(use_empty=True); bpy.ops.import_scene.gltf(filepath=src)

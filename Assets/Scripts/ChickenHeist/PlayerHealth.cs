@@ -34,7 +34,7 @@ public class PlayerHealth : MonoBehaviour
         GUI.skin=UITheme.Skin;Color old=GUI.color;float s=UITheme.Scale;
         var card=ChickenHeistHUD.MissionCard;var r=new Rect(card.x,card.yMax+UITheme.Size(8),UITheme.Size(260),UITheme.Size(50));UITheme.Panel(r,UITheme.PanelSoft);
         GUI.Label(new Rect(r.x+14*s,r.y+6*s,r.width-28*s,20*s),"Vida",UITheme.Style("hudSmall"));
-        GUI.Label(new Rect(r.x+14*s,r.y+6*s,r.width-28*s,20*s),Injured?"Ferido — mancando":Mathf.CeilToInt(Current)+" / 100",
+        GUI.Label(new Rect(r.x+14*s,r.y+6*s,r.width-28*s,20*s),Injured?"Ferido, mancando":Mathf.CeilToInt(Current)+" / 100",
             new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.UpperRight,normal={textColor=Injured?UITheme.Danger:UITheme.Muted}});
         UITheme.Meter(new Rect(r.x+14*s,r.y+31*s,r.width-28*s,8*s),Current/Maximum,Injured?UITheme.Danger:UITheme.Good);
         float flash=Mathf.Clamp01(1-(Time.time-damageTime)/.7f)*.35f;

@@ -1,8 +1,3 @@
-# The motion takes (Assets/ThirdParty/HumanBasicMotions) keep the character's T-pose as the armature's rest pose, but
-# their nodes default to the first frame of each take, and Unity builds a take's humanoid avatar from that frame. This
-# exports the rest pose alone (no animation), as the model all the takes share their avatar with (HumanM_TPose.fbx,
-# see EliasNativeInstall.ImportTake).
-# Run: blender -b --python export_tpose.py -- <ChickenHeist>/Assets/ThirdParty/HumanBasicMotions/HumanM@Idle01.fbx <ChickenHeist>/Assets/ThirdParty/HumanBasicMotions/HumanM_TPose.fbx
 import bpy,sys
 src,dst=sys.argv[sys.argv.index('--')+1:][:2]
 bpy.ops.wm.read_factory_settings(use_empty=True)

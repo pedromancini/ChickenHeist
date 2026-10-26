@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Gate of Elias' worn coop: a small plank door on a tired hinge. E opens/closes it; a delivery opens it,
-// lets the birds through and closes it again unless the player had opened it by hand.
 public class HomeCoopGate : MonoBehaviour
 {
     public static HomeCoopGate Instance {get;private set;}
@@ -17,7 +15,6 @@ public class HomeCoopGate : MonoBehaviour
         if(!GameMenu.BlocksInput && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && WorldInteraction.Pressed(this)){autoOpened=false;Set(!open);}
         if(autoOpened && open && Time.time>=autoCloseAt){autoOpened=false;Set(false);}
         if(GameMenu.BlocksInput)return;
-        // A worn hinge: quick start, slow finish, a small bounce when it shuts.
         float target=open?openAngle:0;
         angle=Mathf.MoveTowards(angle,target,Time.deltaTime*(Mathf.Abs(target-angle)>25?140:60));
         float settle=!open && Mathf.Abs(angle)<.5f?Mathf.Sin(Time.time*30)*Mathf.Max(0,closeBounce-Time.time)*6:0;
@@ -31,7 +28,6 @@ public class HomeCoopGate : MonoBehaviour
         open=value;if(!open)closeBounce=Time.time+.35f+Mathf.Abs(angle)/60f;
         GameAudioMix.Instance?.Play("creak",InteractionPoint,.32f);
     }
-    // Opens for a delivery and shuts behind the birds (only if it was closed before).
     public void OpenForDelivery(float hold)
     {
         if(open){if(autoOpened)autoCloseAt=Mathf.Max(autoCloseAt,Time.time+hold);return;}

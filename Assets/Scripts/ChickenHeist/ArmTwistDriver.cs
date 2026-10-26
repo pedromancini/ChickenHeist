@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// Keeps both forearm twists in step with the hands after every animation and grip of the frame.
 [DefaultExecutionOrder(900)]
 public sealed class ArmTwistDriver : MonoBehaviour
 {

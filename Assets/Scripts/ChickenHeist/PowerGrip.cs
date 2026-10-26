@@ -1,18 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// A closed hand around a bar (the steering wheel rim): where the bar runs through the hand, and the finger pose.
-// The bar lies across the palm just past the knuckle line, the fingers close around it in a cascade (the little
-// finger closes most) and the thumb wraps around the near side of the bar, above the index finger.
 public static class PowerGrip
 {
     static readonly Dictionary<Transform,Vector3> anchors=new Dictionary<Transform,Vector3>();
     static readonly string[] Fingers={"Index","Middle","Ring","Little"};
-    // Flexion per joint (knuckle, middle, tip) for a bar about 2-3 cm thick.
     static readonly float[,] Flexion={{58,88,50},{66,90,52},{72,90,52},{78,88,50}};
 
-    // Hand-local point that sits on the bar's centre line: the knuckle line, moved to the palm surface and then out
-    // by the bar radius, a little towards the wrist (the bar sits at the base of the fingers).
     public static Vector3 Anchor(HandGripPose grip,float barRadius)
     {
         var hand=grip.Hand;
@@ -25,14 +19,10 @@ public static class PowerGrip
         float scale=Mathf.Max(1e-4f,hand.lossyScale.x);
         return knuckles+grip.PalmLocal*(grip.SurfaceLevel-Vector3.Dot(knuckles,grip.PalmLocal)+barRadius/scale)-grip.FingersLocal*(.008f/scale);
     }
-    // Wrist position that puts the anchor on the bar centre for the given hand rotation.
     public static Vector3 Wrist(HandGripPose grip,Quaternion rotation,Vector3 barCentre,float barRadius)
         =>barCentre-rotation*Vector3.Scale(Anchor(grip,barRadius),grip.Hand.lossyScale);
     public static Vector3 AnchorWorld(HandGripPose grip,float barRadius)=>grip.Hand.TransformPoint(Anchor(grip,barRadius));
 
-    // Closes the fingers of a hand whose finger bones are at their rest pose. barAxis: the bar's direction;
-    // thumbSide: the bar direction the thumb points along; nearSide: unit vector from the bar towards the wrist side
-    // where the thumb rests.
     public static void Close(HandGripPose grip,Vector3 barCentre,Vector3 barAxis,float barRadius,Vector3 nearSide)
     {
         var hand=grip.Hand;string side=hand.name.Substring(hand.name.Length-1);
@@ -50,7 +40,6 @@ public static class PowerGrip
                 bone.rotation=Quaternion.AngleAxis(Flexion[f,k],axis.normalized)*bone.rotation;
             }
         }
-        // Thumb: wrapped around the near side of the bar just above the index finger, tip towards the fingers.
         var t1=hand.Find("Thumb1"+side);var t2=t1!=null?t1.Find("Thumb2"+side):null;var t3=t2!=null?t2.Find("Thumb3"+side):null;
         if(t1==null || t2==null || t3==null)return;
         Vector3 tip=t3.position+(t3.position-t2.position)*.9f;

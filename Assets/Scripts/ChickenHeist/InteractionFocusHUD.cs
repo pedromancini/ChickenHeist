@@ -18,7 +18,6 @@ public class InteractionFocusHUD : MonoBehaviour
         var game=HeistGameManager.Instance;var economy=HouseholdEconomy.Instance;
         if(game!=null && economy!=null && !game.MissionActive)
         {
-            // Objective card, top-left (the mission card takes this place during a mission).
             float s=UITheme.Scale,w=UITheme.Size(380);var body=new GUIStyle(UITheme.Style("body")){fontSize=UITheme.Size(16)};
             string objective=economy.Account.CampaignObjective;float h=body.CalcHeight(new GUIContent(objective),w-28*s)+UITheme.Size(40);
             var r=new Rect(UITheme.Size(20),UITheme.Size(20),w,h);UITheme.Panel(r,UITheme.PanelSoft);

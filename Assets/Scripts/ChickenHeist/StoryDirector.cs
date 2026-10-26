@@ -11,7 +11,7 @@ public class StoryDirector : MonoBehaviour
     public static StoryDirector Instance {get;private set;}
 
     public static bool Active=>Instance!=null && Instance.running;
-    // room left under the subtitle as last drawn (pixels; below zero it ran off the screen), for the reviews
+    
     public static float SubtitleSpare {get;private set;}
 
     public bool running {get;private set;}
@@ -20,7 +20,6 @@ public class StoryDirector : MonoBehaviour
 
     public static readonly string[] Decline=StoryDialogue.declineText;
 
-    // cutscene 2 with the night's real count filled in (StoryDialogue.Decline), set when it begins
     string[] declineLines=Decline;
     string[] Texts=>vision?declineLines:Opening;
     public int LineCount=>Texts.Length;
@@ -28,7 +27,8 @@ public class StoryDirector : MonoBehaviour
 
     string[] Speakers=>vision?StoryDialogue.declineSpeakers:VisitorOpeningDialogue.Speakers;
 
-    string[] Files=>vision?StoryDialogue.declineFiles:StoryDialogue.openingFiles;
+    string[] declineFileNames=StoryDialogue.declineFiles;
+    string[] Files=>vision?declineFileNames:StoryDialogue.openingFiles;
 
     Texture2D illustration;float lineClock;int line; VisitorCinematicStage openingStage; DeclineCinematicStage declineStage;
 
@@ -40,15 +40,30 @@ public class StoryDirector : MonoBehaviour
     public float LineDuration=>Duration;
     float Duration=>voice.clip!=null?voice.clip.length+.8f:vision?StoryDialogue.declineDurations[line]:VisitorOpeningDialogue.Durations[line];
 
-    void StartLine(){voice.Stop();voice.volume=Mathf.Clamp01(GameAudioMix.Voice);var file=vision?Files[line]:VisitorOpeningDialogue.VoiceFile(line);voice.clip=string.IsNullOrEmpty(file)?null:Resources.Load<AudioClip>("Dialogue/"+file);if(voice.clip!=null)voice.Play();}
+    void StartLine(){voice.Stop();voice.volume=Mathf.Clamp01(GameAudioMix.Voice);var file=vision?Files[line]:VisitorOpeningDialogue.VoiceFile(line);voice.clip=string.IsNullOrEmpty(file)?null:Resources.Load<AudioClip>("Dialogue/"+file);if(voice.clip!=null)voice.Play();Envelope();}
 
     Camera eye;Vector3 position;Quaternion rotation;float fov,clock;bool vision;int shot=-1;Action finished;
 
     AudioSource voice;Light sceneLight;
-
-    GameObject ruins;Material ruinMaterial;
-
-    readonly System.Collections.Generic.Dictionary<Renderer,Material[]> surfaces=new System.Collections.Generic.Dictionary<Renderer,Material[]>();
+    float[] envelope;float envelopePeak;const float EnvelopeStep=.02f;
+    void Envelope()
+    {
+        envelope=null;var clip=voice.clip;if(clip==null)return;
+        if(clip.loadState!=AudioDataLoadState.Loaded)clip.LoadAudioData();
+        var data=new float[clip.samples*clip.channels];if(!clip.GetData(data,0))return;
+        int step=Mathf.Max(1,(int)(clip.frequency*EnvelopeStep))*clip.channels;envelope=new float[data.Length/step+1];envelopePeak=0;
+        for(int i=0;i<envelope.Length;i++)
+        {
+            double sum=0;int n=0;for(int k=i*step;k<Mathf.Min(data.Length,(i+1)*step);k++){sum+=data[k]*data[k];n++;}
+            envelope[i]=n>0?Mathf.Sqrt((float)(sum/n)):0;envelopePeak=Mathf.Max(envelopePeak,envelope[i]);
+        }
+    }
+    public float VoiceOpen(float lineTime)
+    {
+        if(envelope==null || envelopePeak<=0)return -1;
+        int i=Mathf.FloorToInt(lineTime/EnvelopeStep);if(i<0 || i>=envelope.Length)return 0;
+        return Mathf.Pow(Mathf.Clamp01(envelope[i]/envelopePeak*1.5f-.08f),.8f);
+    }
 
     void Awake(){Instance=this;voice=gameObject.AddComponent<AudioSource>();voice.playOnAwake=false;voice.spatialBlend=0;}
     void Start()
@@ -57,7 +72,6 @@ public class StoryDirector : MonoBehaviour
         if(HouseholdEconomy.Instance?.home!=null){TabletDeliveryBox.Ensure(HouseholdEconomy.Instance.home);DeskBills.Ensure(HouseholdEconomy.Instance.home);}
     }
     public bool ReplayOpening(){if(!Begin(false))return false;replay=true;freshOpening=false;return true;}
-    // the second cutscene (the vision after the first robbery), watched again without touching the account
     public bool ReplayVision(){if(!Begin(true))return false;replay=true;return true;}
     public void SetPaused(bool value)
     {
@@ -75,7 +89,7 @@ public class StoryDirector : MonoBehaviour
         if(!decline && Resources.Load<GameObject>("Cinematics/VisitorStage")==null){Debug.LogError("VisitorStage prefab is missing; opening was not marked complete.");return false;}
 
         vision=decline;finished=onDone;
-        if(decline){var news=HouseholdEconomy.Instance.Account.news;var last=news!=null && news.Count>0?news[0]:null;declineLines=StoryDialogue.Decline(last!=null?last.chickens:0,last!=null && last.emptied);}
+        if(decline){var news=HouseholdEconomy.Instance.Account.news;var last=news!=null && news.Count>0?news[0]:null;declineLines=StoryDialogue.Decline(last!=null?last.chickens:0,last!=null && last.emptied);declineFileNames=StoryDialogue.DeclineFiles(last!=null?last.chickens:0,last!=null && last.emptied);}
         eye=Camera.main;position=eye.transform.localPosition;rotation=eye.transform.localRotation;fov=eye.fieldOfView;
         replay=false;freshOpening=!decline && !HouseholdEconomy.Instance.Account.introSeen;Paused=false;skipHeld=0;
 
@@ -94,40 +108,6 @@ public class StoryDirector : MonoBehaviour
 
     }
 
-    void BuildRuins()
-
-    {
-
-        var home=HouseholdEconomy.Instance.home;if(home==null)return;
-
-        ruinMaterial=SecurityEquipmentVisual.Material("Madeira abandonada da visao",new Color(.12f,.10f,.085f));
-
-        foreach(var renderer in home.GetComponentsInChildren<MeshRenderer>())
-
-        {
-
-            if(renderer.name.Contains("Tabua") || renderer.name.Contains("Casa") || renderer.name.Contains("Mourao"))
-
-            {surfaces[renderer]=renderer.sharedMaterials;var mats=new Material[renderer.sharedMaterials.Length];for(int i=0;i<mats.Length;i++)mats[i]=ruinMaterial;renderer.sharedMaterials=mats;}
-
-        }
-
-        ruins=new GameObject("Ruinas imaginadas — temporarias");ruins.transform.SetParent(home,false);
-
-        for(int i=0;i<28;i++)
-
-        {
-
-            float x=Mathf.Sin(i*13.7f)*6,z=-3-Mathf.Abs(Mathf.Cos(i*7.3f))*3;
-
-            SecurityEquipmentVisual.Part(ruins.transform,"Tabua desabada",PrimitiveType.Cube,new Vector3(x,.10f+(i%4)*.055f,z),new Vector3(.18f,.08f,1.4f+(i%3)*.4f),ruinMaterial,Quaternion.Euler(i%3*7,i*37,0));
-
-        }
-
-        for(int i=0;i<7;i++)SecurityEquipmentVisual.Part(ruins.transform,"Escora quebrada",PrimitiveType.Cube,new Vector3(-5+i*1.6f,1.2f,-3),new Vector3(.12f,2.5f,.12f),ruinMaterial,Quaternion.Euler(0,0,i%2==0?32:-27));
-
-    }
-
     void Update()
 
     {
@@ -141,7 +121,6 @@ public class StoryDirector : MonoBehaviour
         clock+=Time.unscaledDeltaTime;lineClock+=Time.unscaledDeltaTime;
 
         if(lineClock>=Duration){lineClock=0;if(++line>=Texts.Length){line=Texts.Length-1;Complete();return;}StartLine();}
-
 
     }
 
@@ -189,7 +168,6 @@ public class StoryDirector : MonoBehaviour
             player.GetComponentInChildren<PlayerLook>()?.RestorePitch(20);if(controller!=null)controller.enabled=active;Physics.SyncTransforms();
         }
         var callback=finished;finished=null;callback?.Invoke();
-        // the first time through, the tablet is only promised: a box on screen sends Elias to bed
         if(wasOpening && HouseholdEconomy.Instance.Account.tabletWaiting && !replay)SleepPrompt.Show();
         else if(wasOpening && HouseholdEconomy.Instance.Account.TabletReady)HeistGameManager.Instance?.ShowMessage("TAB  |  Examine as fotos no tablet. Escolha uma fazenda quando estiver pronto.",9);
 
@@ -204,10 +182,6 @@ public class StoryDirector : MonoBehaviour
         if(eye!=null){eye.transform.localPosition=position;eye.transform.localRotation=rotation;eye.fieldOfView=fov;}
 
         if(sceneLight!=null)Destroy(sceneLight.gameObject);
-
-        foreach(var pair in surfaces)if(pair.Key!=null)pair.Key.sharedMaterials=pair.Value;surfaces.Clear();
-
-        if(ruins!=null)Destroy(ruins);if(ruinMaterial!=null)Destroy(ruinMaterial);
 
     }
 
@@ -243,8 +217,6 @@ public class StoryDirector : MonoBehaviour
 
         GUI.skin=UITheme.Skin;
         var style=new GUIStyle(UITheme.Style("body")){fontSize=Mathf.Clamp(Screen.height/34,17,32),wordWrap=true,alignment=TextAnchor.UpperCenter};
-        // The line as it wraps at this width: on a narrow or short screen a long one needs more lines than the bar holds,
-        // so it moves up, and the bar with it, instead of running off the bottom of the screen.
         string said=Texts[line];float top=Screen.height*(vision?.80f:.835f),barTop=Screen.height*(vision?.78f:.82f),needed=0;
         if(!string.IsNullOrEmpty(said))
         {
@@ -260,7 +232,6 @@ public class StoryDirector : MonoBehaviour
             GUI.Label(new Rect(Screen.width*.1f,top,Screen.width*.8f,UITheme.Size(24)),Speakers[line].ToUpperInvariant(),new GUIStyle(UITheme.Style("caption")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(15),normal={textColor=UITheme.Accent}});
             UITheme.Shadowed(new Rect(Screen.width*.1f,top+UITheme.Size(24),Screen.width*.8f,needed+UITheme.Size(4)),said,style);
         }
-        // cutscene 2 names where and when each of its scenes happens
         string place=!vision || declineStage==null?null:line==0?declineStage.Farm+"  ·  antes de amanhecer":line==9?"A mesma manhã":line==13?"Casa do Elias":null;
         if(place!=null)UITheme.Shadowed(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.8f,UITheme.Size(60)),place,new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(34)});
         if(!vision && line==0)UITheme.Shadowed(new Rect(Screen.width*.08f,Screen.height*.16f,Screen.width*.6f,UITheme.Size(70)),"Uma entrega",new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(46)});

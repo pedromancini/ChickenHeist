@@ -18,7 +18,6 @@ public static class GripHandsUpgrade
   var renderer=obj.GetComponentInChildren<SkinnedMeshRenderer>();var sourceMesh=renderer.sharedMesh;
   var mesh=new Mesh{name="GripHands canonical"};
   mesh.vertices=sourceMesh.vertices.Select(p=>Convert(renderer.transform.TransformPoint(p)-origin)).ToArray();mesh.triangles=sourceMesh.triangles;
-  // Correct winding after FBX coordinate conversion, using imported normals.
   var tri=mesh.triangles;var v=mesh.vertices;var normal=Convert(renderer.transform.TransformDirection(sourceMesh.normals[tri[0]]));
   if(Vector3.Dot(Vector3.Cross(v[tri[1]]-v[tri[0]],v[tri[2]]-v[tri[0]]),normal)<0){for(int i=0;i<tri.Length;i+=3)(tri[i+1],tri[i+2])=(tri[i+2],tri[i+1]);mesh.triangles=tri;}
   mesh.RecalculateNormals();

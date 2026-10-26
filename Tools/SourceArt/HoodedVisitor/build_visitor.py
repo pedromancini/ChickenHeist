@@ -1,31 +1,14 @@
-# Hooded visitor (opening cinematic): the supplied AI model (Assets/c12cb2ea-...glb: one closed mesh of 98 thousand
-# triangles in an A-pose, 2K colour texture, no skeleton) rigged on Elias' bone convention (ProtagonistRig names:
-# Hips, Spine, Spine2, Chest, Neck, Head, Shoulder/UpperArm/Forearm/Hand, five fingers of three phalanges,
-# Thigh/Shin/Foot/Toe) so the cinematic poses both actors with the same code and HoodedVisitorInstall bakes the
-# visitor's clips from the same captured takes. Before this the static mesh was glued to a villager skeleton at run
-# time with weights cut by height and distance (no fingers, joints off the mesh's own elbows and wrists).
-#   - the A-pose is raised to a T-pose with the palms down (temporary weights from a closed proxy), as for Elias
-#   - joints located on the mesh: spine, shoulders, elbows, wrists, five fingers, hips, knees, ankles, toes
-#   - the original surface, UVs and texture are kept (the model is closed apart from a few pinholes); loose specks
-#     are removed and the flat (faceted) shading of the source is kept
-#   - skin weights from Blender's bone heat, then: the wrist blends over a short band (hand past it, forearm before
-#     it), the hand follows the finger chains, the face mask moves with the face under it
-# Run:  blender -b --factory-startup --python build_visitor.py                 (previews in generated/)
-#       VISITOR_EXPORT=1 blender -b --factory-startup --python build_visitor.py  (also writes the FBX files)
 import bpy, bmesh, os, math
 import numpy as np
 from mathutils import Vector, Matrix
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(ROOT, '..', '..', '..'))
-# the supplied model: since October 2026 the masked man in a hoodie of 6d4aedaf-...glb (the first one, c12cb2ea-...glb,
-# can still be rebuilt with VISITOR_SOURCE=c12cb2ea-013a-4d05-b832-3f5e1cf0ad28.glb)
-SOURCE = os.path.join(PROJECT, 'Assets', os.environ.get('VISITOR_SOURCE', '6d4aedaf-f1e7-4d58-b10c-bb30b38579ce.glb'))
+SOURCE = os.path.join(PROJECT, 'Tools', 'SourceArt', 'HoodedVisitor', 'source', 'visitante.glb')
 OUT_DIR = os.path.join(PROJECT, 'Assets', 'ChickenHeistGenerated', 'Characters', 'HoodedVisitor')
 GEN = os.path.join(ROOT, 'generated'); os.makedirs(GEN, exist_ok=True)
 EXPORT = os.environ.get('VISITOR_EXPORT') == '1'
 HEIGHT = float(os.environ.get('VISITOR_HEIGHT', '1.70'))
-# wrist transition (metres along the forearm from the wrist joint): forearm only before START, hand only after END
 WRIST_START, WRIST_END = (float(x) for x in os.environ.get('VISITOR_WRIST', '-0.035,0.015').split(','))
 report = []
 def log(*a): report.append(' '.join(str(x) for x in a)); print('VISITOR', *a)
@@ -37,8 +20,6 @@ for o in [o for o in bpy.data.objects if o.type != 'MESH']: bpy.data.objects.rem
 mw = ob.matrix_world.copy(); ob.parent = None; ob.data.transform(mw); ob.matrix_world = Matrix.Identity(4)
 ob.name = ob.data.name = 'VisitorBody'
 me = ob.data
-# the source is flat shaded with every face split apart: weld it into one surface (the faceted look comes back from
-# flat shading), and drop the loose specks (a few vertices each) that no bone could reach
 bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=5e-5); bm.to_mesh(me); bm.free()
 if me.has_custom_normals: bpy.context.view_layer.objects.active = ob; bpy.ops.mesh.customdata_custom_splitnormals_clear()
 
@@ -69,12 +50,10 @@ def coords():
 def store(P): me.vertices.foreach_set('co', P.astype(np.float32).ravel()); me.update()
 P = coords()
 
-# ---------------------------------------------------------------- A-pose to T-pose (same method as build_elias_v4.py)
 def tpose():
     global P
     z0_ = P[:, 2].min(); H_ = P[:, 2].max() - z0_
     def clusters(f):
-        # 8 mm slices: the lighter mesh of the second model leaves thinner slices of an arm empty
         m = np.abs(P[:, 2] - (z0_ + f * H_)) < .008 * H_
         idx = np.where(m)[0]; idx = idx[np.argsort(P[idx, 0])]
         if len(idx) < 10: return []
@@ -139,14 +118,12 @@ def tpose():
     return 'raised arms %.1f / %.1f degrees (torso half-width %.3f)' % (fit[1][2], fit[-1][2], torso)
 log('pose:', tpose())
 
-# feet on the ground, HEIGHT overall (before the landmarks, so every threshold below is in metres)
 z0 = P[:, 2].min(); s = HEIGHT / (P[:, 2].max() - z0)
 P = np.stack([P[:, 0] * s, P[:, 1] * s, (P[:, 2] - z0) * s], axis=1); store(P)
 log('scale', round(s, 4))
 X, Y, Z = P[:, 0], P[:, 1], P[:, 2]
 z0, z1 = Z.min(), Z.max(); H0 = z1 - z0; half = np.abs(X).max()
 
-# ---------------------------------------------------------------- landmarks on the T-pose (+x = character's left, front = -y)
 outer = np.abs(X) > .6 * half
 arm_z = float(np.median(Z[outer])); arm_band = np.abs(Z - arm_z) < .07 * H0
 def arm_centre(side, x):
@@ -158,8 +135,6 @@ def y_extent(side, x):
 chest_z = arm_z - .11 * H0
 chest = P[(np.abs(Z - chest_z) < .006 * H0) & (np.abs(X) < .5 * half)]
 torso_half = np.abs(chest[:, 0]).max(); torso_y = (chest[:, 1].min() + chest[:, 1].max()) / 2
-# The hood hides the neck, so its narrowest slice is not the neck: the neck sits at the cast's proportion, above
-# the shoulders, centred front to back on the hood's opening.
 neck_base = arm_z + .03 * H0
 mid = P[(np.abs(X) < .012 * H0) & (Z > z0 + .25 * H0) & (Z < arm_z)]
 crotch_z = mid[:, 2].min()
@@ -198,11 +173,6 @@ head_top = z1
 joint['Head'] = (head_pivot, Vector((0, neck_y, head_top - (head_top - head_pivot.z) * .25)))
 joint['Root'] = (Vector((0, 0, 0)), joint['Hips'][0].copy())
 
-# ---------------------------------------------------------------- armpits
-# Raising the A-pose to a T-pose leaves the cloth of the armpit stretched between the arm and the trunk: the sides of the
-# hoodie flare out by 4 cm over the 20 cm under each armpit, and the underside of the sleeve hangs down to the trunk like
-# a web. Hidden with the arms down, they stand out on either side of the back as soon as an arm comes forward. The
-# flare is pulled back in towards the waist's width and the web raised towards the sleeve's underside.
 def tighten_armpits():
     global P
     Q = P.copy(); moved = 0
@@ -212,11 +182,9 @@ def tighten_armpits():
         ring = (np.abs(dz + .34) < .01) & (x > 0)
         base = float(x[ring].max()) if ring.any() else .19
         def sm(t): t = np.clip(t, 0, 1); return t * t * (3 - 2 * t)
-        # the flare: trunk sides from 34 cm under the shoulder up to the sleeve, back in towards the waist's width
         flare = (x > base) & (x < base + .07) & (dz > -.34) & (dz < -.05)
         k = .75 * sm((dz + .34) / .16) * flare
         Q[:, 0] -= side * (x - base) * k
-        # the web: under the sleeve within 18 cm of the trunk, raised towards the sleeve's underside (6 cm under the arm)
         web = (x > base + .02) & (x < base + .22) & (dz < -.06) & (dz > -.14)
         lift = sm(1 - (x - base - .02) / .20) * .8 * web
         Q[:, 2] += (-.06 - dz) * lift
@@ -225,7 +193,6 @@ def tighten_armpits():
     return moved
 log('armpits: vertices tightened', tighten_armpits())
 
-# ---------------------------------------------------------------- fingers (three phalanges each)
 FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little']
 def edges():
     e = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get('vertices', e); return e.reshape(-1, 2)
@@ -244,8 +211,6 @@ def components(idx):
     for i in idx: groups.setdefault(find(int(i)), []).append(int(i))
     return sorted((np.array(g) for g in groups.values()), key=len, reverse=True)
 def digits(sd, side):
-    # Digits are separate geometry past the webbing, but each gap starts at its own depth: split recursively, raising
-    # the cut only inside a piece that still holds several digits.
     wrist = joint['Hand' + sd][0]; a = np.array((side, 0, 0)); w = np.array(wrist)
     H = np.where((side * P[:, 0] > side * wrist.x) & (np.abs(P[:, 2] - wrist.z) < .12))[0]
     sA = (P[H] - w) @ a; smax = sA.max(); along = dict(zip(H.tolist(), sA.tolist()))
@@ -260,8 +225,6 @@ def digits(sd, side):
     leaves = []
     for comp in components(H[sA > .3 * smax]):
         if len(comp) >= minsize: leaves += split(comp, .3)
-    # each finger of the source is two shells (back and palm side) meeting along its sides: merge pieces lying one
-    # over the other (overlapping side to side, a few millimetres apart in height)
     leaves = [(g, c, P[g].mean(axis=0)) for g, c in leaves]
     def overlap(g1, g2):
         a0, a1 = P[g1][:, 1].min(), P[g1][:, 1].max(); b0, b1 = P[g2][:, 1].min(), P[g2][:, 1].max()
@@ -311,7 +274,6 @@ if os.environ.get('VISITOR_DEBUG_HANDS') == '1':
             sc.render.resolution_x, sc.render.resolution_y = 800, 600; sc.render.filepath = os.path.join(GEN, 'dbg_hand_%s_%s.png' % (sd, nm)); bpy.ops.render.render(write_still=True)
     raise SystemExit
 
-# ---------------------------------------------------------------- armature and skin
 PARENT = {'Root': None, 'Hips': 'Root', 'Spine': 'Hips', 'Spine2': 'Spine', 'Chest': 'Spine2', 'Neck': 'Chest', 'Head': 'Neck'}
 for sd in 'LR':
     PARENT.update({'Shoulder' + sd: 'Chest', 'UpperArm' + sd: 'Shoulder' + sd, 'Forearm' + sd: 'UpperArm' + sd,
@@ -341,10 +303,6 @@ for v in me.vertices:
         nb = min((n for n in names if n != 'Root'), key=lambda n: seg_dist(v.co, *joint[n]))
         ob.vertex_groups[nb].add([v.index], 1.0, 'REPLACE'); orphans += 1
 log('vertices weighted by nearest bone (bone heat did not reach them)', orphans)
-# Shoulders: bone heat splits the hoodie between the chest and the upper arm abruptly round the armpit and the shoulder
-# blade, so when an arm comes forward the cloth behind it stays put and stands out in flaps on either side of the back.
-# Within 22 cm of each shoulder joint the weights are averaged with their neighbours on the surface, so the cloth there
-# blends from the chest into the arm.
 def smooth_shoulders(radius=.22, rounds=30, rate=.5):
     V = len(me.vertices); W = np.zeros((V, len(ob.vertex_groups)), np.float64)
     for v in me.vertices:
@@ -364,14 +322,9 @@ def smooth_shoulders(radius=.22, rounds=30, rate=.5):
             if row[c] > 1e-3: ob.vertex_groups[int(cols[c])].add([int(vi)], float(row[c] / tot), 'REPLACE')
     return len(region)
 log('shoulders: vertices with smoothed weights', smooth_shoulders())
-# The face mask is a separate piece lying on the face (from the bridge of the nose down over the throat); found here,
-# weighted at the end like the face under it.
 pieces = components(np.arange(len(me.vertices)))
 mask = next((c for c in pieces[1:] if len(c) > 100 and P[c][:, 2].min() > head_pivot.z - .2 and np.abs(P[c][:, 0]).max() < .1), np.array([], int))
 log('face mask piece', len(mask), 'vertices (pieces:', [len(c) for c in pieces[:6]], ')')
-# Wrist: past WRIST_END everything follows the hand and its fingers, before WRIST_START everything follows the
-# forearm, and in between the two blend smoothly (bone heat leaves the base of the palm and the thumb on the forearm,
-# which stays behind and stretches into spikes when the hand bends).
 moved = [0, 0, 0]
 for sd in 'LR':
     hand_bone = rig.data.bones['Hand' + sd]; inside = {b.name for b in hand_bone.children_recursive} | {hand_bone.name}
@@ -397,7 +350,6 @@ for sd in 'LR':
         for n, w in keep.items():
             if w > 1e-4: ob.vertex_groups[n].add([v.index], w / tot, 'REPLACE')
 log('wrist: hand vertices freed from the forearm', moved[0], 'forearm vertices freed from the hand', moved[1], 'blended', moved[2])
-# Hand: the fingers follow their own chains (bone heat mixes neighbouring fingers where they nearly touch)
 def seg_param(root, tip, p):
     seg = tip - root; t = (p - root).dot(seg) / max(1e-9, seg.length_squared)
     return t, (p - root.lerp(tip, min(1, max(0, t)))).length
@@ -434,11 +386,6 @@ for sd, side in (('L', 1), ('R', -1)):
             if w > 1e-4: ob.vertex_groups[k].add([v.index], w, 'REPLACE')
         handset += 1
 log('hand vertices weighted from finger chains', handset)
-# ---------------------------------------------------------------- forearm twist
-# The forearm turns the hand (pronation, supination) by rolling along its length: most at the wrist, none at the
-# elbow. With the forearm as one bone the whole roll lands at the wrist and knots the skin there. A twist bone from
-# mid-forearm to the wrist takes a growing share of the forearm's weight towards the wrist; the game turns it by most
-# of the hand's roll (ArmTwist), so the skin twists gradually from the elbow to the hand.
 bpy.ops.object.select_all(action='DESELECT'); rig.select_set(True); bpy.context.view_layer.objects.active = rig
 bpy.ops.object.mode_set(mode='EDIT')
 for sd in 'LR':
@@ -462,15 +409,11 @@ for sd in 'LR':
         for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
         for g, x in keep: ob.vertex_groups[g].add([v.index], x / tot, 'REPLACE')
 log('forearm twist: vertices sharing the forearm with its twist bone', twisted)
-# at most four influences, normalised
 for v in me.vertices:
     gs = sorted(((g.group, g.weight) for g in v.groups), key=lambda x: -x[1])
     keepg = gs[:4]; t = sum(w for _, w in keepg) or 1
     for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
     for g, w in keepg: ob.vertex_groups[g].add([v.index], w / t, 'REPLACE')
-# The mask moves with the face under it: every mask vertex takes the weights of the nearest vertex of the body (the
-# face above, the throat below). Glued rigidly to the head it pulled away from the throat and opened a gap whenever
-# the head turned or nodded.
 from mathutils import kdtree
 mask_set = set(int(i) for i in mask)
 others = [v.index for v in me.vertices if v.index not in mask_set]
@@ -482,14 +425,8 @@ for vi in mask_set:
     for g in [g.group for g in me.vertices[vi].groups]: ob.vertex_groups[g].remove([vi])
     for g in me.vertices[src].groups: ob.vertex_groups[g.group].add([vi], g.weight, 'REPLACE')
 log('face mask vertices weighted like the face under them', len(mask_set))
-# ---------------------------------------------------------------- low poly
-# The supplied mesh is dense and uneven (34 thousand small facets, like a scan): next to Elias' large flat facets it
-# read as another style. It is collapsed to about VISITOR_TRIS triangles (0 keeps it whole). The hands keep more of
-# theirs (the fingers fold round the tablet and knock in close-ups), and so does the band of the face between the mask
-# and the hood, where the eyes are. The modifier carries the skin weights and the UVs over.
 LOW_POLY = int(os.environ.get('VISITOR_TRIS', '11000'))
 def triangles(): return sum(len(p.vertices) - 2 for p in me.polygons)
-# the band of the face between the mask and the hood: the eyes and brows
 def in_eyes(p): return head_pivot.z + .02 < p.z < head_pivot.z + .13 and abs(p.x) < .08 and p.y < head_pivot.y - .02
 if LOW_POLY > 0 and triangles() > LOW_POLY:
     detail = ob.vertex_groups.new(name='_detail')
@@ -500,7 +437,6 @@ if LOW_POLY > 0 and triangles() > LOW_POLY:
     def region_tris():
         ks = set(kept); return sum(len(p.vertices) - 2 for p in me.polygons if all(i in ks for i in p.vertices))
     before, before_detail = triangles(), region_tris()
-    # in the collapse, a low weight makes an edge costly: the inverted group protects the hands and the eyes
     mod = ob.modifiers.new('low poly', 'DECIMATE'); mod.decimate_type = 'COLLAPSE'; mod.use_collapse_triangulate = True
     mod.ratio = LOW_POLY / before; mod.vertex_group = detail.name; mod.invert_vertex_group = True; mod.vertex_group_factor = 4
     bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
@@ -509,7 +445,6 @@ if LOW_POLY > 0 and triangles() > LOW_POLY:
     kept = [v.index for v in me.vertices if any(g.group == detail.index and g.weight > .5 for g in v.groups)]
     log('low poly: triangles', before, '->', triangles(), '; hands and eyes', before_detail, '->', region_tris())
     ob.vertex_groups.remove(detail)
-    # at most four influences, normalised, again (the collapse blends the weights of merged vertices)
     for v in me.vertices:
         gs = sorted(((g.group, g.weight) for g in v.groups), key=lambda x: -x[1])
         keepg = gs[:4]; t = sum(w for _, w in keepg) or 1
@@ -518,9 +453,6 @@ if LOW_POLY > 0 and triangles() > LOW_POLY:
 for p_ in me.polygons: p_.use_smooth = False
 
 def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
-    # "Fala": the jaw dropped by `angle` degrees about the jaw joint (pivot: in front of the ears, the axis across the
-    # face). Everything below the lips and in front of the joint turns with it, fading out over 1.2 cm at the lips, to the
-    # sides past the corners of the jaw, back towards the ears and down to `bottom` (the chin, or the mask's lower edge). The game opens it with the loudness of the voice.
     import math as _m
     from mathutils import Matrix as _M, Vector as _V
     if obj.data.shape_keys is None: obj.shape_key_add(name='Basis', from_mix=False)
@@ -534,18 +466,13 @@ def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
         if w <= 0: continue
         key.data[i].co = p.lerp(pivot + rot @ (p - pivot), w); moved += 1
     log(label, 'speech shape: vertices moving with the jaw', moved)
-# the jaw drops 15 degrees at full voice: under the mask, 9 barely moved the cloth, and the close-ups of him talking frame
-# the mask
 speech_shape(ob, Vector((0, head_pivot.y, head_pivot.z + .01)), head_pivot.z - .017, 15, .08, head_pivot.z - .105, 'body')
 used = {x.group for v in me.vertices for x in v.groups}
 for g in [g for g in ob.vertex_groups if g.index not in used]: ob.vertex_groups.remove(g)
 log('triangles', sum(len(p.vertices) - 2 for p in me.polygons), 'vertices', len(me.vertices))
 
-# the colour texture is the source's own (already in the project as hooded_visitor_0.png): UVs are unchanged
-# the UV triangles, for pad_texture.py (fills the texture's gaps between islands with the islands' own colours)
 me.calc_loop_triangles(); uvd = me.uv_layers.active.data
 np.save(os.path.join(GEN, 'visitor_uv.npy'), np.array([[uvd[l].uv[:] for l in t.loops] for t in me.loop_triangles], dtype=np.float32))
-# and which of them lie in the band of the eyes (pad_texture.py keeps their drawing, in a few flat colours)
 np.save(os.path.join(GEN, 'visitor_eyes.npy'), np.array([in_eyes(sum((me.vertices[i].co for i in t.vertices), Vector()) / 3) for t in me.loop_triangles], dtype=bool))
 if EXPORT:
     bpy.ops.object.select_all(action='DESELECT')
@@ -553,8 +480,6 @@ if EXPORT:
     for path in ('Visitor_Rigged.fbx', 'VisitorHumanoid.fbx'):
         bpy.ops.export_scene.fbx(filepath=os.path.join(OUT_DIR, path), use_selection=True, object_types={'MESH', 'ARMATURE'},
                                  add_leaf_bones=False, bake_anim=False, axis_forward='-Z', axis_up='Y', path_mode='STRIP')
-    # the colour texture goes in as hooded_visitor_0.png (HoodedVisitorInstall's material); the first model's texture was
-    # already there under that name
     diffuse = next((im for im in bpy.data.images if 'diffuse' in im.name.lower()), None)
     if diffuse is not None:
         diffuse.filepath_raw = os.path.join(OUT_DIR, 'hooded_visitor_0.png'); diffuse.file_format = 'PNG'; diffuse.save()
@@ -562,7 +487,6 @@ if EXPORT:
     log('exported to', OUT_DIR)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(GEN, 'Visitor.blend'))
 
-# ---------------------------------------------------------------- previews
 sc = bpy.context.scene; sc.render.engine = 'BLENDER_WORKBENCH'; sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'TEXTURE'
 cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
 def shot(name, loc, look, lens=50, res=(900, 1100)):

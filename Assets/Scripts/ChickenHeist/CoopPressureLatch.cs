@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// Deterministic mechanics: failure always follows sustained force, never a random roll.
 public sealed class CoopPressureLatch
 {
     readonly int[] order=new int[3];
@@ -11,7 +10,6 @@ public sealed class CoopPressureLatch
     public int Selected {get;private set;}
     public int NextPiece=>Completed<3?order[Completed]:-1;
     public float Travel(int piece)=>offsets[Mathf.Clamp(piece,0,2)];
-    // the pieces come free in a shuffled order: whether this one is free (not how many are)
     public bool Released(int piece)=>Travel(piece)>=1;
     public float RequiredPressure=>Completed>=3?0:.27f+.17f*NextPiece+.035f*Completed+.12f*offsets[NextPiece];
     public bool HasSlack=>Selected==NextPiece;
@@ -22,7 +20,6 @@ public sealed class CoopPressureLatch
         var random=new System.Random(seed);for(int i=0;i<3;i++)order[i]=i;
         for(int i=2;i>0;i--){int j=random.Next(i+1);int hold=order[i];order[i]=order[j];order[j]=hold;}
     }
-    // Returns -1 for a noisy slip, +1 when a piece releases, zero otherwise.
     public int Step(float dt,int selected,float axis,bool pull,bool professional)
     {
         if(!float.IsFinite(dt) || !float.IsFinite(axis) || dt<=0 || Completed==3)return 0;

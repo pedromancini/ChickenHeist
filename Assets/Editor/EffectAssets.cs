@@ -3,15 +3,12 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Particle materials the game loads at run time (Resources/Effects): being assets, their shaders go into builds.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EffectAssets.Install
 public static class EffectAssets
 {
     const string Folder="Assets/Resources/Effects";
     public static void Install()
     {
         Directory.CreateDirectory(Folder);
-        // a soft round puff, white with alpha falling off to the edge (the particles tint it)
         string texturePath=Folder+"/SprayPuff.png";
         var t=new Texture2D(64,64,TextureFormat.RGBA32,false);
         for(int y=0;y<64;y++)for(int x=0;x<64;x++){float d=Vector2.Distance(new Vector2(x,y),new Vector2(31.5f,31.5f))/32f;float a=Mathf.Clamp01(1-d);t.SetPixel(x,y,new Color(1,1,1,a*a*(3-2*a)));}

@@ -16,7 +16,6 @@ public static class PhaseTwoUpgrade
             {
                 string file="output/playable-review/playable-tests.txt";
                 bool passed=File.Exists(file) && !File.ReadAllText(file).Contains("FAIL") && !File.ReadAllText(file).Contains("ERROR");
-                // Windows build is explicitly deferred until the end of the full plan.
                 EditorApplication.Exit(passed?0:1);
             };
         };

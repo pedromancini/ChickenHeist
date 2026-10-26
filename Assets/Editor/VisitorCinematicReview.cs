@@ -25,7 +25,6 @@ public static class VisitorCinematicReview
         var root=new GameObject("VisitorStage");var stage=root.AddComponent<VisitorCinematicStage>();
         var protagonist=AssetDatabase.LoadAssetAtPath<GameObject>(ProtagonistInstaller.PrefabPath);
         stage.elias=Object.Instantiate(protagonist,root.transform).transform;
-        // the hooded visitor, rigged on Elias' bone names (HoodedVisitorInstall)
         stage.visitor=new GameObject("Visitante").transform;stage.visitor.SetParent(root.transform,false);HoodedVisitorInstall.Build(stage.visitor);
         foreach(var actor in new[]{stage.elias})
         {
@@ -111,12 +110,12 @@ public static class VisitorCinematicReview
                 Check(stage!=null,"Visitor prefab instantiated with two rigged actors");
                 var visitorBody=stage.visitor.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(s=>s.name=="VisitorBody");
                 Check(visitorBody!=null && visitorBody.enabled && visitorBody.bones.Count(b=>b!=null)>=50 && new[]{"HandL","Index3L","Little3R","Thumb3R","ForearmR"}.All(n=>visitorBody.bones.Any(b=>b!=null && b.name==n)),
-                    "Hooded visitor is the supplied 6d4aedaf model rigged with arms, wrists and fingers: "+(visitorBody!=null?visitorBody.bones.Length+" bones":"missing"));
+                    "Hooded visitor is rigged with arms, wrists and fingers: "+(visitorBody!=null?visitorBody.bones.Length+" bones":"missing"));
                 Check(visitorBody!=null && visitorBody.sharedMaterial!=null && visitorBody.sharedMaterial.GetTexture("_BaseMap")!=null,"Hooded visitor keeps its painted texture");
                 File.WriteAllText(Folder+"/wrists.txt","beat: wrist load (1 = at the joint's limit) and contact error, Elias | visitor\n");
                 Check(stage.GetComponentsInChildren<Light>().Count(l=>l.shadows!=UnityEngine.LightShadows.None)<=1,"Only key light casts additional shadows");
                 {
-                    var keys=new[]{"bell","box_open","cage_lid","camera_alert","chicken","chicken_pickup","chicken_scared","chicken_walk","cow","creak","door","door_creak","engine","gate_metal","knock","latch_click","latch_scrape","latch_slip","night_ambience","porch_step","rooster_morning","shotgun_blast","shotgun_reload","sleep","spray","start","stall","starter","step","truck_door","wake","wire_rattle","wood"};
+                    var keys=new[]{"bell","box_open","cage_lid","camera_alert","chicken","chicken_pickup","chicken_scared","chicken_walk","cow","creak","door","door_creak","engine","gate_metal","knock","latch_click","latch_scrape","latch_slip","night_ambience","rooster_morning","shotgun_blast","shotgun_reload","sleep","spray","start","stall","starter","truck_door","wake","wire_rattle","wood"};
                     var missing=keys.Where(k=>SoundLibrary.Load(k)==null).ToArray();
                     Check(missing.Length==0,"Recorded sound effects load in place of the synthesized ones: "+(keys.Length-missing.Length)+"/"+keys.Length+(missing.Length>0?" missing "+string.Join(",",missing):""));
                 }
@@ -130,7 +129,6 @@ public static class VisitorCinematicReview
                     Wrists(stage,"beat "+line);
                     total+=duration;
                 }
-                // storyboard: every beat at its start, middle and end, as the player sees it (output/visitor-opening/story)
                 Directory.CreateDirectory(Folder+"/story");float clock=0;
                 for(int line=0;line<VisitorOpeningDialogue.Text.Length;line++)
                 {
@@ -139,7 +137,6 @@ public static class VisitorCinematicReview
                     {SetLine(line,f);stage.Evaluate(camera,line,duration*f,duration,clock+duration*f);Capture("story/beat-"+line.ToString("00")+"-"+k);}
                     clock+=duration;
                 }
-                // the moments the hands are busy, up close: leaning on the desk, knocking, the lever, shutting the door
                 foreach(var (line,at,visitorSide,name) in new[]{(0,.85f,false,"desk"),(1,1.43f,true,"knock"),(5,.9f,false,"lever"),(29,3.2f,false,"door-close")})
                 {
                     SetLine(line,at/VisitorOpeningDialogue.Durations[line]);stage.Evaluate(camera,line,at,VisitorOpeningDialogue.Durations[line],200+line+at);
@@ -147,7 +144,6 @@ public static class VisitorCinematicReview
                     HandCloseUps(visitorSide?stage.VisitorActor:stage.EliasActor,"hands-"+name+(visitorSide?"-visitor":"-elias"));
                     Wrists(stage,name+" (beat "+line+" at "+at+" s)");
                     if(name=="knock")Check(stage.VisitorActor.ContactError<.03f,"Knuckles meet the door on the knock: "+stage.VisitorActor.ContactError.ToString("F3"));
-                    // the hand at work, as the shot shows it: on screen, not hidden behind the actor's own trunk
                     foreach(bool right in name=="desk"?new[]{true,false}:new[]{name=="knock"})
                     {
                         var actor=visitorSide?stage.VisitorActor:stage.EliasActor;
@@ -155,7 +151,6 @@ public static class VisitorCinematicReview
                     }
                     Check(stage.EliasActor.WristLoad<=1.001f && stage.VisitorActor.WristLoad<=1.001f,"Wrists within their range at "+name);
                 }
-                // the door swings into the house: it must clear Elias, who pulls it open and steps out of its way
                 if(stage.Door!=null)
                 {
                     float clearance=float.PositiveInfinity;var hinge=stage.Door.hinge;
@@ -169,8 +164,6 @@ public static class VisitorCinematicReview
                     }
                     Check(clearance>.28f,"The door swinging into the house clears Elias: "+clearance.ToString("F2")+" m from his centre");
                 }
-                // the opening as the shot shows it: Elias keeps his distance from the camera while he steps aside (he used
-                // to back into it, his shirt filling the picture), and the visitor then shows in the doorway beside him
                 {
                     float d5=VisitorOpeningDialogue.Durations[5],closest=float.PositiveInfinity;
                     for(float t=0;t<=d5;t+=.1f){SetLine(5,t/d5);stage.Evaluate(camera,5,t,d5,320+t);closest=Mathf.Min(closest,Vector3.Distance(camera.transform.position,stage.EliasActor.head.position));}
@@ -181,7 +174,6 @@ public static class VisitorCinematicReview
                         float aspect=camera.aspect;camera.aspect=1280f/(720*camera.rect.height);
                         var face=camera.WorldToViewportPoint(stage.VisitorActor.head.position);var chest=camera.WorldToViewportPoint(stage.EliasActor.spine.position);
                         float tan=Mathf.Tan(camera.fieldOfView*.5f*Mathf.Deg2Rad);camera.aspect=aspect;
-                        // apart by more than his half shoulder width (0.25 m at his depth) and half a head (0.12 m at the visitor's)
                         float apart=Mathf.Abs(face.x-chest.x),need=.25f/(2*chest.z*tan*1280f/(720*camera.rect.height))+.12f/(2*face.z*tan*1280f/(720*camera.rect.height));
                         bool inFrame=face.z>chest.z && face.x>.05f && face.x<.95f && face.y>.05f && face.y<.95f;
                         Check(inFrame && apart>need,"The opening door shows the visitor beside Elias at "+at+" s: his face at ("+face.x.ToString("0.00")+", "+face.y.ToString("0.00")+"), "+apart.ToString("0.00")+" of the width from Elias' chest (needs "+need.ToString("0.00")+")");
@@ -192,10 +184,8 @@ public static class VisitorCinematicReview
                 stage.Evaluate(camera,28,4.5f,6.5f,124);Check(Vector3.Distance(before,stage.visitor.position)>2,"Visitor physically walks away");
                 stage.Evaluate(camera,29,.3f,8.5f,125);before=stage.elias.position;
                 stage.Evaluate(camera,29,7.8f,8.5f,132);Check(Vector3.Distance(before,stage.elias.position)>2,"Elias physically returns to table");
-                // shutting the door: his hand stays on the inner lever while he pushes it shut, and he ends inside
                 SetLine(29,.38f);stage.Evaluate(camera,29,3.2f,8.5f,127);
                 Check(stage.EliasActor.ContactError<.05f,"Elias' hand stays on the inner lever while he pushes the door shut: "+stage.EliasActor.ContactError.ToString("F3"));
-                // the lever in front of his left shoulder (x < 0 in his own space), not across his body
                 foreach(var at in new[]{2.6f,3.4f,4.2f})
                 {
                     SetLine(29,at/8.5f);stage.Evaluate(camera,29,at,8.5f,127+at);var lever=stage.elias.InverseTransformPoint(stage.Door.hinge.TransformPoint(new Vector3(1.30f,1.06f,.10f)));
@@ -203,14 +193,12 @@ public static class VisitorCinematicReview
                 }
                 SetLine(29,.54f);stage.Evaluate(camera,29,4.6f,8.5f,128);
                 Check(Quaternion.Angle(stage.Door.hinge.localRotation,Quaternion.identity)<1 && Vector3.Dot(stage.elias.position-stage.Door.hinge.position,stage.Door.hinge.parent.forward)>.3f,"Door shut with Elias inside the house");
-                // and he never steps out of the house to do it: from the doorway, round the open door, pushing it shut
                 {
                     float least=float.PositiveInfinity;
                     for(float t=0;t<=8.5f;t+=.1f){SetLine(29,t/8.5f);stage.Evaluate(camera,29,t,8.5f,140+t);least=Mathf.Min(least,Vector3.Dot(stage.elias.position-stage.Door.hinge.position,stage.Door.hinge.parent.forward));}
                     Check(least>.05f,"Elias shuts the door from inside, never stepping out onto the porch: at least "+least.ToString("F2")+" m inside the door line all along");
                 }
                 foreach(var at in new[]{.8f,1.6f,2.4f,3.2f,4.0f,4.8f}){SetLine(29,at/8.5f);stage.Evaluate(camera,29,at,8.5f,130+at);Capture("door-close-"+at.ToString("0.0"));}
-                // the visitor's close-up (and Elias' reverse): how much of the frame the door and its frame take
                 {
                     float d8=VisitorOpeningDialogue.Durations[8];SetLine(8,.5f);stage.Evaluate(camera,8,d8*.5f,d8,150);
                     var leaf=stage.Door.hinge.GetComponentsInChildren<Renderer>().ToList();
@@ -218,13 +206,11 @@ public static class VisitorCinematicReview
                     float doorShare=Share(camera,leaf),frameShare=Share(camera,frame);
                     Check(doorShare+frameShare<.06f,"The visitor's close-up keeps the door and the doorway out of the shot: door "+(doorShare*100).ToString("0.0")+"%, frame "+(frameShare*100).ToString("0.0")+"% of the picture");
                     Capture("framing-visitor-close-up");
-                    // his mouth, as that shot shows it: the mask's chin drops visibly at full voice
                     Mouth(stage.visitor,camera,"visitor","framing-visitor-mouth");
                     MouthAlong(stage,camera,8,stage.visitor,"visitor");
                     float d9=VisitorOpeningDialogue.Durations[9];SetLine(9,.5f);stage.Evaluate(camera,9,d9*.5f,d9,151);
                     Mouth(stage.elias,camera,"Elias","framing-elias-mouth");
                 }
-                // the bill as Elias sees it, from his eyes (it must read upright to him)
                 {
                     SetLine(0,.5f);stage.Evaluate(camera,0,3,6,3);
                     var go=new GameObject("pov");var cam=go.AddComponent<Camera>();cam.CopyFrom(camera);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=38;cam.nearClipPlane=.05f;
@@ -232,14 +218,12 @@ public static class VisitorCinematicReview
                     var t=new RenderTexture(900,700,24);cam.targetTexture=t;cam.Render();var a=RenderTexture.active;RenderTexture.active=t;var tex=new Texture2D(900,700,TextureFormat.RGB24,false);tex.ReadPixels(new Rect(0,0,900,700),0,0);tex.Apply();RenderTexture.active=a;
                     File.WriteAllBytes(Folder+"/bill-pov.png",tex.EncodeToPNG());cam.targetTexture=null;Object.DestroyImmediate(t);Object.DestroyImmediate(tex);Object.DestroyImmediate(go);
                 }
-                // bodies whole, at the knock, through the door shutting and while talking (output/visitor-opening/body)
                 Directory.CreateDirectory(Folder+"/body");
                 foreach(var (line,at,visitorSide) in new[]{(0,.85f,false),(0,2.5f,false),(1,.75f,true),(1,1.43f,true),(1,2.8f,true),(29,.8f,false),(29,1.6f,false),(29,2.4f,false),(29,3.2f,false),(22,2f,true),(21,2f,false),(12,1.5f,true),(25,3f,false)})
                 {
                     float duration=VisitorOpeningDialogue.Durations[line];SetLine(line,at/duration);stage.Evaluate(camera,line,at,duration,500+line+at);
                     BodyViews(visitorSide?stage.VisitorActor:stage.EliasActor,"body/"+line.ToString("00")+"-"+at.ToString("0.00")+(visitorSide?"-visitor":"-elias"));
                 }
-                // the trunk while talking: the chest's travel over a whole line (the captured takes rocked it back and forth)
                 foreach(var (beat,actor,name) in new[]{(21,stage.EliasActor,"Elias"),(22,stage.VisitorActor,"visitor"),(12,stage.VisitorActor,"visitor (beat 12)")})
                 {
                     float duration=VisitorOpeningDialogue.Durations[beat];var chest=new System.Collections.Generic.List<Vector3>();var tilt=new System.Collections.Generic.List<Quaternion>();
@@ -248,7 +232,6 @@ public static class VisitorCinematicReview
                     var mean=chest.Aggregate(Vector3.zero,(a,b)=>a+b)/chest.Count;float travel=chest.Max(c=>Vector3.Distance(c,mean))*2;float turn=tilt.Max(q=>tilt.Max(r=>Quaternion.Angle(q,r)));
                     Check(travel<.03f && turn<5,"Chest steady while "+name+" talks: travels "+(travel*100).ToString("0.0")+" cm, turns "+turn.ToString("0.0")+" deg");
                 }
-                // the arms while talking: how far each hand wanders in the actor's own space over a whole line
                 foreach(var (beat,actor,name) in new[]{(21,stage.EliasActor,"Elias"),(22,stage.VisitorActor,"visitor"),(18,stage.VisitorActor,"visitor (beat 18)")})
                 {
                     float duration=VisitorOpeningDialogue.Durations[beat];var left=new System.Collections.Generic.List<Vector3>();var right=new System.Collections.Generic.List<Vector3>();
@@ -258,11 +241,8 @@ public static class VisitorCinematicReview
                     float wander=Mathf.Max(Spread(left),Spread(right));
                     Check(wander<.08f,"Arms steady while "+name+" talks: hands wander "+(wander*100).ToString("0.0")+" cm (arm sway "+VisitorCinematicActor.ArmSway+")");
                 }
-                // mouths: open while speaking, shut while listening
                 SetLine(14,.5f);stage.Evaluate(camera,14,VisitorOpeningDialogue.Durations[14]*.5f,VisitorOpeningDialogue.Durations[14],60);
                 Check(stage.EliasActor.HasJaw && stage.VisitorActor.HasJaw,"Both actors have a jaw shape for speech");
-                // lip movement in the cutscene itself: Elias in his close-up while he talks (beat 21), the visitor's mask in
-                // his (beat 22); the listener's mouth stays shut. A strip of the speaker's face goes to mouth-<beat>.png.
                 foreach(var (beat,speaker,listener,name) in new[]{(21,stage.EliasActor,stage.VisitorActor,"Elias"),(22,stage.VisitorActor,stage.EliasActor,"visitor")})
                 {
                     float duration=VisitorOpeningDialogue.Durations[beat];var weights=new System.Collections.Generic.List<float>();float listening=0;
@@ -289,7 +269,6 @@ public static class VisitorCinematicReview
                 }
                 Check(HouseholdEconomy.Instance.Account.introSeen,"Completion flag persists");
                 Check(HouseholdEconomy.Instance.Account.balance==balance && HouseholdEconomy.Instance.Account.flock==flock && !HeistGameManager.Instance.MissionActive,"Viewing/skip does not accept a heist, grant money or change birds");
-                // Drive the final beat through the actual Update completion path.
                 Check(StoryDirector.Instance.Begin(false),"Natural ending starts");SetLine(30,.98f);
                 phase=4;next=EditorApplication.timeSinceStartup+.5;return;
             }
@@ -297,8 +276,6 @@ public static class VisitorCinematicReview
         }
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
     }
-    // The story after the conversation: the visitor only promises the tablet; a box on screen sends Elias to bed; the
-    // next morning a box waits by the door, and opening it hands the tablet over (no tablet between the actors' hands).
     static void DeliveryFlow()
     {
         var economy=HouseholdEconomy.Instance;
@@ -330,8 +307,6 @@ public static class VisitorCinematicReview
         Check(Vector3.Distance(camera.transform.localPosition,cameraPosition)<.01f && Quaternion.Angle(camera.transform.localRotation,cameraRotation)<.1f && Mathf.Abs(camera.fieldOfView-cameraFov)<.01f && Mathf.Abs(camera.nearClipPlane-near)<.001f,label+": player camera restored");
         Check(Quaternion.Angle(door.hinge.localRotation,doorRotation)<.1f && door.enabled==doorEnabled,label+": original door restored");
     }
-    // Held like a book: thumbs on the face towards the holder (near), fingers past the far face, nothing inside.
-    // the speaker's face up close, lit from the front, into one cell of a strip
     static void Face(VisitorCinematicActor actor,Texture2D strip,int cell)
     {
         var head=actor.head;var go=new GameObject("face close-up");var cam=go.AddComponent<Camera>();cam.CopyFrom(Camera.main);cam.rect=new Rect(0,0,1,1);cam.fieldOfView=24;cam.nearClipPlane=.02f;
@@ -348,10 +323,6 @@ public static class VisitorCinematicReview
         string Arm(VisitorCinematicActor a,bool right){var arm=a.Arm(right);return (right?"R":"L")+$" flex {arm.Flexion:0} dev {arm.Deviation:0} roll {arm.Roll:0} forearm {arm.ForearmRoll:0}";}
         File.AppendAllText(Folder+"/wrists.txt",$"{label}: Elias load {e.WristLoad:0.00} contact {e.ContactError:0.000} [{Arm(e,false)} | {Arm(e,true)}]  visitor load {v.WristLoad:0.00} contact {v.ContactError:0.000} [{Arm(v,false)} | {Arm(v,true)}]\n");
     }
-    // Both hands of an actor up close, each from the back of the hand, the thumb side and the palm side, lit by a lamp
-    // at the camera (the night scene is too dark to judge a grip): wrist, fingers and what they hold in one sheet.
-    // The whole actor alone (everything else culled), from the front, both sides and the back, lit evenly: arms against
-    // the body (an arm sunk into the chest), the clothes, the stance.
     static void BodyViews(VisitorCinematicActor actor,string name)
     {
         const int Layer=31;var renderers=actor.root.GetComponentsInChildren<Renderer>(true);var layers=renderers.Select(r=>r.gameObject.layer).ToArray();
@@ -392,13 +363,10 @@ public static class VisitorCinematicReview
         sheet.Apply();File.WriteAllBytes(Folder+"/"+name+".png",sheet.EncodeToPNG());cam.targetTexture=null;
         Object.DestroyImmediate(target);Object.DestroyImmediate(sheet);Object.DestroyImmediate(go);Object.DestroyImmediate(lamp.gameObject);
     }
-    // Share of the picture (the shot's letterboxed viewport) the given renderers cover, as drawn from that camera on
-    // their own (anything in front of them is not counted out: a conservative measure).
     static float Share(Camera camera,List<Renderer> marked)
     {
         if(marked.Count==0)return 0;
         const int Layer=29;var layers=marked.ToDictionary(r=>r,r=>r.gameObject.layer);var materials=marked.ToDictionary(r=>r,r=>r.sharedMaterials);
-        // flat white whatever the light: a door in shadow at night must count as much as a lit one
         var white=new Material(Shader.Find("Universal Render Pipeline/Unlit"));white.SetColor("_BaseColor",Color.white);
         foreach(var r in marked){r.gameObject.layer=Layer;r.sharedMaterials=r.sharedMaterials.Select(_=>white).ToArray();}
         var go=new GameObject("framing probe");var cam=go.AddComponent<Camera>();cam.CopyFrom(camera);
@@ -411,8 +379,6 @@ public static class VisitorCinematicReview
         Object.DestroyImmediate(tex);Object.DestroyImmediate(target);Object.DestroyImmediate(go);Object.DestroyImmediate(white);
         return all>0?(float)hit/all:0;
     }
-    // A speaking head's jaw ("Fala") shut and fully open, through the shot's camera: how far the vertex that moves most
-    // travels on a 1280x720 picture, and the two frames side by side.
     static void Mouth(Transform actor,Camera camera,string who,string capture)
     {
         var skins=actor.GetComponentsInChildren<SkinnedMeshRenderer>().Where(x=>x.sharedMesh!=null && x.sharedMesh.GetBlendShapeIndex("Fala")>=0).ToList();
@@ -438,8 +404,6 @@ public static class VisitorCinematicReview
         for(int i=0;i<skins.Count;i++)skins[i].SetBlendShapeWeight(skins[i].sharedMesh.GetBlendShapeIndex("Fala"),weights[i]);
         Check(most>=10,"The "+who+"'s mouth moves visibly in his close-up: at full voice the jaw moves "+most.ToString("0")+" px on a 1280x720 picture");
     }
-    // Is the hand on screen in the shot, and clear of the actor's own trunk? The trunk is taken as a 0.42 m wide column
-    // round the chest bone, from 0.45 m below it to 0.15 m above; a hand behind it (farther from the camera) is hidden.
     static bool HandInShot(Camera camera,VisitorCinematicActor actor,bool right,out string where)
     {
         float aspect=camera.aspect;camera.aspect=1280f/(720*camera.rect.height);
@@ -451,8 +415,6 @@ public static class VisitorCinematicReview
         where="at ("+v.x.ToString("0.00")+", "+v.y.ToString("0.00")+") of the picture, "+(!inFrame?"out of frame":behind?"behind his body":"in view");
         return inFrame && !behind;
     }
-    // The mouth through a whole spoken line, frame by frame as the cinematic plays it: how far the chin (the vertex the
-    // jaw moves most) travels on a 1280x720 picture between its highest and lowest point.
     static void MouthAlong(VisitorCinematicStage stage,Camera camera,int line,Transform actor,string who)
     {
         var skin=actor.GetComponentsInChildren<SkinnedMeshRenderer>().FirstOrDefault(x=>x.sharedMesh!=null && x.sharedMesh.GetBlendShapeIndex("Fala")>=0);
@@ -483,7 +445,7 @@ public static class VisitorCinematicReview
     {
         EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         if(Resources.Load<GameObject>("Cinematics/VisitorStage")==null)throw new InvalidOperationException("Install visitor stage first");
-        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{RuralWorldReview.WorldScene},locationPathName="E:/Jogo3D/Build/ChickenHeist.exe",target=BuildTarget.StandaloneWindows64,options=BuildOptions.None});
+        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{RuralWorldReview.WorldScene},locationPathName="Builds/Windows/ChickenHeist.exe",target=BuildTarget.StandaloneWindows64,options=BuildOptions.None});
         File.WriteAllText(Folder+"/build.txt",report.summary.result+"\nErrors: "+report.summary.totalErrors+"\nDuration: "+report.summary.totalTime);
         EditorApplication.Exit(report.summary.result==BuildResult.Succeeded?0:1);
     }

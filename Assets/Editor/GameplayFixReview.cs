@@ -36,8 +36,6 @@ public static class GameplayFixReview
         var account=Object.FindAnyObjectByType<HouseholdEconomy>();account.editorTestSavePath=Path.GetFullPath("Temp/fixes-"+Guid.NewGuid().ToString("N")+".json");HouseholdEconomy.SaveAccount(account.editorTestSavePath,new HouseholdAccount());
         SessionState.SetBool(Key,true);EditorApplication.isPlaying=true;
     }
-    // The checks alone, without the one-time vegetation clearing (the scene is not touched).
-    // Run: Unity.exe -batchmode -projectPath . -executeMethod GameplayFixReview.Run
     public static void Run()
     {
         Directory.CreateDirectory(Folder);EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
@@ -69,7 +67,6 @@ public static class GameplayFixReview
                     Check(Mathf.Abs(gate.transform.position.y-p.y)<.01f && gate.GetComponentsInChildren<Renderer>().All(r=>r.enabled),"Gate swings visibly above ground: "+gate.name);
                     gate.RestoreOpen(false);Check(Vector3.Distance(p,gate.transform.position)<.001f && Quaternion.Angle(q,gate.transform.rotation)<.01f,"Gate closes back to original pose");
                 }
-                // a gate pushed open swings away from whoever opens it, from either side
                 foreach(var gate in Object.FindObjectsByType<RuralGate>().Take(4))
                 {
                     var barrier=gate.GetComponent<HingedBarrier>();var centre=barrier.InteractionPoint;var across=gate.transform.forward;across.y=0;across.Normalize();
@@ -103,4 +100,3 @@ public static class GameplayFixReview
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
     }
 }
-

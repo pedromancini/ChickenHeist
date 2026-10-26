@@ -4,10 +4,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Every character in the world scene with the model file its body comes from (output/cast-audit/cast.txt), and the
-// ones that break the cast rule: everyone but Elias and the hooded visitor comes from the Free Medieval People pack,
-// and never its king, queen, rich_citizzens_3 or rich_citizzens_4.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod CastSourceAudit.Run
 public static class CastSourceAudit
 {
     public const string Pack="Assets/ImportedMedievalPeople/fbx/people_unity/";
@@ -25,7 +21,6 @@ public static class CastSourceAudit
             if(!ok)broken++;
             lines.Add((ok?"ok   ":"BAD  ")+Path(skin.transform)+"  <-  "+source);
         }
-        // the cutscene stages and other prefabs the game loads from Resources
         foreach(var path in AssetDatabase.FindAssets("t:Prefab",new[]{"Assets/Resources"}).Select(AssetDatabase.GUIDToAssetPath))
             foreach(var dep in AssetDatabase.GetDependencies(path,true).Where(d=>d.EndsWith(".fbx") && (d.Contains("ImportedMedievalPeople") || d.Contains("ImportedVillagerNPC"))))
             {

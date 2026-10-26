@@ -8,10 +8,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Cutscene 2 ("O dia seguinte") in play mode, after a staged raid of 5 birds on the third farm: it plays at that farm,
-// says the right count, every speaker is in the picture and unhidden, mouths move for whoever speaks and stay shut for
-// whoever listens, each scene has its own light, and everything is put back afterwards. Every line is captured at its
-// start, middle and end (output/cutscene-two). Writes output/cutscene-two/checks.txt.
 [InitializeOnLoad]
 public static class CutsceneTwoReview
 {
@@ -49,9 +45,8 @@ public static class CutsceneTwoReview
             if(phase==0){GameMenu.Instance.Resume();phase=1;next=EditorApplication.timeSinceStartup+1;return;}
             if(phase==1)
             {
-                // a raid of 5 birds on the third farm, last night
                 var farms=Object.FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).OrderBy(f=>f.layoutIndex).ToArray();farm=farms[Mathf.Min(2,farms.Length-1)].identity;
-                HouseholdEconomy.Instance.Commit(a=>{a.news=new List<FarmRaidNews>{new FarmRaidNews{farm=farm,chickens=5,day=a.day}};a.pendingVision=true;return true;},"Review raid");
+                HouseholdEconomy.Instance.Commit(a=>{a.news=new List<FarmRaidNews>{new FarmRaidNews{farm=farm,chickens=5,day=a.day}};a.pendingVision=true;a.regionalSecurity=true;return true;},"Review raid");
                 ambient=RenderSettings.ambientLight;fogDensity=RenderSettings.fogDensity;viewport=Camera.main.rect;
                 Check(StoryDirector.Instance.Begin(true),"Cutscene 2 starts after a raid");
                 phase=2;next=EditorApplication.timeSinceStartup+.5;return;
@@ -65,13 +60,12 @@ public static class CutsceneTwoReview
                 var lot=Object.FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).First(f=>f.identity==farm).lot;
                 Check(stage.Coop!=null && lot.Contains(new Vector2(stage.Coop.transform.position.x,stage.Coop.transform.position.z)),"Its coop is that farm's coop");
                 Check(director.LineText(4)=="Cinco.","Osvaldo counts what was taken: \""+director.LineText(4)+"\"");
-                Check(stage.Coop!=null && stage.Coop.IsOpen,"The robbed coop stands open");
+                Check(stage.Coop!=null && stage.Coop.IsOpen,"The robbed coop stands open");Check(Object.FindObjectsByType<TrapSystem>(FindObjectsSortMode.None).All(t=>t.GetComponentsInChildren<Renderer>().All(x=>!x.enabled)) && Object.FindObjectsByType<SecurityCamera>(FindObjectsSortMode.None).All(c=>c.GetComponentsInChildren<Renderer>().All(x=>!x.enabled)),"No wires or cameras before the neighbours put them up");
                 {
                     var home=HouseholdEconomy.Instance.home;string Field(string n){var v=(Vector3)typeof(DeclineCinematicStage).GetField(n,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(stage);return n+"="+v.ToString("0.00")+" home "+home.InverseTransformPoint(v).ToString("0.00");}
                     var rs=stage.Coop.GetComponentsInChildren<Renderer>();var bb=rs[0].bounds;foreach(var r in rs)bb.Encapsulate(r.bounds);
                     File.AppendAllText(Folder+"/geometry.txt",string.Join("\n",new[]{"latch","outward","across","gate","inward","bedTop","window","toWindow"}.Select(Field))+"\ncoop "+stage.Coop.name+" at "+stage.Coop.transform.position.ToString("0.00")+" bounds "+bb.center.ToString("0.00")+" size "+bb.size.ToString("0.00")+" door "+(stage.Coop.door!=null?stage.Coop.door.position.ToString("0.00"):"-")+"\ntablet "+stage.Tablet.position.ToString("0.00")+" home "+home.InverseTransformPoint(stage.Tablet.position).ToString("0.00")+"\nhome "+home.position.ToString("0.00")+" rot "+home.eulerAngles.ToString("0")+"\n");
                 }
-                // every line: start, middle, end captured; the speaker in the picture and unhidden; mouths
                 float total=0;int framed=0,spoken=0,moving=0,quiet=0;var trouble=new List<string>();
                 for(int line=0;line<director.LineCount;line++)
                 {
@@ -105,7 +99,6 @@ public static class CutsceneTwoReview
                 Check(framed==spoken,"Whoever speaks is in the picture and nothing hides them: "+framed+"/"+spoken+(trouble.Count>0?" ("+string.Join("; ",trouble)+")":""));
                 Check(moving==spoken,"The speaker's mouth moves through the line: "+moving+"/"+spoken);
                 Check(quiet==spoken,"The listeners' mouths stay shut: "+quiet+"/"+spoken);
-                // from above, for checking the staging (the coop, its door, where the couple stand)
                 {
                     SetLine(2,1);stage.Evaluate(camera,2,1,3.6f,10);var latchAt=stage.Coop.InteractionPoint;
                     var keep=camera.transform.position;var keepRot=camera.transform.rotation;float keepFov=camera.fieldOfView;
@@ -117,7 +110,6 @@ public static class CutsceneTwoReview
                     Capture(camera,"overhead-scene2");
                     camera.transform.SetPositionAndRotation(keep,keepRot);camera.fieldOfView=keepFov;
                 }
-                // each scene's light
                 SetLine(2,1);stage.Evaluate(camera,2,1,3.6f,10);Check(stage.Scene==1 && stage.Lantern.enabled && stage.Lantern.intensity>1,"Before dawn the lantern lights the scene");
                 Check(RenderSettings.fog && RenderSettings.fogDensity>.03f,"Before dawn the mist lies thick: "+RenderSettings.fogDensity.ToString("0.000"));
                 SetLine(10,2);stage.Evaluate(camera,10,2,5.2f,40);Check(stage.Scene==2 && !stage.Lantern.enabled && RenderSettings.ambientLight.grayscale>.3f,"The morning is lit by the sun: ambient "+RenderSettings.ambientLight.grayscale.ToString("0.00"));
@@ -128,7 +120,7 @@ public static class CutsceneTwoReview
             }
             if(phase==3)
             {
-                Check(Object.FindAnyObjectByType<DeclineCinematicStage>()==null,"The stage is removed afterwards");
+                Check(Object.FindAnyObjectByType<DeclineCinematicStage>()==null,"The stage is removed afterwards");Check(!FarmSecurityProgression.HiddenForStory && Object.FindObjectsByType<TrapSystem>(FindObjectsSortMode.None).Any(t=>t.GetComponentsInChildren<Renderer>().Any(x=>x.enabled)),"The wires are back in play afterwards");
                 Check(RenderSettings.ambientLight==ambient && Mathf.Abs(RenderSettings.fogDensity-fogDensity)<1e-5f && Camera.main.rect==viewport,"Light, mist and the view are put back");
                 Check(!HouseholdEconomy.Instance.Account.pendingVision && HouseholdEconomy.Instance.Account.declineSeen,"It is seen once");
                 var farmInfo=Object.FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).First(f=>f.identity==farm);

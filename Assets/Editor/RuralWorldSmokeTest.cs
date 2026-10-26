@@ -29,7 +29,6 @@ public static class RuralWorldSmokeTest
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         EditorSceneManager.SaveOpenScenes();
-        // Keep the automated test from capturing the user's cursor.
         foreach (var look in Object.FindObjectsByType<PlayerLook>(FindObjectsSortMode.None)) look.enabled = false;
         foreach (var movement in Object.FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None)) movement.enabled = false;
         SessionState.SetBool(Key, true);

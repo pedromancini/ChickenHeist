@@ -5,9 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Diagnostic: where key bones sit relative to the first-person camera for the backed-up clip of a state and
-// the installed one (EliasNative/Backup/<state>.anim vs EliasNative/<state>.anim), at the clip's first frame.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod PoseCompareProbe.Run
 public static class PoseCompareProbe
 {
     public static void Run()

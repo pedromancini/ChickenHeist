@@ -1,5 +1,3 @@
-# Renders the body and head meshes of generated/Elias_v4.blend separately (side and front), to check what the
-# head split keeps on the body. Run: blender -b generated/Elias_v4.blend --python inspect_split.py
 import bpy, os, math
 from mathutils import Vector
 GEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'generated')

@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Play-mode views through the real gameplay camera (post-processing, fog, night lighting),
-// plus the same views with lifted light to judge colour.
-// Run: Unity.exe -projectPath . -executeMethod MapPlayReview.Begin
 [InitializeOnLoad]
 public static class MapPlayReview
 {

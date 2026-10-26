@@ -9,7 +9,6 @@ public sealed class ProtagonistFingers : MonoBehaviour
     ProtagonistArticulation action;
     HandheldPhone phone;
     bool posed;
-    // Hands on the steering wheel close around the rim (PowerGrip) instead of the flat state curl.
     readonly float[] wheelGrip=new float[2];readonly HandGripPose[] grips=new HandGripPose[2];readonly Transform[] hands=new Transform[2];
     void Awake()
     {
@@ -35,8 +34,6 @@ public sealed class ProtagonistFingers : MonoBehaviour
                 break;
             }
         }
-        // A gripping hand closes its fingers together: the knuckle of each finger turns toward the middle finger
-        // (the protagonist model is built with the fingers spread wide).
         foreach(var finger in fingers)
         {
             if(finger.name=="Thumb" || finger.name=="Middle" || finger.bone.name[finger.name.Length]!='1' || finger.along==Vector3.zero)continue;
@@ -62,7 +59,6 @@ public sealed class ProtagonistFingers : MonoBehaviour
         {
             if(wheelGrip[f.right?1:0]>0){f.curl=0;continue;}
             string state=phone!=null && phone.IsBusy && f.right?"Phone":action.ActionState;
-            // both hands close into fists for a punch
             if(state=="Punch")
             {
                 float fist=PlayerPunch.Instance!=null?PlayerPunch.Instance.Fist:0;f.curl=(f.name=="Thumb"?40:88)*fist;

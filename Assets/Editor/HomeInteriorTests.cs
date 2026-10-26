@@ -33,8 +33,6 @@ public static class HomeInteriorTests
     public static void Run()
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode)return;
-        // Command-line validation starts from Unity's bootstrap scene.  Always
-        // load the authored rural world before looking up the home and phone.
         if(UnityEngine.SceneManagement.SceneManager.GetActiveScene().path!=RuralWorldReview.WorldScene)
             EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         Checks();EditorSceneManager.SaveOpenScenes();
@@ -138,7 +136,6 @@ public static class HomeInteriorTests
         if(elapsed>1 && phase==0)
         {
             if(Quaternion.Angle(home.GetComponentInChildren<HomeDoor>().hinge.localRotation,Quaternion.Euler(0,HomeDoor.OpenAngle,0))>1 && elapsed<8)return;
-            // Fixed movement increments isolate doorway clearance from editor frame rate.
             for(int step=0;step<100;step++)controller.Move(Vector3.forward*.04f);
             walking=true;started=now-4;
             checks.Add("Player local position="+home.InverseTransformPoint(controller.transform.position)+" height="+controller.height+" center="+controller.center+" scale="+controller.transform.lossyScale);

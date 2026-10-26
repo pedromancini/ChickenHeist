@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Attached only by the isolated Editor review, never installed in the scene.
 public class FrameTimingReview : MonoBehaviour
 {
     readonly List<float> samples=new List<float>(5000);

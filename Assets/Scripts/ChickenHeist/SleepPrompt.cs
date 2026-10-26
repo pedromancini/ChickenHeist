@@ -1,12 +1,8 @@
 using UnityEngine;
 
-// After the opening conversation: a box on screen tells Elias to sleep, since the visitor leaves the tablet by the door
-// in the morning (TabletDeliveryBox). "Dormir até amanhã" goes straight to bed (HomeNextNight); "Agora não" closes it
-// and the objective card keeps the reminder.
 public sealed class SleepPrompt : MonoBehaviour
 {
     public static bool IsOpen {get;private set;}
-    // the frame it was closed (an Escape that closes it must not also open the pause menu)
     public static int ClosedFrame {get;private set;}=-1;
     static SleepPrompt instance;
     CursorLockMode oldLock;bool oldCursor;
@@ -22,7 +18,6 @@ public sealed class SleepPrompt : MonoBehaviour
         if(instance==null || !IsOpen)return;
         IsOpen=false;ClosedFrame=Time.frameCount;Cursor.lockState=instance.oldLock;Cursor.visible=instance.oldCursor;
     }
-    // Reviews that go on playing after a fresh opening: close the box and hand the tablet over as the morning would.
     public static void SkipForReview()
     {
         Close();var economy=HouseholdEconomy.Instance;

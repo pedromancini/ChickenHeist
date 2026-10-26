@@ -26,7 +26,6 @@ public static class OldPickupTruckTests
             Check(!game.PrepareNextNight(),"cannot sleep while cargo remains in truck");
             var saved=checkpoint.Capture();economy.RestoreAccount(new HouseholdAccount());
             Check(checkpoint.Restore(saved,out _) && economy.Account.truckChickens==1 && game.MissionActive,"save restores cages cargo and active mission together");
-            // Truck deliveries need the player at the coop entrance and the cargo within 7 m of it.
             var entrance=economy.home.GetComponentInChildren<HomeFlockView>().DeliveryPoint;
             var parked=truck.transform.position;
             truck.transform.position+=entrance+(truck.cargoPoint.position-truck.transform.position).normalized*-4-truck.cargoPoint.position;

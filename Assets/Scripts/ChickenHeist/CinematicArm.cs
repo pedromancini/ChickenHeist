@@ -1,16 +1,5 @@
 using UnityEngine;
 
-// Shoulder, elbow and wrist of a cinematic actor (ProtagonistRig bone names) posed the way a real arm moves:
-//  - the elbow is a hinge: it only bends, about the axis it has in the bind pose (vertical in the T-pose, so the
-//    forearm folds forwards), and the upper arm turns to aim it
-//  - the elbow goes where the wrist stays straightest, preferring down and out to the side; it never rises above the
-//    shoulder line on its own or folds into the body
-//  - the hand rolls (pronation and supination: the radius turns over the ulna) from 40 degrees past palms-down to
-//    170 degrees towards palms-up; the forearm bone itself does not roll (that knotted the elbow), the forearm twist
-//    bone spreads the roll along the forearm (ArmTwist)
-//  - the wrist bends at most 70 degrees towards the palm, 55 towards the back of the hand, 20 towards the thumb and
-//    30 towards the little finger; a grip that needs more is left short instead of breaking the wrist
-// Bind-pose frames come from the skin's bind poses, so whatever the clip did to the bones never skews them.
 public sealed class CinematicArm
 {
     public struct Plan{public Quaternion upper,fore,hand;public float swivel,flexion,deviation,roll,forearmRoll,cost;}
@@ -40,16 +29,12 @@ public sealed class CinematicArm
         upperAxis=fore.localPosition.normalized;foreAxis=hand.localPosition.normalized;
         Vector3 up=skin.transform.InverseTransformDirection(body.up).normalized,forward=skin.transform.InverseTransformDirection(body.forward).normalized;
         Vector3 forearm=((Vector3)mh.GetColumn(3)-(Vector3)mf.GetColumn(3)).normalized;
-        // bending moves the forearm towards the front: hinge x forearm = forward
         hinge=Vector3.ProjectOnPlane(Quaternion.Inverse(ru)*Vector3.Cross(forearm,forward),upperAxis).normalized;
-        // the palms face down in the bind pose and the thumbs point forwards
         palmar=Vector3.ProjectOnPlane(Quaternion.Inverse(rf)*-up,foreAxis).normalized;
         radial=Vector3.ProjectOnPlane(Vector3.ProjectOnPlane(Quaternion.Inverse(rf)*forward,foreAxis),palmar).normalized;
         supination=Vector3.Dot(Quaternion.AngleAxis(90,foreAxis)*palmar,radial)>0?1:-1;
     }
 
-    // Arm pose that puts the wrist on `wrist` with the hand turned towards `handRotation` (world; null keeps the
-    // hand as the clip holds it relative to the forearm). Nothing is moved until Apply.
     public Plan Solve(Vector3 wrist,Quaternion? handRotation)
     {
         Vector3 S=upper.position;float a=Vector3.Distance(S,fore.position),b=Vector3.Distance(fore.position,hand.position);
@@ -66,9 +51,7 @@ public sealed class CinematicArm
         float Cost(float phi)
         {
             Vector3 E=Elbow(phi),o=r>1e-4f?(E-C)/r:e1;
-            // elbows down and at the sides: a raised, winged elbow reads as wrong even when the wrist is straight
             float cost=7*(1-Vector3.Dot(o,natural));
-            // the elbow stays out of the body and below the shoulder line
             float lateral=Vector3.Dot(E-chest.position,side);if(lateral<.14f)cost+=Sq((.14f-lateral)/.03f);
             float rise=Vector3.Dot(E-S,body.up);if(rise>.02f)cost+=Sq((rise-.02f)/.05f);
             if(handRotation.HasValue)
@@ -85,14 +68,11 @@ public sealed class CinematicArm
         var plan=new Plan{swivel=best,cost=bestCost};
         Arm(Elbow(best),W,out plan.upper,out var fore0);
         if(!handRotation.HasValue){plan.fore=fore0;plan.hand=fore0*handLocal;return plan;}
-        // the forearm bone keeps the hinge's orientation; the hand takes the roll within its range and the twist
-        // bone spreads it along the forearm
         plan.fore=fore0;
         var delta=Quaternion.Inverse(plan.fore)*handRotation.Value*Quaternion.Inverse(handBind);
         Decompose(delta,foreAxis,out var twist,out var swingQ);
         plan.roll=Mathf.Clamp(Angle(twist,foreAxis)*supination,-40,170);plan.forearmRoll=plan.roll*ArmTwist.Share;
         var rolled=Quaternion.AngleAxis(plan.roll*supination,foreAxis);
-        // the wrist bends against the rolled hand's own palm and thumb sides
         Vector3 palm=rolled*palmar,thumb=rolled*radial,v=swingQ*foreAxis;
         float flex=Mathf.Atan2(Vector3.Dot(v,palm),Vector3.Dot(v,foreAxis))*Mathf.Rad2Deg;
         float dev=Mathf.Atan2(Vector3.Dot(v,thumb),Vector3.Dot(v,foreAxis))*Mathf.Rad2Deg;
@@ -104,7 +84,6 @@ public sealed class CinematicArm
         return plan;
     }
 
-    // Blends from the clip pose to the plan.
     public void Apply(Plan plan,float weight)
     {
         if(weight<=0)return;weight=Mathf.Clamp01(weight);
@@ -116,7 +95,6 @@ public sealed class CinematicArm
         Flexion=plan.flexion*weight;Deviation=plan.deviation*weight;Roll=plan.roll*weight;ForearmRoll=plan.forearmRoll*weight;
     }
 
-    // Upper arm aimed at the elbow with its hinge across the arm's plane, forearm bent about that hinge to the wrist.
     void Arm(Vector3 E,Vector3 W,out Quaternion ru,out Quaternion rf)
     {
         Vector3 S=upper.position,u=(E-S).normalized,f=(W-E).normalized,n=Vector3.Cross(u,f);
@@ -125,8 +103,6 @@ public sealed class CinematicArm
         ru=Quaternion.LookRotation(u,n)*Quaternion.Inverse(Quaternion.LookRotation(upperAxis,hinge));
         rf=ru*foreBind;rf=Quaternion.FromToRotation(rf*foreAxis,f)*rf;
     }
-    // How far a hand rotation is from straight on this forearm: swing (degrees off the forearm's line) and roll
-    // (degrees about it, positive towards supination).
     void Wrist(Quaternion rf,Quaternion target,out float swing,out float roll)
     {
         var delta=Quaternion.Inverse(rf)*target*Quaternion.Inverse(handBind);

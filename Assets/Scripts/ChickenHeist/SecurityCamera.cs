@@ -14,8 +14,6 @@ public class SecurityCamera : MonoBehaviour
     private float disabledUntil;
     readonly RaycastHit[] visibilityHits=new RaycastHit[64];
     public Transform scanHead;
-    // Like a real motion camera it reacts after a moment: Suspicion builds while Elias is in view (DetectSeconds to the
-    // alarm) and drains when he is out of it; Detecting is the alarm state.
     public const float DetectSeconds=.7f,ForgetSeconds=1.6f,Dwell=1.4f;
     public bool Detecting { get; private set; }
     public bool Sees { get; private set; }
@@ -45,8 +43,6 @@ public class SecurityCamera : MonoBehaviour
         bool coated=PaintSecondsRemaining>0;
         if(paintRenderer!=null && showingPaint!=coated){paintRenderer.SetPropertyBlock(coated?coatedPaint:originalPaint);showingPaint=coated;}
     }
-    // What the spray aims at: the camera head (housing and lens). The camera's own origin sits inside the post or the
-    // wall it is mounted on, so aiming there, the post was always in the way from below.
     public Vector3 PaintTarget=>scanHead!=null?scanHead.position:transform.position;
     public const float PaintReach=3.3f,PaintAim=28;
     public enum PaintBlock{None,Unavailable,TooFar,NotAimed,Obstructed}
@@ -59,7 +55,6 @@ public class SecurityCamera : MonoBehaviour
         if(Vector3.Angle(eye.transform.forward,delta)>PaintAim)return PaintBlock.NotAimed;
         var hits=Physics.RaycastAll(eye.transform.position,delta.normalized,delta.magnitude,~0,QueryTriggerInteraction.Ignore);
         System.Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
-        // the first thing the spray meets must be the camera itself
         foreach(var hit in hits)
             if(!hit.transform.IsChildOf(game.player))return hit.transform.IsChildOf(transform)?PaintBlock.None:PaintBlock.Obstructed;
         return PaintBlock.None;
@@ -73,7 +68,6 @@ public class SecurityCamera : MonoBehaviour
         {HeistGameManager.Instance.ShowMessage("Sem tinta. Compre uma lata na loja.",3);return false;}
         if(!economy.UsePaint()){HeistGameManager.Instance.ShowMessage(economy.Message,3);return false;}
         RestorePaint(PaintDuration);
-        // black paint from the can in Elias' right hand onto the lens
         var view=Camera.main.transform;SprayEffect.Play(view.position+view.right*.16f-view.up*.17f+view.forward*.32f,Eye);
         HeistGameManager.Instance.ShowMessage("Lente coberta por 60 s. Tinta: "+economy.Account.paintUses+" usos restantes.",3);return true;
     }
@@ -81,10 +75,8 @@ public class SecurityCamera : MonoBehaviour
     private void Start()
     {
         startYaw = transform.eulerAngles.y;
-        // cameras of one farm do not sweep in step
         phase=Mathf.Abs(transform.position.x*.37f+transform.position.z*.73f)%10;
     }
-    // A pan-tilt camera sweeps from one end of its arc to the other, easing in and out, and holds at each end.
     public float ScanYaw(float time)
     {
         float sweep=2*rotationArc/Mathf.Max(1,rotationSpeed),cycle=2*(sweep+Dwell),t=Mathf.Repeat(time+phase,cycle),s;
@@ -141,7 +133,6 @@ public class SecurityCamera : MonoBehaviour
         return true;
     }
 
-    // Footprint of the same line-of-sight test at standing torso height.
     public float ClearRange(Vector3 direction,float targetHeight)
     {
         Vector3 origin=Eye;origin.y=targetHeight;

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Geometry is authored in metres, independently of legacy primitive scales.
 public static class SecurityEquipmentVisual
 {
     public static Material Material(string name, Color color, bool glow=false)
@@ -68,10 +67,7 @@ public class SecurityEquipmentPresentation : MonoBehaviour
         {float a=i*Mathf.PI/4;SecurityEquipmentVisual.Part(head,"Infrared emitter",PrimitiveType.Sphere,new Vector3(Mathf.Cos(a)*.092f,Mathf.Sin(a)*.092f,.291f),Vector3.one*.018f,glass);}
         led=SecurityEquipmentVisual.Part(head,"Status LED",PrimitiveType.Sphere,new Vector3(.11f,-.05f,.286f),Vector3.one*.024f,light).GetComponent<Renderer>();
         var hit=head.gameObject.AddComponent<BoxCollider>();hit.center=new Vector3(0,0,.03f);hit.size=new Vector3(.32f,.27f,.60f);
-        // the REC light: a small red lamp blinking on top of the housing
         rec=SecurityEquipmentVisual.Part(head,"REC light",PrimitiveType.Sphere,new Vector3(0,.115f,.20f),Vector3.one*.018f,Mat("Camera - REC light",new Color(1,.08f,.05f),true)).GetComponent<Renderer>();
-        // What the camera covers, laid on the ground as a soft patch: strongest under the camera, fading towards the
-        // edges and the far end. Faint while it scans, amber while it is taking notice, red when it has seen Elias.
         var overlay=new GameObject("Detection footprint");overlay.transform.SetParent(transform,false);
         field=new Mesh{name="Occluded camera footprint"};field.MarkDynamic();overlay.AddComponent<MeshFilter>().sharedMesh=field;
         fieldRenderer=overlay.AddComponent<MeshRenderer>();
@@ -84,10 +80,9 @@ public class SecurityEquipmentPresentation : MonoBehaviour
     }
     void LateUpdate()
     {
-        // The obsolete root cube is never shown by progression/checkpoint refreshes.
         if(legacyRenderer!=null)legacyRenderer.enabled=false;
         if(legacyCollider!=null)legacyCollider.enabled=false;
-        bool installed=FarmSecurityProgression.Installed;
+        bool installed=FarmSecurityProgression.Visible;
         foreach(var r in equipmentRenderers)if(r!=legacyRenderer && r!=fieldRenderer)r.enabled=installed;
         bool painted=cameraUnit.PaintSecondsRemaining>0;
         lens.sharedMaterial=painted?coating:glass;
@@ -113,7 +108,6 @@ public class SecurityEquipmentPresentation : MonoBehaviour
         }
         field.Clear();field.vertices=vertices;field.uv=uvs;field.triangles=triangles;field.RecalculateNormals();field.RecalculateBounds();
     }
-    // a point on the ground (or the floor it stands over), lifted a few centimetres so the patch never sinks into slopes
     Vector3 OnGround(Vector3 p)
     {
         int n=Physics.RaycastNonAlloc(new Vector3(p.x,p.y+1.5f,p.z),Vector3.down,ground,12,~0,QueryTriggerInteraction.Ignore);float best=float.PositiveInfinity;
@@ -124,7 +118,6 @@ public class SecurityEquipmentPresentation : MonoBehaviour
         }
         return p;
     }
-    // alpha falls off with distance (u) and towards both edges of the arc (v)
     static Texture2D Falloff()
     {
         var t=new Texture2D(64,32,TextureFormat.RGBA32,false){wrapMode=TextureWrapMode.Clamp,name="Camera footprint falloff"};

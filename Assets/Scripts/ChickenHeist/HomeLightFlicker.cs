@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// A tired bulb on old wiring: mostly steady, with short dips and the occasional double flicker.
 public class HomeLightFlicker : MonoBehaviour
 {
     public float baseIntensity=-1;

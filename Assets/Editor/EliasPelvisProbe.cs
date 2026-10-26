@@ -3,7 +3,6 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-// Diagnostic: pelvis height of the previous and native Elias clips (sitting/crouching retarget check).
 public static class EliasPelvisProbe
 {
     public static void Run()

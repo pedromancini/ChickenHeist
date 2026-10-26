@@ -18,8 +18,6 @@ public class HouseholdAccount
     public int version=1, day=1, balance=95, feed=0, boards=0, flock=0, meals=0, repairs=0;
     public bool backpackUpgrade;
     public bool introSeen,pendingVision,declineSeen;
-    // The visitor promised the tablet at the end of the opening: it waits in a box by the door from the next morning
-    // (TabletDeliveryBox) until Elias opens it. Saves from before this default to "not waiting".
     public bool tabletWaiting;public int tabletPromisedDay;
     public bool TabletReady=>introSeen && !tabletWaiting;
     public bool TabletAtDoor=>introSeen && tabletWaiting && day>tabletPromisedDay;
@@ -62,20 +60,14 @@ public class HouseholdAccount
     public const int PaintUsesPerCan=3;
     public const int ProductCount=6;
     public static string ProductName(int id)=>id==0?"Ração de galinha":id==1?"Kit de tábuas e pregos":id==2?"Mochila de ferramentas +3 slots":id==3?"Lockpick profissional":id==4?"Tinta spray - 3 usos":id==5?"Gaiola para caminhonete - 2 galinhas":"Produto invalido";
-    // What a product does, for the shop lists (the tablet and the market). The feed is for the chickens at home: one
-    // bag fills their feeder with more portions as the coop gets better.
     public string ProductDetail(int id)=>id==0?"Para as galinhas do sítio  ·  enche o comedouro com "+FeedPortions+" porções  ·  cada galinha alimentada rende R$ "+EggIncome+" em ovos"
         :id==1?(CoopLevel<3?"Conserta e melhora o galinheiro do sítio  ·  o nível "+(CoopLevel+1)+" pede "+NextCoopBoards+(NextCoopBoards==1?" kit":" kits"):"O galinheiro já está completo (nível 3/3)")
         :id==3?"Maior tolerância de pressão  ·  permanente  ·  equipe na mochila (B)"
         :id==4?"3 aplicações  ·  60 s por câmera"
         :id==5?"2 galinhas por gaiola  ·  "+truckCages+"/4 instaladas  ·  máximo 8 galinhas":"";
-    // The tool backpack's extra slots hold nothing yet (five kinds of item fit the six slots it starts with): it is not
-    // offered until it does something.
     public static bool OnSale(int id)=>id!=2;
     public static int ProductPrice(int id)=>id==0?25:id==1?35:id==2?90:id==3?180:id==4?30:id==5?100:0;
     public bool OwnsUniqueProduct(int id)=>(id==2 && backpackUpgrade) || (id==3 && professionalLockpick);
-    // The backpack is a one-time upgrade, not a disabled item.  The unique
-    // ownership check below already prevents charging for it twice.
     public bool CanBuy(int id)=>ProductPrice(id)>0 && balance>=ProductPrice(id) && !OwnsUniqueProduct(id)
         && (id!=4 || paintUses<=int.MaxValue-PaintUsesPerCan) && (id!=5 || truckCages<4);
     public List<HouseholdDebt> debts=new List<HouseholdDebt> {

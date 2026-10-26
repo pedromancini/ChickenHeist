@@ -4,20 +4,17 @@ using UnityEngine.SceneManagement;
 public class HomeNextNight : MonoBehaviour
 {
     public static bool IsResting {get;private set;}
-    // set when a night's sleep reloads the world, so the morning starts with the rooster (GameAudioMix)
     public static bool JustWoke;
     public static HomeNextNight Instance {get;private set;}
     void Awake(){Instance=this;}
     float fade;
     public float distance=1.7f;
     bool prepared;
-    // the same reach as the "E  Descansar" prompt (WorldInteraction): where the prompt shows, E sleeps
     bool Near=>HeistGameManager.Instance?.player!=null && Vector3.Distance(transform.position,HeistGameManager.Instance.player.position+Vector3.up*.5f)<distance+.5f;
     void Update()
     {
         if(WorldInteraction.Pressed(this))TryRest();
     }
-    // From the bed, or from anywhere when the day's end prompt sends Elias to sleep (SleepPrompt).
     public bool RestNow()=>TryRest(true);
     public bool TryRest()=>TryRest(false);
     bool TryRest(bool anywhere)
@@ -57,6 +54,5 @@ public class HomeNextNight : MonoBehaviour
             if(fade>.9f){GUI.skin=UITheme.Skin;GUI.Label(new Rect(0,Screen.height*.46f,Screen.width,UITheme.Size(60)),"Na manhã seguinte...",new GUIStyle(UITheme.Style("heading")){alignment=TextAnchor.MiddleCenter,fontSize=UITheme.Size(34)});}
             return;
         }
-        // The "E  Descansar" prompt comes from InteractionFocusHUD, like every other interaction.
     }
 }

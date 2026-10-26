@@ -107,7 +107,6 @@ public static partial class PlayerHomeBuilder
         var pillow=Part(root,"Travesseiro antigo",new Vector3(-.35f,1.27f,6.15f),new Vector3(.76f,.12f,.36f),cream);
         for(int i=0;i<3;i++)Part(root,"Costura do cobertor",new Vector3(-.45f+i*.09f,1.243f,5.25f),new Vector3(.025f,.012f,.13f),cream);
         Part(root,"Saco de mantimentos dobrado",new Vector3(-6.75f,1.15f,5.9f),new Vector3(.24f,.21f,.20f),cream);
-        // Small wall patches and uneven seams suggest maintenance deferred, not random debris.
         for(int i=0;i<5;i++)Part(root,"Marca de umidade",new Vector3(-7.41f,.80f+i*.12f,5.15f),new Vector3(.015f,.085f,.65f-i*.07f),wood);
         BuildHomeDoor(root,wood,metal);
         HomeLamp(root,new Vector3(-4.8f,2.82f,4.4f),new Color(1,.82f,.60f),3.8f);
@@ -132,7 +131,6 @@ public static partial class PlayerHomeBuilder
         RuralWorldReview.PersistGeneratedAssets(scene);
         PrefabUtility.SaveAsPrefabAsset(home,"Assets/ChickenHeistGenerated/PlayerHome/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
-        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
         HomeWornUpgrade.Install();
         CaptureInterior();
         Debug.Log("HOME INTERIOR: scene and phone saved.");
@@ -167,7 +165,6 @@ public static partial class PlayerHomeBuilder
         var collider=obj.AddComponent<BoxCollider>();b=ProceduralFarmGenerator.VisualBounds(obj);
         collider.center=obj.transform.InverseTransformPoint(b.center);
         collider.size=new Vector3(b.size.x/Mathf.Abs(obj.transform.lossyScale.x),b.size.y/Mathf.Abs(obj.transform.lossyScale.y),b.size.z/Mathf.Abs(obj.transform.lossyScale.z));
-        // Imported models can have rotated axes; keep collision in an unrotated bounds holder.
         Object.DestroyImmediate(collider);var boundsObject=new GameObject("Colisao do movel");boundsObject.transform.SetParent(parent,false);boundsObject.transform.position=b.center;
         boundsObject.AddComponent<BoxCollider>().size=b.size;boundsObject.transform.SetParent(obj.transform,true);
         return obj;
@@ -208,7 +205,6 @@ public static partial class PlayerHomeBuilder
         RuralWorldReview.PersistGeneratedAssets(scene);
         PrefabUtility.SaveAsPrefabAsset(home,"Assets/ChickenHeistGenerated/PlayerHome/ProtagonistHome.prefab");
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
-        // Rebuilding the home resets the interior and the coop: reapply wear, doorbell and the working coop gate.
         HomeWornUpgrade.Install();
         CaptureInterior();HomeInteriorTests.ProbePassage();HomeInteriorTests.Run();
     }

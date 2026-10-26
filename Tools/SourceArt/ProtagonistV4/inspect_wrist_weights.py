@@ -1,6 +1,3 @@
-# Weights around the left wrist of generated/Elias_v4.blend: vertices past the wrist joint that still follow bones
-# outside the hand (forearm, upper arm...), and forearm vertices that follow hand or finger bones.
-# Run: blender -b generated/Elias_v4.blend --python inspect_wrist_weights.py
 import bpy
 from collections import Counter
 rig = bpy.data.objects['ProtagonistRig']; body = bpy.data.objects['ProtagonistBody']; me = body.data

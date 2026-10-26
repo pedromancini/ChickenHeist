@@ -4,7 +4,6 @@ from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'Assets/ChickenHeistGenerated/Hands';OUT.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
-# Canonical hand space: X across knuckles, Y wrist to fingers, Z out of palm.
 def V(p):return Vector((p[0],-p[2],p[1]))
 verts=[];faces=[];poses={'Wheel':[],'Phone':[]}
 def tube(paths,radii,sides=8):
@@ -20,7 +19,6 @@ def tube(paths,radii,sides=8):
   for s in range(sides):faces.append((start+k*sides+s,start+k*sides+(s+1)%sides,start+(k+1)*sides+(s+1)%sides,start+(k+1)*sides+s))
  faces.append(tuple(start+s for s in reversed(range(sides))))
  faces.append(tuple(start+(len(radii)-1)*sides+s for s in range(sides)))
-# Elliptical palm and wrist with enough rings for rounded silhouette.
 for y,w,d in [(-.022,.023,.014),(0,.026,.015),(.025,.037,.018),(.052,.040,.018),(.075,.034,.014)]:
  for s in range(12):
   a=2*math.pi*s/12;p=V((math.cos(a)*w,y,math.sin(a)*d))

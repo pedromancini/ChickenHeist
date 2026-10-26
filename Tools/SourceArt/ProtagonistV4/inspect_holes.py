@@ -1,5 +1,3 @@
-# Open boundary loops of the meshes in generated/Elias_v4.blend: size and position of each loop.
-# Run: blender -b generated/Elias_v4.blend --python inspect_holes.py
 import bpy, bmesh
 for ob in [o for o in bpy.data.objects if o.type == 'MESH']:
     bm = bmesh.new(); bm.from_mesh(ob.data)

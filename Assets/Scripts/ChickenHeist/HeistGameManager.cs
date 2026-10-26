@@ -22,8 +22,6 @@ public class HeistGameManager : MonoBehaviour
     public int MissionFarm { get; private set; } = -1;
     public string MissionName { get; private set; } = "";
     public bool NightSettled => nightSettled;
-    // The mission ends by itself on coming within HomeRadius of the house, once Elias has been out past AwayRadius
-    // since it started (a mission is chosen at home). A teleport (the dev console, loading) does not count as arriving.
     public const float HomeRadius=20,AwayRadius=45;
     bool leftHome;Vector3 lastPlayerPosition;
     public bool HasMessage => Time.time < messageUntil;
@@ -124,8 +122,6 @@ public class HeistGameManager : MonoBehaviour
         if(distance>AwayRadius)leftHome=true;
         if(leftHome && distance<=HomeRadius)ArriveHome();
     }
-    // Arriving home with a mission on: the chickens in Elias' arms (and in the truck, when it is home too) go to the
-    // flock, the raid is recorded, the mission ends and "Missão concluída!" shows.
     public bool ArriveHome()
     {
         var economy=HouseholdEconomy.Instance;var home=economy?.home;if(!MissionActive || economy==null || home==null)return false;
@@ -211,4 +207,3 @@ public class HeistGameManager : MonoBehaviour
         restPrepared=true;EndActiveMission();return true;
     }
 }
-

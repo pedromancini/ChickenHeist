@@ -1,5 +1,3 @@
-# Horizontal slices of a source model: for each height, the clusters of vertices along x (torso, arms, legs),
-# to see where the arms leave the torso. Run: blender -b --factory-startup --python inspect_slices.py -- <file>
 import bpy, sys, numpy as np
 src = sys.argv[sys.argv.index("--") + 1]
 bpy.ops.wm.read_factory_settings(use_empty=True)

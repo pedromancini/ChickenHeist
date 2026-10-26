@@ -65,7 +65,6 @@ public static class GateScareRegression
                 coop.RestoreOpen(false);
                 typeof(ChickenCoopLockpick).GetMethod("BeginChallenge",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(coop,null);
                 Field("mistakes",2);Field("nextScare",-1f);
-                // Exercise the missing-reference fallback against live birds in the scene.
                 coop.scareChicken=null;
                 int wrong=(coop.Latch.NextPiece+1)%3;
                 for(int i=0;i<200 && !coop.Scare.IsActive && coop.ChallengeActive;i++)coop.Manipulate(.02f,wrong,0,true);

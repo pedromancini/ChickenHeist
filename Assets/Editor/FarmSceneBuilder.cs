@@ -7,22 +7,18 @@ public class FarmSceneBuilder
     [MenuItem("Chicken Heist/Legacy/Build Single Farm")]
     private static void Run()
     {
-        // Se a fazenda já foi gerada nesta sessão, não roda de novo
         if (EditorPrefs.GetBool("FarmGenerated_v1", false)) return;
         EditorPrefs.SetBool("FarmGenerated_v1", true);
 
-        // 1. Limpar fazenda anterior se existir para não duplicar
         GameObject oldFarm = GameObject.Find("__AUTOMATIC_FARM__");
         if (oldFarm != null)
         {
             Undo.DestroyObjectImmediate(oldFarm);
         }
 
-        // Criar o objeto pai da fazenda
         GameObject farmParent = new GameObject("__AUTOMATIC_FARM__");
         Undo.RegisterCreatedObjectUndo(farmParent, "Create Automatic Farm");
 
-        // 2. Carregar os Prefabs
         string marpaPath = "Assets/MarpaStudio/Built-In/Prefabs/";
         string naturePath = "Assets/SimpleNaturePack/Prefabs/";
 
@@ -41,7 +37,6 @@ public class FarmSceneBuilder
         GameObject boxPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(marpaPath + "Box.prefab");
         GameObject bucketPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(marpaPath + "Bucket.prefab");
 
-        // Prefabs de Natureza
         GameObject[] treePrefabs = new GameObject[5];
         for (int i = 0; i < 5; i++)
         {
@@ -62,8 +57,6 @@ public class FarmSceneBuilder
 
         GameObject groundPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(naturePath + "Ground_01.prefab");
 
-        // 3. Posicionar Construções Principais
-        // Casa do Fazendeiro
         if (housePrefab != null)
         {
             GameObject house = (GameObject)PrefabUtility.InstantiatePrefab(housePrefab, farmParent.transform);
@@ -77,7 +70,6 @@ public class FarmSceneBuilder
             }
         }
 
-        // Celeiro Principal
         if (barnPrefab != null)
         {
             GameObject barn = (GameObject)PrefabUtility.InstantiatePrefab(barnPrefab, farmParent.transform);
@@ -90,7 +82,6 @@ public class FarmSceneBuilder
                 silo.transform.position = new Vector3(-32f, 0f, 28f);
             }
 
-            // Feno
             if (haySquarePrefab != null)
             {
                 for (int i = 0; i < 3; i++)
@@ -102,17 +93,14 @@ public class FarmSceneBuilder
             }
         }
 
-        // Moinho
         if (windMillPrefab != null)
         {
             GameObject wind = (GameObject)PrefabUtility.InstantiatePrefab(windMillPrefab, farmParent.transform);
             wind.transform.position = new Vector3(-35f, 0f, 45f);
         }
 
-        // 4. Posicionar Cercados
         float fenceLength = 3f;
 
-        // Galinheiro
         if (chickenHousePrefab != null)
         {
             GameObject coop = (GameObject)PrefabUtility.InstantiatePrefab(chickenHousePrefab, farmParent.transform);
@@ -122,7 +110,6 @@ public class FarmSceneBuilder
             BuildFenceRect(new Vector3(-25f, 0f, -12f), new Vector3(-10f, 0f, 2f), fencePrefab, gatePrefab, new Vector3(-17.5f, 0f, -12f), farmParent.transform, fenceLength);
         }
 
-        // Cercado dos Cavalos
         BuildFenceRect(new Vector3(15f, 0f, -10f), new Vector3(35f, 0f, 10f), fencePrefab, gatePrefab, new Vector3(25f, 0f, -10f), farmParent.transform, fenceLength);
         if (foodTroughPrefab != null)
         {
@@ -136,7 +123,6 @@ public class FarmSceneBuilder
             cart.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
         }
 
-        // Cercado das Vacas
         BuildFenceRect(new Vector3(15f, 0f, 15f), new Vector3(35f, 0f, 30f), fencePrefab, gatePrefab, new Vector3(15f, 0f, 22.5f), farmParent.transform, fenceLength);
         if (foodTroughPrefab != null)
         {
@@ -150,10 +136,8 @@ public class FarmSceneBuilder
             hay.transform.position = new Vector3(30f, 0f, 20f);
         }
 
-        // Perímetro
         BuildFenceRect(new Vector3(-45f, 0f, -25f), new Vector3(45f, 0f, 55f), fencePrefab, gatePrefab, new Vector3(0f, 0f, -25f), farmParent.transform, fenceLength);
 
-        // Caminhos de Terra (Ground_01)
         if (groundPrefab != null)
         {
             for (float z = -25f; z <= 20f; z += 4f)
@@ -173,7 +157,6 @@ public class FarmSceneBuilder
             }
         }
 
-        // Árvores nas bordas
         int totalTrees = 80;
         for (int i = 0; i < totalTrees; i++)
         {
@@ -195,7 +178,6 @@ public class FarmSceneBuilder
             }
         }
 
-        // Pedras nas montanhas
         int totalRocks = 30;
         for (int i = 0; i < totalRocks; i++)
         {
@@ -215,7 +197,6 @@ public class FarmSceneBuilder
             }
         }
 
-        // Caixas e Baldes
         Vector3[] obstaclePositions = new Vector3[] {
             new Vector3(-5f, 0f, 5f),
             new Vector3(-8f, 0f, -2f),
@@ -242,7 +223,6 @@ public class FarmSceneBuilder
 
         Debug.Log("Fazenda Completa Gerada com Sucesso!");
 
-        // Auto-destruição para limpar o script após a execução única
         string scriptPath = "Assets/Editor/FarmSceneBuilder.cs";
         if (File.Exists(scriptPath))
         {

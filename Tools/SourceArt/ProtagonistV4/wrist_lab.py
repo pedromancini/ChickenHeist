@@ -1,6 +1,3 @@
-# Wrist test bench on generated/Elias_v4.blend: re-blends the left forearm/hand weights over different lengths and
-# renders the wrist bent the way the game's grips bend it. Marks the wrist joint with a red dot.
-# Run: blender -b generated/Elias_v4.blend --python wrist_lab.py
 import bpy, os, math
 from mathutils import Vector
 GEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'generated')
@@ -25,7 +22,6 @@ def blend(start, end):
         u = max(0.0, min(1.0, (t - start) / (end - start))); u = u * u * (3 - 2 * u)
         fa.add([i], 1 - u, 'REPLACE'); hd.add([i], u, 'REPLACE')
 pb = rig.pose.bones['HandL']; pb.rotation_mode = 'XYZ'
-# local X: up/down (extension/flexion), local Z: towards the thumb/little finger, local Y: twist
 poses = [('rest', (0, 0, 0)), ('ext35', (math.radians(-35), 0, 0)), ('flex45', (math.radians(45), 0, 0)), ('ulnar40', (0, 0, math.radians(-40))),
          ('wheel', (math.radians(-25), math.radians(30), math.radians(-35)))]
 blends = [('as built', None, None)] if os.environ.get('LAB_KEEP') == '1' else [('cur', -.10, .03), ('mid', -.05, .02), ('short', -.03, .015)]

@@ -1,8 +1,6 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
-// Runs the playable village suite in batch mode and exits without building the player.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod RegressionWithoutBuild.Run
 [InitializeOnLoad]
 public static class RegressionWithoutBuild
 {

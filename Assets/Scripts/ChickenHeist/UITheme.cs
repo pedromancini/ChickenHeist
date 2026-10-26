@@ -1,10 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Chicken Heist interface theme: a rural night palette (dark weathered wood, cream ink, lantern amber),
-// Zilla Slab for titles and Barlow for text (SIL OFL, Resources/UIFonts), rounded nine-sliced panels and
-// buttons, and helpers for the HUD (cards, meters, key prompts, toasts). Every OnGUI screen sets
-// GUI.skin = UITheme.Skin first, so styles copied from GUI.skin inherit the theme.
 public static class UITheme
 {
     public static readonly Color Ink=new Color(.94f,.90f,.81f),Muted=new Color(.72f,.68f,.60f),Faint=new Color(.52f,.50f,.45f);
@@ -25,8 +21,6 @@ public static class UITheme
     public static Font TitleFont=>Load(ref title,"UIFonts/ZillaSlab-Bold");
     static Font Load(ref Font font,string path){if(font==null)font=Resources.Load<Font>(path);return font;}
 
-    // ---------------------------------------------------------------- textures
-    // Rounded rectangle, anti-aliased, with an optional inner edge line; nine-sliced through the style border.
     public static Texture2D Rounded(Color fill,Color edge,int radius=10,float edgeWidth=1.2f)
     {
         string key=fill+"|"+edge+"|"+radius+"|"+edgeWidth;
@@ -46,7 +40,6 @@ public static class UITheme
     }
     public static Texture2D Solid(Color c){string key="solid"+c;if(textures.TryGetValue(key,out var t) && t!=null)return t;t=new Texture2D(1,1){hideFlags=HideFlags.DontSave};t.SetPixel(0,0,c);t.Apply();textures[key]=t;return t;}
 
-    // ---------------------------------------------------------------- skin
     public static GUISkin Skin
     {
         get
@@ -101,7 +94,6 @@ public static class UITheme
         t.SetPixels(px);t.Apply();textures[key]=t;return t;
     }
 
-    // ---------------------------------------------------------------- named text styles
     public static GUIStyle Style(string name)
     {
         var _=Skin;
@@ -128,14 +120,12 @@ public static class UITheme
         styles[name]=s;return s;
     }
 
-    // ---------------------------------------------------------------- drawing helpers
     public static void Panel(Rect r,Color? fill=null,Color? edge=null,int radius=12)
     {
         if(Event.current.type!=EventType.Repaint)return;
         var tex=Rounded(fill??PanelFill,edge??Edge,radius);
         new GUIStyle{border=new RectOffset(radius+1,radius+1,radius+1,radius+1),normal={background=tex}}.Draw(r,false,false,false,false);
     }
-    // Checkbox row: the box is drawn at a fixed size so the layout never stretches it.
     public static bool Check(bool value,string text,params GUILayoutOption[] options)
     {
         var style=Skin.toggle;var r=GUILayoutUtility.GetRect(new GUIContent(text),style,options);
@@ -154,17 +144,13 @@ public static class UITheme
         var inner=new Rect(r.x+1,r.y+1,Mathf.Max(0,(r.width-2)*Mathf.Clamp01(value)),r.height-2);
         if(inner.width>1)Panel(inner,fill,new Color(0,0,0,0),Mathf.Max(2,(int)(inner.height*.5f)));
     }
-    // Screen space taken this frame (and the last) by prompts, key bars and panels: messages (Toast) keep clear of it.
-    // OnGUI of different components runs in no set order, so the previous frame's rects count too.
     static readonly System.Collections.Generic.List<Rect> occupied=new System.Collections.Generic.List<Rect>(),occupiedBefore=new System.Collections.Generic.List<Rect>();
     static int occupiedFrame=-1;
     static void Roll(){if(Time.frameCount==occupiedFrame)return;occupiedBefore.Clear();occupiedBefore.AddRange(occupied);occupied.Clear();occupiedFrame=Time.frameCount;}
     public static void Occupy(Rect r){Roll();if(!occupied.Contains(r))occupied.Add(r);}
-    // for the layout reviews: what is taken now, and where the last message went
     public static Rect[] Occupied{get{Roll();var all=new System.Collections.Generic.List<Rect>(occupied);all.AddRange(occupiedBefore);return all.ToArray();}}
     public static Rect LastToast {get;private set;}
     public static int LastToastFrame {get;private set;}=-1;
-    // "[E] Abrir porta" prompt centred on x at height y; returns its rect.
     public static Rect KeyPrompt(float centreX,float y,string key,string action)
     {
         var text=Style("hud");var keyStyle=Style("key");
@@ -175,7 +161,6 @@ public static class UITheme
         GUI.Label(new Rect(r.x+pad+keyW+Size(10),r.y,textW+4,h),action,new GUIStyle(text){alignment=TextAnchor.MiddleLeft});
         Occupy(r);return r;
     }
-    // A row of key caps with their actions ("W/S  Acelerar   A/D  Virar ..."), centred at y; optional info line below.
     public static Rect HintBar(float y,string info,params string[] keyAndAction)
     {
         var text=new GUIStyle(Style("hudSmall")){normal={textColor=Ink}};var keyStyle=Style("key");
@@ -202,8 +187,6 @@ public static class UITheme
         if(string.IsNullOrEmpty(text))return;
         var style=new GUIStyle(Style("body")){alignment=TextAnchor.MiddleCenter,fontSize=Size(18)};
         float w=Mathf.Min(Screen.width*.6f,Size(760));
-        // narrower between panels standing at the sides of the lower screen (the mission's route map on a 4:3 screen),
-        // so the message keeps its place at the bottom instead of running under them
         Roll();float centre=Screen.width*.5f;
         foreach(var list in new[]{occupied,occupiedBefore})foreach(var o in list)
         {
@@ -213,7 +196,6 @@ public static class UITheme
         }
         w=Mathf.Max(w,Size(320));float h=style.CalcHeight(new GUIContent(text),w-Size(40))+Size(22);
         var r=new Rect((Screen.width-w)*.5f,Screen.height-h-Size(96),w,h);
-        // above whatever key bar or prompt is in the way
         Roll();bool moved=true;
         for(int pass=0;pass<6 && moved;pass++)
         {

@@ -5,18 +5,13 @@ using System.IO;
 using System.Reflection;
 using UnityEngine;
 
-// Opt-in player QA; never runs in ordinary games and requires the isolated save flag. Runs after the director, so what
-// it reads each frame is what that frame shows.
 [DefaultExecutionOrder(10100)]
 public sealed class CinematicPlaybackReview : MonoBehaviour
 {
     string folder;readonly List<string> report=new List<string>();readonly HashSet<int> captures=new HashSet<int>();bool failed;int frames;float longest;
-    // the moments that depend on the frame, as the player sees them: the hands at work (IK), the door, its side
-    static readonly (int line,float at,string name)[] Moments={(0,.85f,"desk"),(5,.6f,"lever"),(5,5.0f,"door-open"),(29,3.2f,"door-close"),(29,5.0f,"door-shut")};
+    static readonly (int line,float at,string name)[] Moments={(0,.85f,"desk"),(5,.6f,"lever"),(5,-.9f,"door-open"),(29,3.2f,"door-close"),(29,5.0f,"door-shut")};
     readonly HashSet<string> taken=new HashSet<string>();VisitorCinematicStage stage;
     static readonly FieldInfo LineClock=typeof(StoryDirector).GetField("lineClock",BindingFlags.Instance|BindingFlags.NonPublic);
-    // per spoken line, how far the speaker's jaw opened and the listener's (from 0.3 s in, once the last speaker's
-    // mouth has closed)
     readonly float[] speakerJaw=new float[64],listenerJaw=new float[64];
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
@@ -85,8 +80,6 @@ public sealed class CinematicPlaybackReview : MonoBehaviour
             yield return new WaitForSecondsRealtime(.2f);yield return new WaitForEndOfFrame();Capture("subtitles-"+size.x+"x"+size.y);
             director.Complete();yield return null;Check(Vector3.Distance(playerPosition,player.position)<.05f,"Replay preserves player position");
         }
-        // cutscene 2 ("O dia seguinte") in real time, as it comes the first night after a raid: every line rendered with
-        // its subtitle, played to its end, and the world put back
         {
             var farms=FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None);System.Array.Sort(farms,(x,y)=>x.layoutIndex.CompareTo(y.layoutIndex));
             string robbed=farms[Mathf.Min(2,farms.Length-1)].identity;Screen.SetResolution(1280,800,false);yield return new WaitForSecondsRealtime(.5f);
@@ -127,7 +120,7 @@ public sealed class CinematicPlaybackReview : MonoBehaviour
         int line=director.CurrentLine;float time=(float)LineClock.GetValue(director);
         foreach(var m in Moments)
         {
-            if(m.line!=line || time<m.at || taken.Contains(m.name))continue;
+            float at=m.at<0?-m.at*director.LineDuration:m.at;if(m.line!=line || time<at || taken.Contains(m.name))continue;
             taken.Add(m.name);yield return new WaitForEndOfFrame();Capture("moment-"+m.name);Moment(m.name);
         }
     }
@@ -148,7 +141,6 @@ public sealed class CinematicPlaybackReview : MonoBehaviour
         if(name=="door-close")Check(elias.ContactError<.05f && inside>.05f,"Elias pushes the door shut from inside, his hand on the inner lever: "+elias.ContactError.ToString("F3")+", "+inside.ToString("F2")+" m inside");
         if(name=="door-shut")Check(angle<1 && inside>.3f,"The door ends shut with Elias inside: "+angle.ToString("0.0")+" deg, "+inside.ToString("F2")+" m inside");
     }
-    // on screen, and not hidden behind the actor's trunk (a 0.42 m column round the chest, as in the editor review)
     static bool InShot(Camera camera,VisitorCinematicActor actor,bool right)
     {
         var v=camera.WorldToViewportPoint((right?actor.rightHand:actor.leftHand).position);var c=camera.WorldToViewportPoint(actor.spine.position);

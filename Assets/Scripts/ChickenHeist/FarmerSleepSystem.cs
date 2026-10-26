@@ -36,7 +36,6 @@ public class FarmerSleepSystem : MonoBehaviour
 
     private void Start()
     {
-        // Large procedural lots must keep their own coop inside hearing range.
         var farm = GetComponentInParent<FarmLayoutInfo>();
         if (farm != null)
             foreach (var coop in farm.GetComponentsInChildren<ChickenCoopLockpick>())
@@ -62,7 +61,6 @@ public class FarmerSleepSystem : MonoBehaviour
         if (distance > hearingRange)
             return;
 
-        // Familiar vehicle noise cannot wake a sleeping farmer by itself.
         if(source==NoiseSource.VehicleEngine && CurrentSleep<WakeThreshold)return;
 
         float distanceFactor = Mathf.Lerp(1f, 0.25f, distance / hearingRange);
@@ -111,4 +109,3 @@ public class FarmerSleepSystem : MonoBehaviour
         }
     }
 }
-

@@ -22,13 +22,11 @@ public class ProtagonistPhone : MonoBehaviour
         if(GameMenu.BlocksInput || VillageMarket.IsOpen || VillageMarket.ClosedFrame==Time.frameCount)return;
         if(Input.GetKeyDown(KeyCode.Tab) && !IsOpen && economy!=null && economy.Account.introSeen && economy.Account.tabletWaiting)
         {
-            // promised, not delivered yet: it comes in a box by the door in the morning
             HeistGameManager.Instance?.ShowMessage(economy.Account.TabletAtDoor?"O tablet esta na caixa do lado da porta.":"O tablet chega amanha cedo, numa caixa do lado da porta. Va dormir.",5);
             return;
         }
         if(Input.GetKeyDown(KeyCode.Tab))
         {
-            // Lockpick owns movement while active; do not steal its input focus.
             var movement=HeistGameManager.Instance?.player?.GetComponent<PlayerMovement>();
             if(IsOpen || movement==null || movement.enabled)SetOpen(!IsOpen);
         }
@@ -60,7 +58,6 @@ public class ProtagonistPhone : MonoBehaviour
     public void DrawScreen(HouseholdAccount account,string message,Rect? phoneRect=null)
     {
         GUI.skin=UITheme.Skin;
-        // The tablet is laid out in a fixed 1180x800 space and scaled by GUI.matrix, so its sizes are absolute.
         if(title==null)
         {
             body=new GUIStyle(UITheme.Skin.label){font=UITheme.Body,fontSize=17,wordWrap=true,padding=new RectOffset(0,0,3,3),normal={textColor=UITheme.Ink}};
@@ -95,7 +92,7 @@ public class ProtagonistPhone : MonoBehaviour
         string[] tabs={"Banco","Dívidas","Fotos","Loja","Jornal"};
         for(int i=0;i<tabs.Length;i++)
         {
-            string text=tabs[i]+(i==4 && account.newsUnread?"  •":"");
+            string text=tabs[i]+(i==4 && account.newsUnread?" (novo)":"");
             if(GUILayout.Toggle(i==tab,text,tabStyle,GUILayout.MinWidth(120)) && i!=tab){tab=i;scroll=Vector2.zero;confirmProduct=-1;if(i==4)economy?.ReadNews();}
         }
         GUILayout.FlexibleSpace();GUILayout.EndHorizontal();GUILayout.Space(14);
@@ -209,14 +206,14 @@ public class ProtagonistPhone : MonoBehaviour
             GUILayout.Label("Estoque do sítio",heading);
             GUILayout.Label("Ração: "+account.feed+"  ·  Kits de tábuas e pregos: "+account.boards,small);
             GUILayout.Space(8);
-            GUILayout.Label("Galinheiro — nível "+account.CoopLevel+"/3",heading);
+            GUILayout.Label("Galinheiro: nível "+account.CoopLevel+"/3",heading);
             var level=GUILayoutUtility.GetRect(200,8,GUILayout.Width(320));UITheme.Meter(level,account.CoopLevel/3f,UITheme.Good);GUILayout.Space(6);
             GUILayout.Label(account.CoopBenefit,small);
             if(account.CoopLevel<3)
             {
                 int required=account.NextCoopBoards;
                 GUILayout.Label("Próximo: "+(account.CoopLevel==0?"estrutura reforçada":account.CoopLevel==1?"cobertura e tela":"ninhos e comedouro"),small);
-                GUILayout.Label("Kits de tábuas e pregos: "+account.boards+"/"+required+" — faltam "+Mathf.Max(0,required-account.boards),small);
+                GUILayout.Label("Kits de tábuas e pregos: "+account.boards+"/"+required+", faltam "+Mathf.Max(0,required-account.boards),small);
                 GUILayout.Label("Benefício: "+(account.FeedPortions+1)+" porções por ração e R$ "+(account.EggIncome+2)+" por galinha alimentada.",small);
             }
             GUILayout.Space(6);GUILayout.BeginHorizontal();

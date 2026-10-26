@@ -12,7 +12,6 @@ public static partial class PlayerHomeBuilder
             var previous=home.Find(name);
             if(previous!=null) Object.DestroyImmediate(previous.gameObject);
         }
-        // The service walk goes beside the run, never through its shelter.
         Vector3 origin=home.position;
         foreach(var path in home.GetComponentsInChildren<RuralRoadSpan>())
         {
@@ -41,7 +40,6 @@ public static partial class PlayerHomeBuilder
         var straw=WornMaterial("Palha seca restante",new Color(.47f,.40f,.21f));
         var dirt=WornMaterial("Chao pisoteado do galinheiro",new Color(.19f,.17f,.115f));
         Part(root,"Chao de terra e palha",new Vector3(0,.015f,0),new Vector3(5.9f,.025f,4.4f),dirt);
-        // A raised sleeping box at the back leaves a walkable run in front.
         for(int side=-1;side<=1;side+=2)
         for(int end=-1;end<=1;end+=2)
             Part(root,"Pe do abrigo",new Vector3(side*1.28f,.38f,1+end*.65f),new Vector3(.13f,.76f,.13f),wood[2]);
@@ -63,7 +61,6 @@ public static partial class PlayerHomeBuilder
             Part(root,"Travessa da rampa",new Vector3(-.13f,.16f+i*.105f,-1.05f+i*.22f),new Vector3(.59f,.045f,.055f),wood[2]);
         for(int i=0;i<4;i++) CorrugatedPanel(root,i,rust);
         Beam(root,"Sarrafao exposto do telhado",new Vector3(-1.55f,1.9f,.02f),new Vector3(1.55f,1.9f,.02f),.09f,wood[2]);
-        // Low, patched wire run: visibly fragile, without the target farms' secure roof enclosure.
         Vector3[] posts={new Vector3(-3,0,-2.2f),new Vector3(3,0,-2.2f),new Vector3(-3,0,2.2f),new Vector3(3,0,2.2f),new Vector3(-1.5f,0,-2.2f),new Vector3(-.4f,0,-2.2f)};
         for(int i=0;i<posts.Length;i++)
         {
@@ -80,7 +77,6 @@ public static partial class PlayerHomeBuilder
         gate.transform.localPosition=new Vector3(-1.5f,0,-2.2f);gate.transform.localRotation=Quaternion.Euler(0,-65,0);
         for(int i=0;i<4;i++) Part(gate.transform,"Tabua da portinhola",new Vector3(.1f+i*.28f,.51f,0),new Vector3(.11f,1.02f,.07f),wood[i]);
         Beam(gate.transform,"Travessa da portinhola",new Vector3(0,.25f,0),new Vector3(1,.8f,0),.08f,wood[2]);
-        // Empty nests and a nearly empty trough establish the starting hardship without adding stealable animals.
         for(int i=0;i<2;i++)
         {
             var nest=Place("Box",new Vector3(i*.7f-.5f,.8f,1.25f),new Vector3(.58f,.28f,.52f),root);

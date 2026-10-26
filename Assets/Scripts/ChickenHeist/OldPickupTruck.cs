@@ -19,7 +19,6 @@ public class OldPickupTruck : MonoBehaviour
     void Start(){cageLids=GetComponent<TruckCageLids>();if(cageLids==null)cageLids=gameObject.AddComponent<TruckCageLids>();}
     float nextNoise;
     Quaternion wheelBase;
-    // Rim centre line at 9 and 3 o'clock; the rim tube is 2.3 cm thick (measured by SteeringWheelProbe).
     public Vector3 SteeringGrip(int side)=>steeringWheel.TransformPoint(new Vector3(side<0?-.175f:.175f,0,0));
     public const float SteeringRimRadius=.0115f;
     bool movementEnabled;
@@ -92,8 +91,6 @@ public class OldPickupTruck : MonoBehaviour
     {
         if(Player==null)return;
         driving=false;ignition.StopEngine();vehicle.SetInput(0,0,true,false);Player.position=position;
-        // Driving, Elias takes the truck's whole rotation, its tilt on a slope included: he gets out standing upright,
-        // turned to where he was looking, with his head level (the view was left rolled and turned before).
         var look=Player.GetComponentInChildren<PlayerLook>();
         Vector3 view=look!=null?look.transform.forward:Player.forward;view.y=0;
         if(view.sqrMagnitude<.001f){view=transform.forward;view.y=0;}
@@ -120,7 +117,6 @@ public class OldPickupTruck : MonoBehaviour
         if(pack.IsFull || economy.Account.truckChickens<1)return false;
         if(!economy.Commit(a=>{a.truckChickens--;return true;},"Galinha retirada da gaiola."))return false;
         pack.TryAddChicken();
-        // the bird is taken out of the cage on the cargo bed
         var carry=Player.GetComponent<PlayerChickenCarry>();var flock=FindFirstObjectByType<HomeFlockView>();
         if(carry!=null && flock?.chickenPrefab!=null)carry.LiftFrom(flock.chickenPrefab,cargoPoint.position+Vector3.up*.25f,false);
         else Player.GetComponentInChildren<RuralCharacterAnimator>()?.Pickup();

@@ -7,10 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Phase two, played: the alarm wires laid out at every farm, the cameras' reaction time and their footprint, the
-// farmer's shot (dodged running across, not walking or coming at him; harder up close), Elias' punch stunning him,
-// and the mission ending on arriving home. Captures in output/phase-two-gameplay.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod PhaseTwoGameplayReview.Begin
 [InitializeOnLoad]
 public static class PhaseTwoGameplayReview
 {
@@ -57,7 +53,6 @@ public static class PhaseTwoGameplayReview
                 game.player.GetComponent<PlayerMovement>().enabled=false;game.player.GetComponentInChildren<PlayerLook>().enabled=false;
                 FarmSecurityProgression.Apply();Check(FarmSecurityProgression.Installed,"Phase two security installed");
                 closedGates.Clear();Wires();
-                // every guarded gate opened, from outside on half the farms and from inside on the others
                 for(int i=0;i<closedGates.Count;i++){var g=closedGates[i];g.gate.Toggle(g.wire+g.inward*(i%2==0?-2.5f:4f));}
                 step=70;Wait(1.4);return;
             }
@@ -70,7 +65,6 @@ public static class PhaseTwoGameplayReview
             }
             case 1:
             {
-                // camera reaction: a fixture high above the world, the player standing in its view
                 Check(game.StartMission(0),"Mission 0 starts");
                 unit=Object.FindObjectsByType<SecurityCamera>().First(c=>game.IsMissionTarget(c));
                 unit.rotationArc=0;unit.transform.SetPositionAndRotation(new Vector3(0,503.4f,0),Quaternion.identity);
@@ -99,7 +93,6 @@ public static class PhaseTwoGameplayReview
             {
                 Check(!unit.Detecting && unit.Suspicion==0,"Out of view the camera calms down again");
                 game.EndActiveMission();Position(home);
-                // the shot: aim lag against a target running across, walking, coming straight in
                 float far=12;
                 float sprint=(6-FarmerStateMachine.TrackSpeed(far))*1.35f,walk=Mathf.Max(0,3-FarmerStateMachine.TrackSpeed(far))*1.35f;
                 Check(sprint>1.2f,"Sprinting across the farmer's aim at 12 m leaves the shot "+sprint.ToString("0.0")+" m behind (dodged)");
@@ -107,10 +100,8 @@ public static class PhaseTwoGameplayReview
                 Check(FarmerStateMachine.TrackSpeed(1.5f)>6,"Within arm's reach the aim keeps up even with a sprint ("+FarmerStateMachine.TrackSpeed(1.5f).ToString("0.0")+" m/s)");
                 float close=6*Mathf.Lerp(14,1.5f,1.5f/20),distant=6*Mathf.Lerp(14,1.5f,15f/20);
                 Check(close>2.5f*distant,"A full hit up close hurts far more ("+close.ToString("0")+" at 1.5 m, "+distant.ToString("0")+" at 15 m)");
-                // the punch: an awake farmer in front of Elias
                 Check(game.StartMission(0),"Mission 0 again");
                 farmer=Object.FindObjectsByType<FarmerStateMachine>().First(f=>game.IsMissionFarmer(f.sleepSystem));
-                // out in the yard, on his feet, a few metres from the coop
                 var coop=farmer.GetComponentInParent<FarmLayoutInfo>().GetComponentInChildren<ChickenCoopLockpick>();
                 var yard=coop.InteractionPoint-coop.transform.forward*6.5f;var cc=farmer.GetComponent<CharacterController>();cc.enabled=false;
                 farmer.transform.SetPositionAndRotation(yard+Vector3.up*.1f,Quaternion.LookRotation(-coop.transform.forward));cc.enabled=true;
@@ -147,7 +138,6 @@ public static class PhaseTwoGameplayReview
                 Check(!farmer.Stunned,"Out of reach the punch misses");
                 game.backpack.RestoreCount(1);Check(!PlayerPunch.Instance.TryPunch(),"No punching with a chicken in the arms");game.backpack.RestoreCount(0);
                 game.EndActiveMission();
-                // arriving home: out past 45 m, then walking back in
                 var economy=HouseholdEconomy.Instance;int flock=economy.Account.flock;
                 Check(game.StartMission(1),"Mission 1 starts at home");game.backpack.RestoreCount(1);
                 var houseHome=economy.home.position;var away=houseHome+(game.player.position-houseHome).normalized*60;if((away-houseHome).sqrMagnitude<1)away=houseHome+Vector3.forward*60;
@@ -167,7 +157,6 @@ public static class PhaseTwoGameplayReview
             case 10:
             {
                 if(!Application.isBatchMode)ScreenCapture.CaptureScreenshot(Folder+"/mission-complete.png");
-                // a teleport home (the dev console) does not end a mission
                 Check(game.StartMission(2),"Mission 2 starts");Position(HouseholdEconomy.Instance.home.position+Vector3.forward*90+Vector3.up);step=11;Wait(.2);return;
             }
             case 11:
@@ -184,8 +173,6 @@ public static class PhaseTwoGameplayReview
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
     }
     static int arrivalFlock;
-    // Every farm's wires: one just outside the gate and as wide as it, the other across the coop door; stakes on the
-    // ground and clear, not crossing each other. A sheet of both wires of every farm.
     static void Wires()
     {
         var sheet=new List<Texture2D>();int farms=0,atGate=0,atCoop=0;

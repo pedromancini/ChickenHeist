@@ -29,7 +29,6 @@ public static partial class PlayerHomeBuilder
 
     static void ArrangeFurnitureLayout(Transform root)
     {
-        // Named groups keep tabletop, bedding and stove details attached when furniture moves.
         var table=root.Find("Prop_Wooden_Table_02");
         if(table==null)throw new System.InvalidOperationException("Expected separate wooden table.");
         float oldTop=LocalBounds(root,table).max.y;
@@ -79,7 +78,6 @@ public static partial class PlayerHomeBuilder
         stool.name="Assento simples da mesa";
         var bucket=root.Find("Balde sob a goteira");
         MoveSet(root,bucket,new Vector2(-7.13f,4.66f),new string[0]);
-        // Remove the floating-looking stitches; the bed's original blanket already conveys wear.
         for(int i=root.childCount-1;i>=0;i--)if(root.GetChild(i).name=="Costura do cobertor")Object.DestroyImmediate(root.GetChild(i).gameObject);
     }
     static Bounds LocalBounds(Transform root,Transform item)

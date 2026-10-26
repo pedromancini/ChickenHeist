@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Old electric doorbell beside Elias' front door: the buzzer stutters on tired wiring and the porch bulb dips
-// while it rings. The player rings it with E; the visitor rings it in the opening before knocking.
 public class HomeDoorbell : MonoBehaviour
 {
     public static HomeDoorbell Instance {get;private set;}
@@ -22,7 +20,6 @@ public class HomeDoorbell : MonoBehaviour
     void Update()
     {
         if(!GameMenu.BlocksInput && !ProtagonistPhone.IsOpen && !VillageMarket.IsOpen && WorldInteraction.Pressed(this))Ring();
-        // the button sinks while held down; the striker hammers the gong
         if(button!=null){if(!rested){buttonRest=button.localPosition;rested=true;}button.localPosition=buttonRest+(Ringing?new Vector3(0,0,.004f):Vector3.zero);}
         if(hammer!=null)hammer.localRotation=Ringing?Quaternion.Euler(0,0,Mathf.Sin(Time.time*2*Mathf.PI*31)>0?11:-3):Quaternion.identity;
         if(porchLight!=null)

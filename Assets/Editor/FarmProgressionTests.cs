@@ -33,7 +33,6 @@ public static class FarmProgressionTests
             Check(traps.All(c=>c.GetComponentsInChildren<Renderer>().Length>0 && c.GetComponentsInChildren<Renderer>().All(r=>!r.enabled) && c.GetComponentsInChildren<Collider>().All(x=>!x.enabled)),"all traps physically absent in untouched region");
             Check(cameras.All(c=>!c.CanPaintNow()),"absent cameras cannot consume equipment");
             Check(game.StartMission(0),"first unprotected farm can be selected");
-            // Deliveries count only at the coop entrance (HomeFlockView.DeliveryPoint).
             var entrance=economy.home.GetComponentInChildren<HomeFlockView>().DeliveryPoint;
             var body=game.player.GetComponent<CharacterController>();body.enabled=false;game.player.position=entrance+Vector3.up*.1f;body.enabled=true;Physics.SyncTransforms();
             game.backpack.RestoreCount(2);game.CompleteMission();

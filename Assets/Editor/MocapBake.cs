@@ -5,15 +5,9 @@ using UnityEditor;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Retargets Human Basic Motions (motion capture) onto every Medieval People model through Mecanim
-// Humanoid, then bakes the result into the legacy clips the NPC factory already references
-// (Characters/Villagers/<model>-<state>.anim). Existing Animation components keep their clip GUIDs,
-// so residents, farmers, the merchant and cinematic actors all switch to captured motion at once.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod MocapBake.Run
 public static class MocapBake
 {
     const string Source="Assets/ThirdParty/HumanBasicMotions/",Models="Assets/ImportedMedievalPeople/fbx/people_unity/",Folder="Assets/ChickenHeistGenerated/Characters/Villagers/";
-    // State -> motion capture take. Trade is a short spoken gesture; Sleep is the calmest breathing idle.
     static readonly (string state,string take,bool loop)[] States={("Idle","HumanM@Idle01",true),("Walk","HumanM@Walk01_Forward",true),("Run","HumanM@Run01_Forward",true),("Trade","HumanM@Talk01",false),("Sleep","HumanM@Idle02",true)};
     public static void Run()
     {
@@ -31,8 +25,6 @@ public static class MocapBake
         Directory.CreateDirectory("output/mocap");File.WriteAllLines("output/mocap/bake.txt",log);
         Debug.Log("MOCAP BAKE\n"+string.Join("\n",log));
     }
-    // Elias keeps ProtagonistRig. A humanoid copy of its FBX lets Mecanim retarget captured takes
-    // onto that rig; results are saved next to the protagonist's other legacy clips.
     const string ProtagonistFolder="Assets/ChickenHeistGenerated/Characters/ProtagonistV2/";
     static readonly (string state,string take,bool loop)[] ProtagonistStates={("Talk","HumanM@Talk01",true),("Breathe","HumanM@Idle02",true)};
     static IEnumerable<string> BakeProtagonist()
@@ -75,7 +67,6 @@ public static class MocapBake
         }
     }
 
-    // Registers the protagonist's captured clips on every Animation that plays ProtagonistRig.
     public static void InstallProtagonistClips()
     {
         var clips=ProtagonistStates.Select(s=>AssetDatabase.LoadAssetAtPath<AnimationClip>(ProtagonistFolder+s.state+".anim")).ToArray();
@@ -87,7 +78,7 @@ public static class MocapBake
                 foreach(var clip in clips){if(animation.GetClip(clip.name)!=null)animation.RemoveClip(clip.name);animation.AddClip(clip,clip.name);}
             }
         }
-        foreach(var path in new[]{ProtagonistFolder+"Protagonist.prefab","Assets/Resources/Cinematics/OpeningStage.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
+        foreach(var path in new[]{ProtagonistFolder+"Protagonist.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
         {var root=PrefabUtility.LoadPrefabContents(path);try{Add(root);PrefabUtility.SaveAsPrefabAsset(root,path);}finally{PrefabUtility.UnloadPrefabContents(root);}}
         var scene=UnityEditor.SceneManagement.EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         foreach(var go in scene.GetRootGameObjects())Add(go);
@@ -97,7 +88,6 @@ public static class MocapBake
 
     static bool Humanoid(string path,bool clips)
     {
-        // the takes share the avatar made from their rest T-pose (EliasNativeInstall.ImportTake)
         if(clips){EliasNativeInstall.ImportTake(path);return true;}
         var importer=(ModelImporter)AssetImporter.GetAtPath(path);
         if(importer.animationType!=ModelImporterAnimationType.Human || importer.avatarSetup!=ModelImporterAvatarSetup.CreateFromThisModel)
@@ -109,7 +99,6 @@ public static class MocapBake
     {
         var clip=AssetDatabase.LoadAllAssetsAtPath(Source+take+".fbx").OfType<AnimationClip>().First(c=>!c.name.StartsWith("__preview__"));
         var avatar=AssetDatabase.LoadAllAssetsAtPath(modelPath).OfType<Avatar>().First();
-        // Same hierarchy as VillagerNPCFactory: root / <model> / bones.
         var root=new GameObject("bake");var visual=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(modelPath),root.transform);visual.name=model;
         try
         {
@@ -125,7 +114,6 @@ public static class MocapBake
                 float t=length*f/frames;
                 clip.SampleAnimation(visual,t);
                 foreach(var b in bones){var q=b.localRotation;var c=curves[b];c[0].AddKey(t,q.x);c[1].AddKey(t,q.y);c[2].AddKey(t,q.z);c[3].AddKey(t,q.w);}
-                // In-place: keep the vertical bob and sway, drop forward travel.
                 var p=hips.localPosition;if(f==0)hipStartY=p.y;
                 hipCurves[0].AddKey(t,hipRest.x);hipCurves[1].AddKey(t,hipRest.y+(p.y-hipStartY));hipCurves[2].AddKey(t,hipRest.z);
             }

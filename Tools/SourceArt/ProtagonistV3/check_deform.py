@@ -1,5 +1,3 @@
-# Deformation check for generated/Elias_v3.blend: curls the fingers like ProtagonistFingers (Drive = 38 deg per
-# phalanx, thumb 45 %), bends elbows/knees, and reports stretched edges per body region plus close-up renders.
 import bpy, os, math
 from mathutils import Vector, Quaternion
 

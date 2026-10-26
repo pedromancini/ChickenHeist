@@ -8,10 +8,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic: plays the protagonist through idle, walk, strafe, back-pedal, run and crouch-walk with every
-// runtime system active (state selection, head look, fingers, grip, ground contact). Keyboard input is replaced
-// by the same PlayerMovement fields it would set; captures a 3/4 view and the player's own view.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod EliasRuntimeReview.Begin
 [InitializeOnLoad]
 public static class EliasRuntimeReview
 {
@@ -58,7 +54,6 @@ public static class EliasRuntimeReview
                 GameMenu.Instance.Resume();player=HeistGameManager.Instance.player;movement=player.GetComponent<PlayerMovement>();
                 eyes=player.GetComponentInChildren<Camera>();driver=player.GetComponentInChildren<RuralCharacterAnimator>();
                 movement.enabled=false;
-                // Out in the yard, away from walls, so the third-person camera sees the whole body.
                 var home=HouseholdEconomy.Instance.home;var cc=player.GetComponent<CharacterController>();cc.enabled=false;
                 player.position=home.position+home.forward*7+Vector3.up*.3f;cc.enabled=true;
                 phase=1;next=Time.realtimeSinceStartup+2;return;
@@ -108,7 +103,6 @@ public static class EliasRuntimeReview
         var lightGo=new GameObject("review light");var light=lightGo.AddComponent<Light>();light.type=LightType.Directional;light.intensity=1.6f;light.cullingMask=1<<28;lightGo.transform.rotation=Quaternion.Euler(40,-30,0);
         Save(cam,name+"-body");
         foreach(var kv in layers)kv.Key.layer=kv.Value;
-        // the first-person copy alone, seen from outside
         var fp=body.GetComponentsInChildren<SkinnedMeshRenderer>(true).First(r=>r.name=="Corpo em primeira pessoa");
         int fpLayer=fp.gameObject.layer;fp.gameObject.layer=28;Save(cam,name+"-fpbody");fp.gameObject.layer=fpLayer;
         if(frame==0)report.Add(name+" fp: enabled="+fp.enabled+" active="+fp.gameObject.activeInHierarchy+" bounds="+fp.bounds.center+" size "+fp.bounds.size+" player="+player.position+" rootBone="+(fp.rootBone!=null?fp.rootBone.name:"none")+" forceOff="+fp.forceRenderingOff);

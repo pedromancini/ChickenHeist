@@ -3,9 +3,6 @@ using UnityEditor;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// The cast rule: every NPC (farmers, residents, the merchant, cutscene extras) is a character of the Free Medieval
-// People pack, recoloured to present-day rural clothes by CastPalette; only Elias and the hooded visitor are not.
-// The pack's king, queen, rich_citizzens_3 and rich_citizzens_4 are never used.
 public static class VillagerNPCFactory
 {
     const string Folder="Assets/ChickenHeistGenerated/Characters/Villagers";

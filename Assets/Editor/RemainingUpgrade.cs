@@ -40,7 +40,6 @@ public static class RemainingUpgrade
         var steel=SecurityEquipmentVisual.Material("Tela galvanizada nova",new Color(.37f,.43f,.45f));var straw=SecurityEquipmentVisual.Material("Palha dos ninhos novos",new Color(.64f,.50f,.22f));
         var old=economy.repairStages??new GameObject[0];var stages=new GameObject[3];
         for(int i=0;i<3;i++){stages[i]=new GameObject("Nivel "+(i+1));stages[i].transform.SetParent(parent,false);}
-        // Preserve existing repair pieces under their matching level.
         for(int i=0;i<old.Length;i++)if(old[i]!=null && i<3)old[i].transform.SetParent(stages[i].transform,true);
         for(int side=-1;side<=1;side+=2)
         {

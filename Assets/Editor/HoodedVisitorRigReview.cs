@@ -4,8 +4,6 @@ using UnityEditor;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Records the actual rest and sampled rig coordinates before skinning the
-// supplied mesh, so binding does not depend on guessed bone proportions.
 public static class HoodedVisitorRigReview
 {
     public static void Inspect()

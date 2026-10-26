@@ -3,11 +3,6 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-// The first-person fist (Resources/FirstPerson/PunchFist): a right fist, forearm and rolled shirt sleeve made to be
-// seen from 20-50 cm, low poly with flat faces in Elias' skin and shirt colours. The body's own arms, posed by IK that
-// close, read as lumps (the full-body hand's fingers collapse when it closes), so the punch shows this instead.
-// Space: +Z the way the fist points (knuckles), +Y the back of the hand, +X towards the little finger; the origin is
-// the middle of the hand, the forearm runs back along -Z.
 public static class PunchFistBuilder
 {
     const string Folder="Assets/Resources/FirstPerson";
@@ -16,21 +11,16 @@ public static class PunchFistBuilder
     {
         Directory.CreateDirectory(Folder);
         var skin=new List<Vector3>();var sleeve=new List<Vector3>();
-        // the hand: back and palm, its corners cut
         Block(skin,new Vector3(0,0,-.012f),new Vector3(.084f,.058f,.072f),.013f,Quaternion.identity);
-        // the four fingers rolled in: the first bones make the knuckle row in front, the second ones fold down under it
         float[] across={-.030f,-.010f,.010f,.029f};float[] reach={.0f,.003f,.0f,-.008f};float[] thick={.020f,.020f,.019f,.016f};
         for(int i=0;i<4;i++)
         {
             Block(skin,new Vector3(across[i],.008f,.034f+reach[i]),new Vector3(thick[i],.027f,.030f),.006f,Quaternion.Euler(-8,0,0));
             Block(skin,new Vector3(across[i],-.018f,.043f+reach[i]),new Vector3(thick[i]*.94f,.026f,.020f),.006f,Quaternion.Euler(12,0,0));
         }
-        // the thumb laid across the front of the first two fingers, below the knuckles
         Block(skin,new Vector3(-.016f,-.026f,.046f),new Vector3(.046f,.017f,.020f),.006f,Quaternion.Euler(0,-14,-8));
         Block(skin,new Vector3(-.040f,-.020f,.012f),new Vector3(.020f,.022f,.040f),.007f,Quaternion.Euler(0,-20,0));
-        // wrist and forearm, widening to the elbow
         Loft(skin,new[]{new Ring(-.044f,.064f,.050f),new Ring(-.075f,.060f,.050f),new Ring(-.20f,.074f,.064f),new Ring(-.31f,.084f,.074f)});
-        // the rolled sleeve: a thick cuff, then the sleeve running on out of view
         Loft(sleeve,new[]{new Ring(-.30f,.090f,.080f),new Ring(-.31f,.106f,.096f),new Ring(-.37f,.108f,.098f),new Ring(-.38f,.098f,.090f),new Ring(-.70f,.104f,.096f)});
         var mesh=new Mesh{name="Punho em primeira pessoa"};
         var vertices=new List<Vector3>(skin);vertices.AddRange(sleeve);
@@ -49,7 +39,6 @@ public static class PunchFistBuilder
     }
     public static void BuildBatch(){Build();EditorApplication.Exit(0);}
     struct Ring{public float z,w,h;public Ring(float z,float w,float h){this.z=z;this.w=w;this.h=h;}}
-    // a box with its edges cut (an octagon section, its two ends cut in as well), every face flat
     static void Block(List<Vector3> tris,Vector3 centre,Vector3 size,float cut,Quaternion rotation)
     {
         float z0=-size.z*.5f,z1=size.z*.5f;
@@ -60,10 +49,9 @@ public static class PunchFistBuilder
     {
         var sections=new Vector3[rings.Length][];
         for(int i=0;i<rings.Length;i++)sections[i]=Section(rings[i].z,rings[i].w,rings[i].h,Mathf.Min(rings[i].w,rings[i].h)*.29f);
-        System.Array.Reverse(sections);   // from the elbow to the wrist: the faces point out
+        System.Array.Reverse(sections);
         Emit(tris,sections,true,p=>p);
     }
-    // eight points round a rectangle w x h with its corners cut by `cut`, at depth z
     static Vector3[] Section(float z,float w,float h,float cut)
     {
         float x=w*.5f,y=h*.5f;

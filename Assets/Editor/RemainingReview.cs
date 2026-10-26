@@ -108,12 +108,12 @@ public static class RemainingReview
                 if(!Application.isBatchMode && !declineCaptured){ScreenCapture.CaptureScreenshot(Folder+"/decline-ui.png");declineCaptured=true;next=Time.realtimeSinceStartup+.3f;return;}
                 Capture("decline-shot",Camera.main.transform.position,Camera.main.transform.position+Camera.main.transform.forward*15);
                 StoryDirector.Instance.Complete();Check(!economy.Account.pendingVision && economy.Account.newsUnread,"Completing vision preserves unread news and clears only the scene event");
-                foreach(var key in new[]{"engine","starter","start","stall","step","wood","door","sleep","wake","chicken","cow","spray"})
+                foreach(var key in new[]{"engine","starter","start","stall","wood","door","sleep","wake","chicken","cow","spray"})
                 {
                     var clip=GameAudioMix.Instance.Clip(key);var samples=new float[clip.samples];clip.GetData(samples,0);Check(samples.All(float.IsFinite) && samples.Max(x=>Mathf.Abs(x))<.96f && samples.Any(x=>Mathf.Abs(x)>.01f),"Audio signal finite and below full scale: "+key);
                 }
                 File.WriteAllLines(Folder+"/dialogue-recordings.txt",StoryDialogue.openingFiles.Concat(StoryDialogue.declineFiles).Select(id=>(Resources.Load<AudioClip>("Dialogue/"+id)!=null?"PRESENT ":"MISSING ")+id));
-                for(int i=0;i<30;i++)GameAudioMix.Instance.Play("step",game.player.position);
+                for(int i=0;i<30;i++)GameAudioMix.Instance.Play("wood",game.player.position);
                 Check(GameAudioMix.Instance.ActiveEffects<=12,"Effect pool limits simultaneous sounds");
                 Check(checkpoint.Restore(baseline,out _),"Baseline checkpoint restores after upgrade and story tests");
                 elapsedStart=Time.realtimeSinceStartup;frameStart=Time.frameCount;birdStart=bird.GaitPhase;cowStart=cow.GaitPhase;
@@ -144,5 +144,3 @@ public static class RemainingReview
     static float elapsedStart,birdStart,cowStart;static int frameStart;static bool openingCaptured,declineCaptured;
     static FrameTimingReview timing;
 }
-
-

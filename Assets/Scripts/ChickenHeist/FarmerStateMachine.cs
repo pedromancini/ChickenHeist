@@ -30,9 +30,6 @@ public class FarmerStateMachine : MonoBehaviour
     public Vector3 LastKnownPosition=>lastKnown;
     public float AimProgress=>Activity==FarmerActivity.Aiming?Mathf.Clamp01(1-(actionUntil-Time.time)/1.35f):0;
     public bool Moving=>controller!=null && new Vector2(controller.velocity.x,controller.velocity.z).sqrMagnitude>.04f;
-    // Where the barrels point while aiming. It follows Elias at a limited speed, so running across his line of fire
-    // leaves the shot behind; walking, or coming straight at him, does not. Up close it follows faster and, more and
-    // more often, leads a moving target.
     public Vector3 AimPoint {get;private set;}
     public bool Stunned=>Time.time<stunnedUntil;
     float stunnedUntil;Vector3 previousTarget;
@@ -118,11 +115,9 @@ public class FarmerStateMachine : MonoBehaviour
             }
             Gravity();return;
         }
-        // Losing sight cancels the shot; search uses only the last observed/heard point.
         if(Time.time<memoryUntil){Activity=FarmerActivity.Investigating;MoveToward(lastKnown,patrolSpeed);}
         else{Activity=FarmerActivity.Returning;ReturnHome();}
     }
-    // The aim follows Elias at TrackSpeed metres a second (faster up close); near him it often leads a moving target.
     public static float TrackSpeed(float distance)=>2.4f+6f/Mathf.Max(1,distance);
     void Track()
     {
@@ -131,9 +126,7 @@ public class FarmerStateMachine : MonoBehaviour
         if(UnityEngine.Random.value<Mathf.Clamp01(1.2f-distance/8)*Time.deltaTime*4)target+=Vector3.ProjectOnPlane(velocity,Vector3.up)*.3f;
         AimPoint=Vector3.MoveTowards(AimPoint,target,TrackSpeed(distance)*Time.deltaTime);
     }
-    // A punch (PlayerPunch) staggers an awake farmer: no moving and no shooting for `seconds`. Asleep he is in bed.
     public bool Stun(float seconds)=>Stun(seconds,Vector3.zero);
-    // `push`: how far the blow knocks him back (metres, horizontal), spread over a quarter of a second
     public bool Stun(float seconds,Vector3 push)
     {
         if(Activity==FarmerActivity.Sleeping || Activity==FarmerActivity.Waking || !float.IsFinite(seconds) || seconds<=0)return false;

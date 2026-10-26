@@ -1,8 +1,5 @@
 using UnityEngine;
 
-// Elias' desk as the story has it: the overdue bills (PlayerHomeBuilder lays three sheets with four stripes each) get the
-// printed electricity bill of the opening (Tools/make_bill_texture.py) on their top face, and the stripes go; the old
-// cracked phone PlayerHomeBuilder leaves there goes too (Elias has no phone: the tablet comes in a box by the door).
 public sealed class DeskBills : MonoBehaviour
 {
     Material print;readonly System.Collections.Generic.List<Renderer> faces=new System.Collections.Generic.List<Renderer>(),phone=new System.Collections.Generic.List<Renderer>();
@@ -28,11 +25,9 @@ public sealed class DeskBills : MonoBehaviour
             face.GetComponent<Renderer>().sharedMaterial=print;faces.Add(face.GetComponent<Renderer>());
         }
     }
-    // the opening hides the desk papers (it lays its own bill there): the prints go with them
     void LateUpdate()
     {
         foreach(var f in faces)if(f!=null)f.forceRenderingOff=StoryDirector.Active;
-        // kept off every frame: the opening restores what it hid when it ends
         foreach(var r in phone)if(r!=null)r.forceRenderingOff=true;
     }
     void OnDestroy(){if(print!=null)Destroy(print);}

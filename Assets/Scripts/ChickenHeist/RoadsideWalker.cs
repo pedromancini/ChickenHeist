@@ -1,11 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Residents stroll along the road shoulders on errands of their own: each picks a place a good walk away within its
-// neighbourhood (never one it has just been to), walks there along the pedestrian graph, lingers a while looking at
-// whatever is there (a farm across the fence, the road) and sets off somewhere else. On the way the body sways a
-// little off the line and the pace drifts, so nobody marches straight back and forth on one stretch. `route` is only
-// the spawn hint authored by VillagerPopulation.
 [RequireComponent(typeof(CharacterController))]
 public class RoadsideWalker : MonoBehaviour
 {
@@ -15,9 +10,7 @@ public class RoadsideWalker : MonoBehaviour
     public bool IsWalking {get;private set;}
     public float DistanceWalked {get;private set;}
     public int Reversals {get;private set;}
-    // standing a while on purpose: at the end of an errand, at a junction (not held up by something in the way)
     public bool Resting=>Time.time<waitUntil;
-    // standing still for a reason: resting at the end of an errand (or just setting off from one), or giving way
     public bool Pausing=>Time.time<waitUntil+1f || givingWay;
     bool givingWay;
     public string LastObstacle {get;private set;}="";
@@ -45,7 +38,6 @@ public class RoadsideWalker : MonoBehaviour
         var net=WalkNetwork.Shared;if(net==null || current<0)return;
         Vector3 before=transform.position;
         var player=HeistGameManager.Instance?.player;
-        // Only stop when practically touching the player; otherwise walk around them.
         bool giveWay=givingWay=player!=null && (player.position-before).sqrMagnitude<.8f*.8f;
         if(Time.time<waitUntil || giveWay)
         {
@@ -55,21 +47,16 @@ public class RoadsideWalker : MonoBehaviour
         {
             looking=false;
             if(target==current && !NextStep(net)){Plan(net);return;}
-            // the path is the road's shoulder line shifted sideways by a slowly wandering amount (up to about two metres
-            // either way), so nobody walks the same straight line
             Vector3 goal=Wander(net,target);
             Vector3 delta=goal-before;delta.y=0;
             if(delta.magnitude<1.0f){previous=current;current=target;if(!NextStep(net))Linger();}
             else
             {
-                // a slow sideways drift off the shoulder line, and a pace that wanders a little
                 Vector3 across=Vector3.Cross(Vector3.up,delta.normalized);
                 float sway=(Mathf.PerlinNoise(seed,Time.time*.11f)-.5f)*.5f;
                 Vector3 aim=delta+across*sway;
                 transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(aim),Time.deltaTime*3);
-                // Walk where the body faces, so corners are rounded instead of snapped.
                 Vector3 heading=Vector3.Slerp(transform.forward,aim.normalized,.5f);heading.y=0;
-                // Oncoming pedestrians keep to their right instead of bumping and turning back.
                 foreach(var other in all)
                 {
                     if(other==this)continue;Vector3 gap=other.transform.position-before;gap.y=0;
@@ -90,12 +77,9 @@ public class RoadsideWalker : MonoBehaviour
         Vector3 travelled=transform.position-before;travelled.y=0;
         DistanceWalked+=travelled.magnitude;IsWalking=travelled.magnitude>.1f*Time.deltaTime;
         if(!giveWay && Time.time>=waitUntil && !IsWalking)blockedTime+=Time.deltaTime;else blockedTime=0;
-        // blocked for good: give this errand up and pick another from here
         if(blockedTime>1.5f){blockedTime=0;Reversals++;target=current;path.Clear();step=0;Pause(1,2.5f);}
     }
     void OnControllerColliderHit(ControllerColliderHit hit){if(hit.normal.y<.6f)LastObstacle=hit.collider.name+" @"+hit.point.ToString("0");}
-    // The node shifted across the road by the wander amount, pulled back towards the line where the ground is not
-    // free (a fence, a tree, a wall at the side).
     Vector3 Wander(WalkNetwork net,int node)
     {
         if(wanderNode==node)return wanderPoint;
@@ -118,14 +102,10 @@ public class RoadsideWalker : MonoBehaviour
     {
         if(step>=path.Count)return false;
         target=path[step++];
-        // now and then someone stops on the way to look around
         if(Random.value<.05f){Pause(2,5,true);return true;}
-        // the odd pause at a junction, to look up and down the road
         if(net.links[current].Count>2 && Random.value<.15f)Pause(1,2.5f,true);
         return true;
     }
-    // A new errand: somewhere 30 to 240 m away along the paths, inside the neighbourhood, not near one of the last few
-    // places, and preferably not straight back the way it came.
     void Plan(WalkNetwork net)
     {
         var parent=new Dictionary<int,int>{{current,-1}};var hops=new Dictionary<int,int>{{current,0}};var queue=new Queue<int>();queue.Enqueue(current);
@@ -154,7 +134,6 @@ public class RoadsideWalker : MonoBehaviour
         recent.Enqueue(goal);while(recent.Count>3)recent.Dequeue();
         NextStep(net);
     }
-    // At the end of an errand: stand a while, facing the nearest farm if one is close, else somewhere along the road.
     void Linger()
     {
         Pause(3,9,true);
@@ -171,7 +150,6 @@ public class RoadsideWalker : MonoBehaviour
     }
 }
 
-// Pedestrian graph over both shoulders of the roads near residents, built once and shared.
 public class WalkNetwork
 {
     public static WalkNetwork Shared {get;private set;}
@@ -202,7 +180,6 @@ public class WalkNetwork
                 int last=-1;
                 for(int i=0;i<=count;i++)
                 {
-                    // Slide towards the crown of the road when a tree or fence sits on the shoulder.
                     Vector3 axis=road.start+d*i/count;int node=-1;
                     foreach(float inset in new[]{1f,.6f,.25f,0f})if(Clear(axis+side*s*inset,terrain)){node=Add(axis+side*s*inset);break;}
                     if(node<0)continue;
@@ -210,7 +187,6 @@ public class WalkNetwork
                 }
             }
         }
-        // Junctions and crossings: join shoulders that meet within a few metres when the gap is walkable.
         for(int i=0;i<nodes.Count;i++)for(int j=i+1;j<nodes.Count;j++)
         {
             Vector3 a=nodes[i],b=nodes[j];a.y=b.y=0;float gap=(a-b).magnitude;
@@ -228,7 +204,6 @@ public class WalkNetwork
         return true;
     }
     int[] component;int[] componentSize;
-    // Nearest node on a stretch big enough to stroll along; tiny islands left by obstacles are skipped.
     public int Nearest(Vector3 p)
     {
         if(component==null)Components();

@@ -16,7 +16,6 @@ public class RuralWorldReview : ScriptableObject
     [InitializeOnLoadMethod]
     private static void ConsumeReviewRequest()
     {
-        // An explicit, one-shot request allows the same review to run without UI input.
         EditorApplication.delayCall += () =>
         {
             const string request = "Temp/RuralWorldReview.request";
@@ -129,10 +128,6 @@ public class RuralWorldReview : ScriptableObject
     [MenuItem("Chicken Heist/Review Rural World")]
     public static void AuditAndCapture()
     {
-        // This method is also used from batch-mode release checks.  In that
-        // context Unity opens an empty bootstrap scene, so auditing before the
-        // rural scene is loaded used to report a false material failure and
-        // then crash while looking for the world lights.
         if (SceneManager.GetActiveScene().path != WorldScene)
             EditorSceneManager.OpenScene(WorldScene);
         Directory.CreateDirectory(ReviewFolder);

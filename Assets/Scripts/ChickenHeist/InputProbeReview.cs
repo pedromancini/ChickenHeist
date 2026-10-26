@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-// Runs only with --review-session --input-probe: starts free play, then logs every Space press with the keys held
-// and whether a jump followed. Keystrokes come from outside (Tools/send_jump_keys.ps1), through the real OS input.
 public class InputProbeReview : MonoBehaviour
 {
     readonly List<string> lines=new List<string>();

@@ -3,18 +3,10 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Cutscene 2, "O dia seguinte" (StoryDialogue.decline*): the first night Elias sleeps after a raid, the player sees the
-// people he robbed. Scene 1, the farm he raided, before dawn: Joana finds the coop open, Osvaldo counts what is gone
-// (the number the player really took) and finds the tyre tracks of an old pickup. Scene 2, the same morning at their
-// gate: the neighbour Bento has put a camera on a post and strung cans on a wire (what the player meets from the next
-// night on). Scene 3, Elias' room in the dark: the buyer's message lights the tablet, he turns it over, and headlights
-// creep past the shutters. Each scene has its own light, mist and sound; everything it changes is put back in Release.
 public sealed class DeclineCinematicStage : MonoBehaviour
 {
     public Transform osvaldo,joana,bento,elias;
-    // the height of the blanket where the tablet lies, in the house's frame (measured by CutsceneTwoInstall)
     public float bedSurface;
-    // where on the bed the tablet lies: from the bed's middle, in the house's frame
     public static readonly Vector3 TabletOnBed=new Vector3(-.22f,0,-.1f);
     public const int Lines=17;
     public static int SceneOf(int line)=>line<9?1:line<13?2:3;
@@ -35,8 +27,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
     readonly List<Light> dimmed=new List<Light>();readonly List<Renderer> hiddenPlayer=new List<Renderer>();
     Color ambient,fogColor;AmbientMode ambientMode;float ambientIntensity,fogDensity;bool fog;FogMode fogMode;Rect viewport;
     Camera eye;int lastLine=-1;float lastTime;
-    // scene 1: the latch, out of the coop through its door, and across it; scene 2: the farm gate, into the farm and
-    // across the gateway; scene 3: the bed, and the shuttered window beside it
     Vector3 latch,entry,outward,across,gate,inward,gateAcross,bedTop,window,toWindow;
     public static DeclineCinematicStage Create(Transform home)
     {
@@ -50,7 +40,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         foreach(var c in GetComponentsInChildren<Collider>(true))Destroy(c);
         foreach(var a in GetComponentsInChildren<Animation>(true))a.enabled=false;
         os=new Villager(osvaldo);jo=new Villager(joana);be=new Villager(bento);el=new VisitorCinematicActor(elias);
-        // the farm the player raided last (the night's news), its coop, its gate
         var account=HouseholdEconomy.Instance.Account;
         string robbed=account.news!=null && account.news.Count>0?account.news[0].farm:null;
         var farms=FindObjectsByType<FarmLayoutInfo>(FindObjectsSortMode.None).OrderBy(f=>f.layoutIndex).ToArray();
@@ -65,10 +54,7 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         {
             coopWasOpen=coop.IsOpen;coop.SetDoorOpen(true,true);
             latch=coop.InteractionPoint;var leaf=BoundsOf(coop.door!=null?coop.door:coop.transform);
-            // out of the coop: the lock is on the door, a thin leaf; out is across the leaf, on the side away from the hens
             var normal=leaf.size.x<leaf.size.z?Vector3.right:Vector3.forward;
-            // the door sits in the run's fence: of its two sides, out is the one outside the run (the coop and its run are
-            // the smallest group above the door that is more than the door itself, and less than a whole farm)
             var group=coop.transform.parent;
             while(group!=null && group.parent!=null && BoundsOf(group).size.magnitude<leaf.size.magnitude*1.5f)group=group.parent;
             var run=group!=null && BoundsOf(group).size.magnitude<40?BoundsOf(group):new Bounds(new Vector3(farm.lot.center.x,latch.y,farm.lot.center.y),Vector3.one*20);
@@ -81,32 +67,26 @@ public sealed class DeclineCinematicStage : MonoBehaviour
             across=Vector3.Cross(Vector3.up,outward);
             if(entry==Vector3.zero)entry=latch;
         }
-        // the bed (Prop_Bed_01 against the east wall); the tablet lies on its mattress, on the side Elias stands
         var bedNode=home.GetComponentsInChildren<Transform>(true).FirstOrDefault(t=>t.name=="Prop_Bed_01");
         var bedBox=bedNode!=null?BoundsOf(bedNode):new Bounds(home.TransformPoint(new Vector3(.2f,.9f,5.7f)),new Vector3(1.3f,1,2));
         var onBed=home.TransformPoint(home.InverseTransformPoint(bedBox.center)+TabletOnBed);
         BedStaging="bed "+home.InverseTransformPoint(bedBox.center).ToString("0.00")+" size "+bedBox.size.ToString("0.00");
-        // the blanket's surface, measured on the bed's mesh when the cast is installed (CutsceneTwoInstall; the bed's
-        // collider is a box, and a build cannot read the mesh)
         bedTop=onBed;bedTop.y=bedSurface>0?home.TransformPoint(new Vector3(0,bedSurface,0)).y:bedBox.min.y+.6f;
         var sleep=FindAnyObjectByType<HomeNextNight>();Vector3 bedAt=bedBox.center;
         var windows=new[]{home.TransformPoint(new Vector3(-5.75f,1.85f,2.465f)),home.TransformPoint(new Vector3(-.65f,1.85f,2.465f))};
         window=windows.OrderBy(w=>(w-bedAt).sqrMagnitude).First();toWindow=Flat(window-bedTop).normalized;
-        Props();Sounds();
-        // the player's own body stays out of every shot
+        FarmSecurityProgression.HiddenForStory=true;FarmSecurityProgression.Apply();Props();Sounds();
         var player=FindAnyObjectByType<PlayerMovement>();
         if(player!=null)foreach(var r in player.GetComponentsInChildren<Renderer>(true))if(!r.forceRenderingOff){r.forceRenderingOff=true;hiddenPlayer.Add(r);}
         ambient=RenderSettings.ambientLight;ambientMode=RenderSettings.ambientMode;ambientIntensity=RenderSettings.ambientIntensity;
         fog=RenderSettings.fog;fogColor=RenderSettings.fogColor;fogDensity=RenderSettings.fogDensity;fogMode=RenderSettings.fogMode;
         if(eye!=null){viewport=eye.rect;eye.rect=new Rect(0,.18f,1,.74f);eye.ResetAspect();}
     }
-    // --- the set ----------------------------------------------------------------------------------------------------
     void Props()
     {
         props=new GameObject("Cena 2 - cenario");props.transform.SetParent(transform,false);
         var feather=Mat(new Color(.58f,.56f,.52f));var rubber=Mat(new Color(.10f,.085f,.07f));var metal=Mat(new Color(.45f,.46f,.44f));
         var wood=Mat(new Color(.36f,.27f,.18f));var tin=Mat(new Color(.62f,.60f,.55f));var plastic=Mat(new Color(.86f,.86f,.84f));
-        // scene 1: feathers by the open door, and the tyre tracks of an old pickup in the dirt
         var random=new System.Random(7);
         for(int i=0;i<16;i++)
         {
@@ -115,19 +95,16 @@ public sealed class DeclineCinematicStage : MonoBehaviour
             Part("Pena",at,new Vector3(.02f,.004f,.07f),feather,Quaternion.Euler(0,(float)random.NextDouble()*360,(float)random.NextDouble()*25));
         }
         var tracks=TrackCentre;
-        // two ruts, a pickup's track width apart, pressed into the dirt along the way it came in
         for(int w=-1;w<=1;w+=2)for(int k=0;k<12;k++)
         {
             var at=Ground(tracks+across*(k*.3f-1.65f)+outward*w*.75f)+Vector3.up*.004f;
             Part("Marca de pneu careca",at,new Vector3(.3f,.006f,.19f),rubber,Quaternion.LookRotation(outward));
         }
-        // the lantern Joana carries
         lanternBody=new GameObject("Lampiao").transform;lanternBody.SetParent(props.transform,false);
         Part("Corpo do lampiao",Vector3.zero,new Vector3(.11f,.17f,.11f),metal,Quaternion.identity,lanternBody,true);
         Part("Vidro aceso",Vector3.zero,new Vector3(.08f,.11f,.08f),Glow(new Color(1,.72f,.35f)),Quaternion.identity,lanternBody,true);
         lantern=new GameObject("Luz do lampiao").AddComponent<Light>();lantern.transform.SetParent(lanternBody,false);
         lantern.type=LightType.Point;lantern.color=new Color(1,.70f,.38f);lantern.range=7;lantern.intensity=2.4f;lantern.shadows=LightShadows.Soft;
-        // scene 2: a pole by the gate with a camera on it and a ladder against it; a wire with cans across the gateway
         var pole=gate+gateAcross*2.4f-inward*.3f;
         Part("Poste novo",pole+Vector3.up*1.4f,new Vector3(.12f,2.8f,.12f),wood,Quaternion.identity);
         var cam=Part("Camera nova",pole+Vector3.up*2.55f-inward*.18f,new Vector3(.14f,.12f,.26f),plastic,Quaternion.LookRotation(-inward-gateAcross*.4f));
@@ -139,7 +116,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         var a=Ground(gate-gateAcross*1.7f)+Vector3.up*.45f;var b=Ground(gate+gateAcross*1.7f)+Vector3.up*.45f;
         Part("Arame novo",(a+b)*.5f,new Vector3(.008f,.008f,(b-a).magnitude),metal,Quaternion.LookRotation(b-a));
         for(int k=1;k<7;k++){var at=Vector3.Lerp(a,b,k/7f)+Vector3.down*.07f;Part("Lata no arame",at,new Vector3(.07f,.1f,.07f),tin,Quaternion.Euler(0,k*40,k%2*8));}
-        // scene 3: the tablet on the bed, its screen lit, and the light of a car going by outside
         tablet=new GameObject("Tablet na cama").transform;tablet.SetParent(props.transform,false);
         tablet.position=bedTop+Vector3.up*.012f;tablet.rotation=home.rotation*Quaternion.Euler(0,-90,0);
         Part("Tablet",Vector3.zero,new Vector3(.19f,.012f,.28f),rubber,Quaternion.identity,tablet,true);
@@ -157,10 +133,7 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         sun.transform.rotation=Quaternion.LookRotation(Vector3.down*.32f+inward+gateAcross*.6f);
     }
     Vector3 TrackCentre=>entry+outward*3.4f+across*2.4f;
-    // the house's floor boards, in its own frame
     const float Floor=.63f;
-    // the buyer's message on the tablet's screen: the app bar, one bubble with two lines, as shapes (it is read in the
-    // subtitle; on the screen it only has to look like a message)
     Texture2D Message()
     {
         var t=new Texture2D(96,140,TextureFormat.RGBA32,false){filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
@@ -173,7 +146,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         t.SetPixels32(px);t.Apply();textures.Add(t);return t;
     }
     readonly List<Texture2D> textures=new List<Texture2D>();
-    // light through closed shutters: bright bands with dark slats between, softened at the edges
     Texture2D Slats()
     {
         var t=new Texture2D(64,64,TextureFormat.RGBA32,false){wrapMode=TextureWrapMode.Clamp};var px=new Color[64*64];
@@ -196,7 +168,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         var node=new GameObject(label);node.transform.SetParent(transform,false);var s=node.AddComponent<AudioSource>();
         s.playOnAwake=false;s.spatialBlend=spatial;s.minDistance=2;s.maxDistance=40;s.rolloffMode=AudioRolloffMode.Linear;return s;
     }
-    // --- each frame -------------------------------------------------------------------------------------------------
     public void Evaluate(Camera camera,int line,float time,float duration,float total)
     {
         eye=camera;int scene=SceneOf(line);
@@ -204,13 +175,12 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         bool fresh=line!=lastLine;float step=fresh?1:Mathf.Clamp(time-lastTime,0,.25f);lastLine=line;lastTime=time;float p=Mathf.Clamp01(time/Mathf.Max(.01f,duration));Villager.Step=step;
         string said=line<StoryDirector.Instance.LineCount?StoryDirector.Instance.LineText(line):"";
         string who=StoryDialogue.declineSpeakers[Mathf.Min(line,StoryDialogue.declineSpeakers.Length-1)];
-        float mouth=VisitorCinematicActor.Mouth(said,time,duration);
+        float mouth=VisitorCinematicActor.Spoken(said,time,duration);
         osvaldo.gameObject.SetActive(scene==2 || scene==1 && line>=2);joana.gameObject.SetActive(scene<3 && line>=1);bento.gameObject.SetActive(scene==2);elias.gameObject.SetActive(scene==3);
         lanternBody.gameObject.SetActive(scene==1);
         Vector3 from,target;float fov;
         if(scene==1)
         {
-            // Osvaldo is in at the door, Joana stops in the opening with the lantern
             var ground=Ground(entry);
             Vector3 osAt=Ground(latch+outward*.85f+across*.35f),joFrom=Ground(entry+outward*6f+across*2.2f),joAt=Ground(entry+outward*.4f-across*.7f);
             if(line>=6){osAt=Ground(TrackCentre-across*.6f-outward*.15f);joAt=Ground(TrackCentre-across*1.3f-outward*1.1f);}
@@ -218,11 +188,9 @@ public sealed class DeclineCinematicStage : MonoBehaviour
             float walk=line==1?Ease(Mathf.Clamp01(time/(duration*.75f))):1;var jo0=line==0?joFrom:line==1?Vector3.Lerp(joFrom,joAt,walk):joAt;
             Vector3 osLook=line<=2?latch-Vector3.up*.25f:line==4?latch-outward*1.2f+Vector3.up*.4f:line==6?Ground(TrackCentre):line==8?gate+Vector3.up*1.5f:jo.Head;
             Vector3 joLook=line<=1?latch:line==6?Ground(TrackCentre):os.Head;
-            // he faces whoever he talks to; his eyes go where the line is about (the empty perches, the ruts, the road)
             float osYaw=line<=2?Yaw(osLook-osAt):line==6?Yaw(Ground(TrackCentre)-osAt):Yaw(jo.Head-osAt);
             os.Pose(osAt,osYaw,total,who=="Osvaldo",osLook,who=="Osvaldo"?mouth:0,line==6?18:0);
             jo.Pose(jo0,line==1 && walk<1?Yaw(joAt-joFrom):Yaw(joLook-jo0),total+1.1f,who=="Joana",joLook,who=="Joana"?mouth:0,0,line==1 && walk<1,Vector3.Distance(joFrom,jo0));
-            // the lantern hangs from her hand; at the tracks she lowers it to the dirt
             var hand=jo.Hand;lanternBody.position=line==6?Ground(TrackCentre)+Vector3.up*.45f-across*.4f:hand+Vector3.down*.16f;lanternBody.rotation=Quaternion.identity;
             if(line==0){lanternBody.position=entry+outward*7+Vector3.up*50;}
             if(fresh && line<=2 && creak!=null){effects.transform.position=latch;effects.PlayOneShot(creak,.55f);}
@@ -254,11 +222,11 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         }
         else
         {
-            // Elias by the bed, the tablet's light on him; he turns it over, and a car's lights creep across the room
-            // he stands on the room side of the bed, west of the tablet, facing it; at the end he turns to the window
             var tabLocal=home.InverseTransformPoint(tablet.position);var stand=home.TransformPoint(new Vector3(tabLocal.x-.95f,Floor,tabLocal.z-.15f));
-            var facing=Flat(tablet.position-stand).normalized;if(line>=15)facing=Flat(window-stand).normalized;
-            el.Pose(transform.InverseTransformPoint(stand),Yaw(facing)-transform.eulerAngles.y,total,false,who=="Elias",line>=15?window:tablet.position);
+            float drive=line==15?Mathf.Clamp01((time-.6f)/(duration-1.2f)):line>15?1:0;
+            float turn=line==15?Ease(Mathf.Clamp01(drive*2.2f)):line>15?1:0;
+            var facing=Flat(Vector3.Lerp(tablet.position-stand,window-stand,line>=15?.75f:0)).normalized;
+            el.Pose(transform.InverseTransformPoint(stand),Yaw(facing)-transform.eulerAngles.y,total,false,who=="Elias",Vector3.Lerp(tablet.position,window,turn));
             el.Speak(who=="Elias"?mouth:0,fresh);
             bool down=line>=15 || (line==14 && p>.75f);
             if(line==14)el.Flat(true,tablet.position+Vector3.up*.012f,Vector3.down,Flat(tablet.position-stand).normalized,Ease(Mathf.Clamp01((p-.55f)/.2f))*(1-Ease(Mathf.Clamp01((p-.85f)/.15f))));
@@ -266,14 +234,12 @@ public sealed class DeclineCinematicStage : MonoBehaviour
             tablet.localRotation=Quaternion.identity;tablet.rotation=Quaternion.LookRotation(Vector3.Cross(Vector3.up,toWindow),Vector3.up)*(down?Quaternion.Euler(0,0,180):Quaternion.identity);
             if(down)tablet.position=bedTop+Vector3.up*.012f+toWindow*.25f;
             tabletGlow.intensity=down?0:2.2f;
-            // the car: from the left of the window to the right, slow, its beams through the shutters
-            float drive=line==15?Mathf.Clamp01((time-.6f)/(duration-1.2f)):line>15?1:0;
             var road=window+Flat(window-home.TransformPoint(new Vector3(-3,0,6))).normalized*6;var along=Vector3.Cross(Vector3.up,toWindow);
             var car=road+along*Mathf.Lerp(-14,14,drive)+Vector3.down*.6f;
-            // the beam comes in at the window and swings across the room the opposite way to the car
+            var face=elias.GetComponentsInChildren<Transform>().First(t=>t.name=="Head").position;
             headlights.transform.position=window-toWindow*.25f;
-            headlights.transform.rotation=Quaternion.LookRotation((-toWindow+along*Mathf.Lerp(.9f,-.9f,drive)+Vector3.down*.18f).normalized);
-            headlights.intensity=line==15?Mathf.Sin(drive*Mathf.PI)*7:0;
+            headlights.transform.rotation=Quaternion.LookRotation((face+along*Mathf.Lerp(1.4f,-1.4f,drive)+Vector3.down*.1f-headlights.transform.position).normalized);
+            headlights.spotAngle=28;headlights.range=7;headlights.intensity=line==15?Mathf.Sin(drive*Mathf.PI)*6:0;
             engine.transform.position=car;
             if(line==15 && engineClip!=null){if(!engine.isPlaying)engine.Play();engine.volume=Mathf.Sin(drive*Mathf.PI)*.55f*GameAudioMix.Effects;engine.pitch=.75f;}
             else if(engine.isPlaying)engine.Stop();
@@ -285,16 +251,17 @@ public sealed class DeclineCinematicStage : MonoBehaviour
             {
                 case 13:from=H(tab.x-.75f,tab.y+.55f,tab.z-.7f);target=tablet.position+Vector3.up*.02f;fov=36;break;
                 case 14:from=H(tab.x-.1f,1.55f,tab.z-1.75f);target=Vector3.Lerp(tablet.position,head,.65f);fov=46;break;
-                case 15:from=H(-2.55f,1.66f,3.05f);target=Vector3.Lerp(tablet.position,head,.7f);fov=50;break;
-                default:{var h=home.InverseTransformPoint(head);from=H(h.x-.85f,h.y-.02f,h.z-.55f);target=head+Vector3.down*.05f;fov=36;break;}
+                default:
+                {
+                    var look=Flat(window-head).normalized;var cheek=Vector3.Cross(Vector3.up,look);if(Vector3.Dot(cheek,home.TransformDirection(Vector3.left))<0)cheek=-cheek;
+                    float near=line==15?Mathf.Lerp(1.05f,.85f,p):.8f;
+                    from=head+(look*.55f+cheek*.85f).normalized*near+Vector3.up*.06f;target=head+Vector3.up*.08f+look*.05f;fov=30;break;
+                }
             }
             from=InsideRoom(from);
-            // the last beat goes dark
-            if(line==16){RenderSettings.ambientLight=Color.Lerp(new Color(.07f,.08f,.11f),Color.black,p);moon.intensity=.9f*(1-p);}
+            if(line==16){RenderSettings.ambientLight=Color.Lerp(new Color(.07f,.08f,.11f),Color.black,Ease(p));moon.intensity=.9f*(1-Ease(p));}
         }
         Shot=line;
-        // whoever speaks is never hidden: if a post or a wall stands between the camera and their head, the camera swings
-        // round its target, a little more each try, to the first clear view
         if(who=="Joana" || who=="Osvaldo" || who=="Bento" || who=="Elias")
         {
             var face=HeadOf(who);
@@ -308,7 +275,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         camera.transform.SetPositionAndRotation(from,Quaternion.LookRotation(target-from,Vector3.up));camera.fieldOfView=fov;
         if(bed.isPlaying)bed.volume=(Scene==2?.35f:.0f)*GameAudioMix.Ambience;
     }
-    // one look, the speaker's face over the listener's shoulder side, kept on one side of the pair (`side` hint)
     void CloseUp(Villager speaker,Villager listener,Vector3 sideHint,float p,out Vector3 from,out Vector3 target)
     {
         var axis=Flat(listener.Head-speaker.Head).normalized;var side=Vector3.Cross(Vector3.up,axis);if(Vector3.Dot(side,sideHint)<0)side=-side;
@@ -322,19 +288,16 @@ public sealed class DeclineCinematicStage : MonoBehaviour
         bed.Stop();
         if(scene==1)
         {
-            // before dawn: cold blue, the mist low and thick, the lantern the only warm light
             RenderSettings.ambientLight=new Color(.10f,.13f,.21f);RenderSettings.fogColor=new Color(.20f,.25f,.33f);RenderSettings.fogDensity=.045f;
         }
         else if(scene==2)
         {
-            // the same morning: low orange sun through what is left of the mist; the night's lights off
             RenderSettings.ambientLight=new Color(.44f,.42f,.40f);RenderSettings.fogColor=new Color(.78f,.66f,.54f);RenderSettings.fogDensity=.014f;
             foreach(var l in FindObjectsByType<Light>(FindObjectsSortMode.None))if(l.enabled && l!=sun && l.type==LightType.Directional && !l.transform.IsChildOf(transform)){l.enabled=false;dimmed.Add(l);}
             if(morning!=null){bed.clip=morning;bed.Play();}
         }
         else
         {
-            // Elias' room before dawn: the house lights off, only the tablet's screen
             RenderSettings.ambientLight=new Color(.07f,.08f,.11f);RenderSettings.fogColor=new Color(.02f,.025f,.035f);RenderSettings.fogDensity=.01f;
             foreach(var l in home.GetComponentsInChildren<Light>())if(l.enabled && !l.transform.IsChildOf(transform)){l.enabled=false;dimmed.Add(l);}
         }
@@ -342,18 +305,14 @@ public sealed class DeclineCinematicStage : MonoBehaviour
     public void Release()
     {
         foreach(var l in dimmed)if(l!=null)l.enabled=true;dimmed.Clear();
-        foreach(var r in hiddenPlayer)if(r!=null)r.forceRenderingOff=false;hiddenPlayer.Clear();
+        foreach(var r in hiddenPlayer)if(r!=null)r.forceRenderingOff=false;hiddenPlayer.Clear();FarmSecurityProgression.HiddenForStory=false;FarmSecurityProgression.Apply();
         RenderSettings.ambientLight=ambient;RenderSettings.ambientMode=ambientMode;RenderSettings.ambientIntensity=ambientIntensity;
         RenderSettings.fog=fog;RenderSettings.fogColor=fogColor;RenderSettings.fogDensity=fogDensity;RenderSettings.fogMode=fogMode;
         if(eye!=null){eye.rect=viewport;eye.ResetAspect();}
         if(coop!=null && !coopWasOpen)coop.SetDoorOpen(false,true);coop=null;
         gameObject.SetActive(false);Destroy(gameObject);
     }
-    // --- helpers ----------------------------------------------------------------------------------------------------
-    // within the house's walls (x -7.4..0.9, z 2.5..6.8 in the house's frame): a camera never films the room from outside
     Vector3 InsideRoom(Vector3 at){var l=home.InverseTransformPoint(at);l.x=Mathf.Clamp(l.x,-7.3f,.85f);l.z=Mathf.Clamp(l.z,2.55f,6.75f);l.y=Mathf.Clamp(l.y,.9f,2.6f);return home.TransformPoint(l);}
-    // Over-the-shoulder coverage (the older opening stage still frames its talk with it): the listener's shoulder frames
-    // one side, the speaker stays whole, on the side of the conversation axis nearest the authored camera spot.
     public static void OverShoulder(Camera camera,Transform listenerHead,Transform speakerHead,Vector3 preferredSide,float dolly)
     {
         Vector3 axis=speakerHead.position-listenerHead.position;axis.y=0;axis.Normalize();
@@ -366,7 +325,6 @@ public sealed class DeclineCinematicStage : MonoBehaviour
     static float Ease(float x){x=Mathf.Clamp01(x);return x*x*(3-2*x);}
     static Vector3 Flat(Vector3 v){v.y=0;return v;}
     static float Yaw(Vector3 v)=>Mathf.Atan2(v.x,v.z)*Mathf.Rad2Deg;
-    // the floor under a point: the highest upward-facing surface below head height there (a roof above is not a floor)
     Vector3 Ground(Vector3 p)
     {
         var hits=Physics.RaycastAll(p+Vector3.up*3,Vector3.down,8,~0,QueryTriggerInteraction.Ignore);float best=float.NegativeInfinity;Vector3 at=p;
@@ -390,15 +348,12 @@ public sealed class DeclineCinematicStage : MonoBehaviour
     Material Glow(Color c){var m=Mat(c);m.EnableKeyword("_EMISSION");m.SetColor("_EmissionColor",c*2.2f);return m;}
     void OnDestroy(){foreach(var m in materials)if(m!=null)Destroy(m);foreach(var t in textures)if(t!=null)Destroy(t);}
 
-    // A villager of the Free Medieval People pack, posed from its captured clips (Idle, Walk, Trade for talking), its
-    // head turned to where it looks and its jaw ("Fala", CutsceneTwoInstall) moving with the line.
     sealed class Villager
     {
         readonly Transform root,head,hand;readonly GameObject animated;readonly AnimationClip idle,walk,talk;
         readonly List<(SkinnedMeshRenderer skin,int index)> jaws=new List<(SkinnedMeshRenderer,int)>();float mouth;
         public Vector3 Head=>head.position;public Vector3 Hand=>hand!=null?hand.position:head.position+Vector3.down*.9f;
         public float JawWeight=>jaws.Count>0?jaws[0].skin.GetBlendShapeWeight(jaws[0].index):0;
-        // seconds since the last pose on this line's clock (1 on a new line: the mouth takes its new shape at once)
         public static float Step;
         public Villager(Transform actor)
         {

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Purpose-built glove geometry with authored finger curls. Original arm bones remain authoritative.
 [DefaultExecutionOrder(400)]
 public class CharacterGripHands : MonoBehaviour
 {
@@ -21,7 +20,6 @@ public class CharacterGripHands : MonoBehaviour
     }
     void Awake()
     {
-        // The new protagonist uses its own weighted finger geometry.
         if(GetComponent<ProtagonistArticulation>()!=null){enabled=false;return;}
         foreach(var bone in GetComponentsInChildren<Transform>()){if(bone.name=="HandL")hands[0]=bone;if(bone.name=="HandR")hands[1]=bone;}
         foreach(var skin in GetComponentsInChildren<SkinnedMeshRenderer>())if(System.Array.IndexOf(skin.bones,hands[0])>=0){body=skin;break;}

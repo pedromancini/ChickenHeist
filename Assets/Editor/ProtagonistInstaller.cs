@@ -31,7 +31,6 @@ public static class ProtagonistInstaller
     public static void Install()
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Exit Play mode first.");
-        // The previous rig was replaced by native Elias (EliasNativeInstall); reinstalling it would undo that.
         if(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath).GetComponentsInChildren<Transform>(true).Any(t=>t.name=="Spine2"))
             throw new InvalidOperationException("Native Elias is installed; use EliasNativeInstall instead of the legacy protagonist installer.");
         Directory.CreateDirectory(Output);
@@ -70,7 +69,6 @@ public static class ProtagonistInstaller
             foreach(string state in States)
             {
                 var clip=AssetDatabase.LoadAllAssetsAtPath(Model).OfType<AnimationClip>().Single(c=>c.name==state);
-                // Imported curves are relative to the FBX root, which lives one level below this wrapper.
                 var copy=Object.Instantiate(clip);copy.name=state;copy.legacy=true;
                 foreach(var binding in AnimationUtility.GetCurveBindings(copy))
                 {

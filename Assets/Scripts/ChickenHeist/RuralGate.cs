@@ -14,8 +14,6 @@ public class RuralGate : MonoBehaviour
         Ensure();if(Vector3.Distance(game.player.position+Vector3.up,hinge.InteractionPoint)>3.2f)return;
         Toggle(game.player.position);
     }
-    // Opened or shut by someone standing at `from`: it swings away from them, or into the farm when an alarm wire runs
-    // across the way in just outside it (TrapSystem), so the leaf never sweeps through the wire.
     public void Toggle(Vector3 from)
     {
         Ensure();opened=!opened;hinge.SetOpen(opened,false,TrapSystem.Guards(this)?(Vector3?)null:from);

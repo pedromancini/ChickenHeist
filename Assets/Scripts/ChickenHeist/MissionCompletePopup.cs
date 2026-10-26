@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// "Missão concluída!" in the middle of the screen for a few seconds when a mission ends on arriving home
-// (HeistGameManager): the farm and how many chickens came back. It does not take the controls.
 public sealed class MissionCompletePopup : MonoBehaviour
 {
     public static MissionCompletePopup Instance {get;private set;}

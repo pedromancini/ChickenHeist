@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Play-mode checks for Elias' coop: the gate blocks when shut, opens/closes with its hinge animation, a delivery at
-// the entrance opens it, walks the bird through and shuts it again, a delivery from inside the run works too,
-// and the flock never leaves the run. Run: Unity.exe -batchmode -projectPath . -executeMethod HomeCoopReview.Begin
 [InitializeOnLoad]
 public static class HomeCoopReview
 {

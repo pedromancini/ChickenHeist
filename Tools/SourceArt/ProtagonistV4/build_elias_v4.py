@@ -1,20 +1,3 @@
-# Elias v4/v5: an AI-generated protagonist (source/*.glb: one mesh of about a million triangles in a T- or A-pose,
-# 4K colour texture, no skeleton) rebuilt on the ProtagonistRig bone convention so EliasNativeInstall and
-# MixamoInstall can bake every gameplay and cinematic clip for it. ELIAS_SOURCE picks the file (default: v5).
-#   - an A-pose is raised to a T-pose with the palms down (what the rest of this script and the game's hand grips
-#     expect), using temporary bone-heat weights from a closed copy
-#   - joints located on the mesh itself (T-pose): spine, shoulders, elbows, wrists, five three-phalanx fingers,
-#     hips, knees, ankles, toes; skin weights from Blender's bone heat, unweighted leftovers to the nearest bone
-#   - head and hands brought towards the cast's proportions, body scaled to HEIGHT with feet on the ground
-#   - reduced to about TRIS triangles, keeping hands and face (seen up close in first person and cinematics)
-#   - rebuilt as one closed surface (voxel remesh) before reducing: the generated fingers are open half-shells that
-#     crack open when bent; tiny pieces left by the reduction are removed (they make bone heat fail)
-#   - the painted colours are baked from the full-resolution model onto new UVs (eyes, brows and beard live
-#     there); a bluish smudge at the sides of the beard is recoloured from the beard itself
-#   - hand weights follow the finger chains; the beard and chin follow the head
-#   - head split from the body (hidden in first person) and both sides of the cut closed
-# Run:  blender -b --factory-startup --python build_elias_v4.py               (previews in generated/)
-#       ELIAS_EXPORT=1 blender -b --factory-startup --python build_elias_v4.py  (also writes the FBX and texture)
 import bpy, bmesh, os, math
 import numpy as np
 from mathutils import Vector, Matrix
@@ -25,8 +8,6 @@ SOURCE = os.path.join(ROOT, 'source', os.environ.get('ELIAS_SOURCE', 'Elias_v5_s
 OUT_DIR = os.path.join(PROJECT, 'Assets', 'ChickenHeistGenerated', 'Characters', 'EliasNative')
 GEN = os.path.join(ROOT, 'generated'); os.makedirs(GEN, exist_ok=True)
 EXPORT = os.environ.get('ELIAS_EXPORT') == '1'
-# Head and arm length are brought to the cast's proportions unless given: head 15.6% of the height measured from
-# the jaw, arm 0.574 m from shoulder to wrist (what the carry, wheel and padlock grips need). v4 used 0.74 / 1.10 / 0.92.
 HEAD_SCALE = os.environ.get('ELIAS_HEAD_SCALE'); ARM_STRETCH = os.environ.get('ELIAS_ARM_STRETCH')
 HEAD_FRACTION, ARM_LENGTH = .156, .574
 HAND_SCALE = float(os.environ.get('ELIAS_HAND_SCALE', '1.0'))
@@ -46,8 +27,6 @@ me = ob.data
 bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=float(os.environ.get("ELIAS_WELD", "5e-5"))); bm.to_mesh(me); bm.free()
 
 def remove_scraps(mesh, smallest=60):
-    # tiny closed pieces (two triangles folded onto each other) left by a reduction see no bone and make the
-    # bone-heat system unsolvable for the whole body
     bm_ = bmesh.new(); bm_.from_mesh(mesh); seen = set(); scraps = []
     for v in bm_.verts:
         if v in seen: continue
@@ -73,7 +52,6 @@ def coords():
 def store(P): me.vertices.foreach_set('co', P.astype(np.float32).ravel()); me.update()
 P = coords()
 
-# ---------------------------------------------------------------- A-pose to T-pose
 def tpose():
     global P
     z0_ = P[:, 2].min(); H_ = P[:, 2].max() - z0_
@@ -82,10 +60,8 @@ def tpose():
         idx = np.where(m)[0]; idx = idx[np.argsort(P[idx, 0])]
         if len(idx) < 10: return []
         return np.split(idx, np.where(np.diff(P[idx, 0]) > .01 * H_)[0] + 1)
-    # torso half-width: the cluster around x = 0, between the hips and the chest
     widths = [np.abs(P[c, 0]).max() for f in np.arange(.46, .62, .02) for c in clusters(f) if P[c, 0].min() < 0 < P[c, 0].max()]
     torso = float(np.median(widths))
-    # arm: the outermost cluster on each side, from the armpit down (slices where it is separate from the torso)
     fit = {}
     for side in (1, -1):
         rows = []
@@ -96,14 +72,13 @@ def tpose():
                 continue
             c = max(out, key=lambda c: side * P[c, 0].mean()) if len(out) == 1 else min(out, key=lambda c: side * P[c, 0].mean())
             rows.append((z0_ + f * H_, P[c, 0].mean(), P[c, 1].mean()))
-        rows = rows[1:13]                                   # below the armpit, above the hand
+        rows = rows[1:13]
         if len(rows) < 4: return 'no separate arm found: kept as is'
         zs, xs, ys = (np.array(r) for r in zip(*rows))
-        b, a = np.polyfit(zs, xs, 1)                        # x = a + b z
-        theta = math.degrees(math.atan2(1, abs(b)))         # angle below the horizontal
+        b, a = np.polyfit(zs, xs, 1)
+        theta = math.degrees(math.atan2(1, abs(b)))
         fit[side] = (a, b, theta, float(ys.mean()))
     if max(t for _, _, t, _ in fit.values()) < 12: return 'already a T-pose (arms %.1f / %.1f degrees down)' % (fit[1][2], fit[-1][2])
-    # temporary rig: body, head, legs and one straight bone per arm from the shoulder joint to the fingertips
     yc = float(np.median(P[:, 1])); crotch = z0_ + .42 * H_; neck = z0_ + .80 * H_
     bones = {'Body': (Vector((0, yc, crotch)), Vector((0, yc, neck))), 'Head': (Vector((0, yc, neck)), Vector((0, yc, P[:, 2].max())))}
     for side, nm in ((1, 'L'), (-1, 'R')):
@@ -131,7 +106,6 @@ def tpose():
     dt.layers_vgroup_select_src = 'ALL'; dt.layers_vgroup_select_dst = 'NAME'
     bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
     bpy.ops.object.modifier_apply(modifier='pose weights')
-    # raise each arm about its shoulder to the horizontal
     for side, nm in ((1, 'L'), (-1, 'R')):
         pb = rig_.pose.bones['Arm' + nm]; pivot = bones['Arm' + nm][0]
         pb.matrix = Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(-side * fit[side][2]), 4, 'Y') @ Matrix.Translation(-pivot) @ pb.bone.matrix_local
@@ -160,7 +134,6 @@ X, Y, Z = P[:, 0], P[:, 1], P[:, 2]
 z0, z1 = Z.min(), Z.max(); H0 = z1 - z0; half = np.abs(X).max()
 log('source verts', len(P), 'height', round(H0, 3), 'half span', round(half, 3))
 
-# ---------------------------------------------------------------- landmarks on the T-pose (+x = character's left, front = -y)
 def band(mask): return P[mask]
 outer = np.abs(X) > .6 * half
 arm_z = float(np.median(Z[outer])); arm_band = np.abs(Z - arm_z) < .07 * H0
@@ -173,7 +146,6 @@ def y_extent(side, x):
 chest_z = arm_z - .11 * H0
 chest = P[(np.abs(Z - chest_z) < .006 * H0) & (np.abs(X) < .5 * half)]
 torso_half = np.abs(chest[:, 0]).max(); torso_y = (chest[:, 1].min() + chest[:, 1].max()) / 2
-# neck: narrowest slice between the shoulders and the top of the head
 best = None
 for z in np.linspace(arm_z + .02 * H0, arm_z + .14 * H0, 40):
     s = P[(np.abs(Z - z) < .004 * H0) & (np.abs(X) < .3 * half)]
@@ -181,7 +153,6 @@ for z in np.linspace(arm_z + .02 * H0, arm_z + .14 * H0, 40):
     w = s[:, 0].max() - s[:, 0].min()
     if best is None or w < best[0]: best = (w, z, (s[:, 1].min() + s[:, 1].max()) / 2)
 neck_w, neck_z, neck_y = best
-# crotch: lowest body point between the legs
 mid = P[(np.abs(X) < .012 * H0) & (Z > z0 + .25 * H0) & (Z < arm_z)]
 crotch_z = mid[:, 2].min()
 log('arm z', round(arm_z - z0, 3), 'torso half', round(torso_half, 3), 'neck z', round(neck_z - z0, 3), 'crotch z', round(crotch_z - z0, 3))
@@ -216,7 +187,6 @@ for side, sd in ((1, 'L'), (-1, 'R')):
     joint['Thigh' + sd] = (th, kn); joint['Shin' + sd] = (kn, an); joint['Foot' + sd] = (an, toe); joint['Toe' + sd] = (toe, tip)
     log(sd, 'wrist x', round(wx, 3), 'shoulder', tuple(round(v, 3) for v in sh), 'hip', tuple(round(v, 3) for v in th))
 
-# ---------------------------------------------------------------- proportions: head and hands
 def smooth(t): t = np.clip(t, 0, 1); return t * t * (3 - 2 * t)
 wh = smooth((Z - (neck_z - .01 * H0)) / (.035 * H0))
 if HEAD_SCALE is None:
@@ -230,13 +200,11 @@ for sd, side in (('L', 1), ('R', -1)):
     wgt = smooth((side * P[:, 0] - (wrist_x[sd] - .01 * H0)) / (.02 * H0)) * (np.abs(P[:, 2] - arm_z) < .12 * H0)
     P = P + (wr + (P - wr) * HAND_SCALE - P) * wgt[:, None]
     a, b = joint['Hand' + sd]; joint['Hand' + sd] = (a, a + (b - a) * HAND_SCALE)
-# arms: stretch everything beyond the shoulder outward along x (T-pose), ramping in over the shoulder
 if ARM_STRETCH is None:
     s_est = HEIGHT / (P[:, 2].max() - z0)
     arm = sum((joint['Hand' + sd][0] - joint['UpperArm' + sd][0]).length for sd in 'LR') / 2 * s_est
     ARM_STRETCH = ARM_LENGTH / arm
 ARM_STRETCH = float(ARM_STRETCH); log('arm stretch', round(ARM_STRETCH, 3))
-# (shoulder to wrist only: the hand moves out with the wrist and keeps its shape)
 for sd, side in (('L', 1), ('R', -1)):
     sx = side * joint['UpperArm' + sd][0].x; wx = wrist_x[sd]
     wgt = smooth((side * P[:, 0] - sx) / .03) * (np.abs(P[:, 2] - arm_z) < .16 * H0)
@@ -248,7 +216,6 @@ for sd, side in (('L', 1), ('R', -1)):
     wrist_x[sd] = wx + (wx - sx) * (ARM_STRETCH - 1)
 head_top = P[:, 2].max()
 joint['Head'] = (head_pivot, Vector((0, neck_y, head_top - (head_top - head_pivot.z) * .25)))
-# feet on the ground, HEIGHT overall
 s = HEIGHT / (P[:, 2].max() - z0)
 def S(v): return Vector((v[0] * s, v[1] * s, (v[2] - z0) * s))
 P = np.stack([P[:, 0] * s, P[:, 1] * s, (P[:, 2] - z0) * s], axis=1)
@@ -257,14 +224,11 @@ joint['Root'] = (Vector((0, 0, 0)), joint['Hips'][0].copy())
 store(P)
 log('scale', round(s, 4))
 
-
-# ---------------------------------------------------------------- fingers (three phalanges each)
 FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little']
 def edges():
     e = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get('vertices', e); return e.reshape(-1, 2)
 EV = edges()
 def components(idx):
-    # connected pieces of the mesh restricted to the vertex set idx (union-find over the edges inside it)
     inside = np.zeros(len(P), bool); inside[idx] = True
     e = EV[inside[EV[:, 0]] & inside[EV[:, 1]]]
     parent = {int(i): int(i) for i in idx}
@@ -279,9 +243,6 @@ def components(idx):
     return sorted((np.array(g) for g in groups.values()), key=len, reverse=True)
 
 def digits(sd, side):
-    # Digits are separate geometry past the webbing, but each gap starts at its own depth: split recursively,
-    # raising the cut only inside a piece that still holds several digits. The generated fingers are open
-    # shells (upper and lower halves apart), so leaves come in pairs: merge leaves lying side by side.
     wrist = joint['Hand' + sd][0]; a = np.array((side, 0, 0)); w = np.array(wrist)
     H = np.where((side * P[:, 0] > side * wrist.x) & (np.abs(P[:, 2] - wrist.z) < .12))[0]
     sA = (P[H] - w) @ a; smax = sA.max(); along = dict(zip(H.tolist(), sA.tolist()))
@@ -310,7 +271,6 @@ def digits(sd, side):
     return out, H, sA, smax
 
 def remove_extra_finger(sd, side, ds, smax):
-    # Six digits (an AI generation slip): drop the middle finger and slide the neighbours together.
     global P, EV
     thumb = min(ds, key=lambda d: d['reach']); fingers = sorted([d for d in ds if d is not thumb], key=lambda d: d['centre'][1])
     gone = fingers[2]; front, back = fingers[:2], fingers[3:]
@@ -319,7 +279,6 @@ def remove_extra_finger(sd, side, ds, smax):
     base = gone['centre'].copy()
     wrist = np.array(joint['Hand' + sd][0]); a = np.array((side, 0, 0))
     sep = min(d['sep'] for d in fingers) * smax
-    # slide: front fingers back by half the gap, back fingers forward, fading out towards the knuckles
     sA = (P - wrist) @ a; ramp = np.clip((sA - (sep - .12 * smax)) / (.1 * smax), 0, 1) * (np.abs(P[:, 2] - wrist[2]) < .12) * (side * P[:, 0] > side * wrist[0])
     ramp[thumb['idx']] = 0
     mid = gone['centre'][1]
@@ -329,10 +288,8 @@ def remove_extra_finger(sd, side, ds, smax):
     bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
     doomed = set(int(i) for i in gone['idx'])
     bmesh.ops.delete(bm, geom=[bm.verts[i] for i in doomed], context='VERTS')
-    # close the stump where the finger met the palm (only boundary edges near its base)
     stump = Vector(base); stump.x = wrist[0] + side * sep
     ring = [e for e in bm.edges if e.is_boundary and all((v.co - stump).length < .035 for v in e.verts)]
-    # the shells are open, so close the stump with a fan from its centre
     caps = []
     if ring:
         rv = {v for e in ring for v in e.verts}; c = bm.verts.new(sum((v.co for v in rv), Vector()) / len(rv))
@@ -392,10 +349,6 @@ if os.environ.get('ELIAS_DEBUG_HANDS') == '1':
             sc.render.resolution_x, sc.render.resolution_y = 800, 600; sc.render.filepath = os.path.join(GEN, 'dbg_hand_%s_%s.png' % (sd, nm)); bpy.ops.render.render(write_still=True)
     raise SystemExit
 
-# ---------------------------------------------------------------- one closed surface
-# The generated mesh has open half-shells (each finger is two halves a hair apart), holes and overlapping folds;
-# reduced as is, they open, fold over and show their insides. Rebuild it as one closed surface first; the colours
-# come back from the untouched full-resolution copy in the bake below.
 hi = ob.copy(); hi.data = ob.data.copy(); hi.name = 'EliasV4_high'; bpy.context.scene.collection.objects.link(hi)
 ob.data.remesh_voxel_size = VOXEL; ob.data.remesh_voxel_adaptivity = 0
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
@@ -428,11 +381,9 @@ if os.environ.get('ELIAS_DEBUG_REMESH') == '1':
         cam.location = c + off; cam.rotation_euler = (c - cam.location).to_track_quat('-Z', 'Y').to_euler(); cam.data.lens = 60
         sc.render.resolution_x, sc.render.resolution_y = 800, 600; sc.render.filepath = os.path.join(GEN, 'dbg_remesh_L_%s.png' % nm); bpy.ops.render.render(write_still=True)
     raise SystemExit
-# ---------------------------------------------------------------- reduce, keeping hands and face
 keep = ob.vertex_groups.new(name='_keep')
 k = np.zeros(len(P))
 for sd, side in (('L', 1), ('R', -1)): k = np.maximum(k, (side * P[:, 0] > side * joint['Hand' + sd][0].x - .02) * .7)
-# the forearm next to the wrist twists with the hand: keep enough rings there
 for sd, side in (('L', 1), ('R', -1)):
     wx = joint['Hand' + sd][0].x
     k = np.maximum(k, ((side * P[:, 0] > side * wx - .14) & (side * P[:, 0] <= side * wx - .02) & (np.abs(P[:, 2] - joint['Hand' + sd][0].z) < .1)) * .6)
@@ -442,10 +393,6 @@ for val in np.unique(k):
 tri0 = sum(len(p.vertices) - 2 for p in me.polygons)
 pre = ob.modifiers.new('pre', 'DECIMATE'); pre.ratio = min(1, TRIS * 4 / tri0); pre.use_collapse_triangulate = True
 bpy.context.view_layer.objects.active = ob; bpy.ops.object.modifier_apply(modifier='pre')
-# The generated shoe soles are open (hundreds of small holes in the tread), so the voxel remesh wraps every surface
-# in a thin double wall (about 1.5 mm): an outer skin and an inner one facing into the body. The inner wall pokes through when joints bend and shows as dark
-# triangles; it also takes half of the triangle budget. Faces that cannot see the outside along any of a fan of
-# rays around their normal are inside: remove them.
 from mathutils.bvhtree import BVHTree
 import random
 me = ob.data; bm = bmesh.new(); bm.from_mesh(me); bm.faces.ensure_lookup_table(); bm.normal_update()
@@ -473,7 +420,6 @@ dec.vertex_group = '_keep'; dec.vertex_group_factor = float(os.environ.get('ELIA
 bpy.context.view_layer.objects.active = ob; bpy.ops.object.modifier_apply(modifier='dec')
 ob.vertex_groups.remove(ob.vertex_groups['_keep']); me = ob.data
 log('triangles', tri0, '->', sum(len(p.vertices) - 2 for p in me.polygons))
-# zero-area slivers from the collapse make the bone-heat solver fail: dissolve them
 bm = bmesh.new(); bm.from_mesh(me)
 nv0 = len(bm.verts)
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
@@ -486,13 +432,9 @@ bm.to_mesh(me); bm.free(); me.update()
 scraps = remove_scraps(me)
 log('cleanup: verts', nv0, '->', len(me.vertices), 'loose scrap vertices removed', scraps)
 
-# ---------------------------------------------------------------- texture: baked from the full-resolution mesh
-# Collapsing a million triangles leaves faces spanning the source's many small UV islands, which then sample hair
-# or beard colour on the skin. The reduced mesh gets its own UVs and the colour is baked from the full mesh.
 src = bpy.data.images['Image_0'] if 'Image_0' in bpy.data.images else next(i for i in bpy.data.images if i.size[0] > 0)
 IW, IH = src.size; pix = np.empty(IW * IH * 4, dtype=np.float32); src.pixels.foreach_get(pix); pix = pix.reshape(IH, IW, 4)
 def sample(uv): x = min(IW - 1, max(0, int((uv[0] % 1) * IW))); y = min(IH - 1, max(0, int((uv[1] % 1) * IH))); return pix[y, x, :3]
-# bluish smudge at the sides of the beard: on the full mesh, point those faces at the nearest beard colour
 from mathutils import kdtree
 hme = hi.data; chin_z = joint['Head'][0].z
 bm = bmesh.new(); bm.from_mesh(hme); bm.faces.ensure_lookup_table(); uvl = bm.loops.layers.uv.active
@@ -530,9 +472,6 @@ sc.render.bake.use_selected_to_active = True; sc.render.bake.cage_extrusion = fl
 bpy.ops.object.select_all(action='DESELECT'); hi.select_set(True); ob.select_set(True); bpy.context.view_layer.objects.active = ob
 bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, use_selected_to_active=True)
 log('texture baked', TEX)
-# Hands and forearms are bare skin: the source paints shadows into the creases between the fingers, and the bake
-# spreads them over the closed surface as dark specks. Texels of the hand faces much darker than the hand's own
-# skin tone take that tone back (the face, beard and clothes are not touched).
 tw_, th_ = tex.size; tp = np.empty(tw_ * th_ * 4, dtype=np.float32); tex.pixels.foreach_get(tp); tp = tp.reshape(th_, tw_, 4)
 reach_x = min(abs(joint['HandL'][0].x), abs(joint['HandR'][0].x)) - .10
 uvd_ = me.uv_layers.active.data; mask = np.zeros((th_, tw_), bool)
@@ -560,7 +499,6 @@ if mask.any():
     log('hand texels', int(mask.sum()), 'dark specks lifted to the skin tone', int(dark.sum()))
 for p_ in me.polygons: p_.use_smooth = False
 
-# ---------------------------------------------------------------- armature and skin
 PARENT = {'Root': None, 'Hips': 'Root', 'Spine': 'Hips', 'Spine2': 'Spine', 'Chest': 'Spine2', 'Neck': 'Chest', 'Head': 'Neck'}
 for sd in 'LR':
     PARENT.update({'Shoulder' + sd: 'Chest', 'UpperArm' + sd: 'Shoulder' + sd, 'Forearm' + sd: 'UpperArm' + sd,
@@ -582,7 +520,6 @@ bpy.ops.object.mode_set(mode='OBJECT')
 bpy.data.objects.remove(hi)
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); rig.select_set(True); bpy.context.view_layer.objects.active = rig
 bpy.ops.object.parent_set(type='ARMATURE_AUTO')
-# vertices bone heat could not reach go to the nearest bone segment
 gi = {g.index: g.name for g in ob.vertex_groups}
 def seg_dist(p, a, b):
     ab = b - a; t = max(0, min(1, (p - a).dot(ab) / max(1e-9, ab.length_squared))); return (p - (a + ab * t)).length
@@ -591,16 +528,12 @@ for v in me.vertices:
     if sum(g.weight for g in v.groups) < 1e-4:
         nb = min((n for n in names if n != 'Root'), key=lambda n: seg_dist(v.co, *joint[n]))
         ob.vertex_groups[nb].add([v.index], 1.0, 'REPLACE'); orphans += 1
-# at most four influences, normalised
 for v in me.vertices:
     gs = sorted(((g.group, g.weight) for g in v.groups), key=lambda x: -x[1])
     keepg = gs[:4]; t = sum(w for _, w in keepg) or 1
     for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
     for g, w in keepg: ob.vertex_groups[g].add([v.index], w / t, 'REPLACE')
 log('vertices weighted by nearest bone', orphans)
-# Wrist. Bone heat leaves the palm base and the root of the thumb (2-9 cm past the wrist joint) weighted to the
-# forearm: they stay behind when the hand bends and stretch into spikes. Past WRIST_END everything follows the hand
-# and its fingers, before WRIST_START everything follows the forearm, and in between the two blend smoothly.
 WRIST_START, WRIST_END = (float(x) for x in os.environ.get('ELIAS_WRIST', '-0.045,0.02').split(','))
 moved = [0, 0, 0]
 for sd in 'LR':
@@ -664,11 +597,6 @@ for sd, side in (('L', 1), ('R', -1)):
             if w > 1e-4: ob.vertex_groups[k].add([v.index], w, 'REPLACE')
         handset += 1
 log('hand vertices weighted from finger chains', handset)
-# ---------------------------------------------------------------- forearm twist
-# The forearm turns the hand (pronation, supination) by rolling along its length: most at the wrist, none at the
-# elbow. With the forearm as one bone the whole roll lands at the wrist and knots the skin there. A twist bone from
-# mid-forearm to the wrist takes a growing share of the forearm's weight towards the wrist; the game turns it by most
-# of the hand's roll (ArmTwist), so the skin twists gradually from the elbow to the hand.
 bpy.ops.object.select_all(action='DESELECT'); rig.select_set(True); bpy.context.view_layer.objects.active = rig
 bpy.ops.object.mode_set(mode='EDIT')
 for sd in 'LR':
@@ -692,9 +620,6 @@ for sd in 'LR':
         for g, _ in gs[4:]: ob.vertex_groups[g].remove([v.index])
         for g, x in keep: ob.vertex_groups[g].add([v.index], x / tot, 'REPLACE')
 log('forearm twist: vertices sharing the forearm with its twist bone', twisted)
-# Head: everything above the jaw, the beard in front of the neck down to the collar and the throat under it follow
-# the head bone (bone heat gave them to the neck: the head bone starts at the jaw, the beard hangs 6 cm lower).
-# The green shirt collar stays on the body.
 tw, th = tex.size; tpx = np.empty(tw * th * 4, dtype=np.float32); tex.pixels.foreach_get(tpx); tpx = tpx.reshape(th, tw, 4)
 uvd = me.uv_layers.active.data
 hz = joint['Head'][0].z; ny = joint['Neck'][0].y
@@ -714,7 +639,6 @@ for vi in head_verts:
     ob.vertex_groups['Head'].add([vi], 1.0, 'REPLACE')
 log('head faces (beard and chin included)', head_faces)
 
-# ---------------------------------------------------------------- split head, close the neck
 hg = ob.vertex_groups['Head'].index
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='DESELECT'); bpy.ops.object.mode_set(mode='OBJECT')
@@ -724,9 +648,6 @@ bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.separate(type='SELECTED'); bp
 parts = [o for o in bpy.data.objects if o.type == 'MESH']
 head = max(parts, key=lambda o: min(v.co.z for v in o.data.vertices)); body = next(o for o in parts if o != head)
 head.name = head.data.name = 'ProtagonistHead'; body.name = body.data.name = 'ProtagonistBody'
-# Close the cut on both sides with a fan to the centre of each opening (the cut follows the beard down in front and
-# the hairline up behind, so it is far from flat: a flat fill pokes out). The body cap takes the neck's skin colour
-# (seen from above in first person), the head cap the beard's.
 def lum(c): return .3 * c[0] + .59 * c[1] + .11 * c[2]
 def face_colour(f, uvl):
     u = sum(l[uvl].uv[0] for l in f.loops) / len(f.loops); v = sum(l[uvl].uv[1] for l in f.loops) / len(f.loops)
@@ -756,7 +677,6 @@ def cap(obj, outward, pick, label):
             if f.normal.dot(outward) < 0: f.normal_flip()
             for lp in f.loops: lp[uvl].uv = uv
             f.smooth = False; made += 1
-    # one consistent outward winding for the whole surface (the patches under the shoes face down, the neck's up)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.to_mesh(obj.data); bm.free()
     log(label, len(loops), 'openings', made, 'faces')
@@ -773,9 +693,6 @@ tris = [sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (body, head)]
 log('triangles body', tris[0], 'head', tris[1])
 
 def speech_shape(obj, pivot, mouth_z, angle, half_width, bottom, label):
-    # "Fala": the jaw dropped by `angle` degrees about the jaw joint (pivot: in front of the ears, the axis across the
-    # face). Everything below the lips and in front of the joint turns with it, fading out over 1.2 cm at the lips, to the
-    # sides past the corners of the jaw, back towards the ears and down to `bottom` (the chin, or the mask's lower edge). The game opens it with the loudness of the voice.
     import math as _m
     from mathutils import Matrix as _M, Vector as _V
     if obj.data.shape_keys is None: obj.shape_key_add(name='Basis', from_mix=False)
@@ -802,7 +719,6 @@ if EXPORT:
     log('exported to', OUT_DIR)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(GEN, 'Elias_v4.blend'))
 
-# ---------------------------------------------------------------- previews
 sc = bpy.context.scene; sc.render.engine = 'BLENDER_WORKBENCH'; sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'TEXTURE'
 cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
 def shot(name, loc, look, lens=50, res=(900, 1100)):
@@ -814,13 +730,11 @@ shot('v4_threequarter.png', (2.6, -3.8, 1.2), (0, 0, .92))
 shot('v4_face.png', (.35, -1.2, 1.55), (0, 0, 1.52), 85, (900, 900))
 hl = joint['HandL'][0]
 shot('v4_hand.png', tuple(hl + Vector((.12, -.25, .55))), tuple(hl + Vector((.1, 0, 0))), 85, (900, 700))
-# joints overlay (x-ray of the skeleton on the body)
 sc.display.shading.show_xray = True; sc.display.shading.xray_alpha = .35
 rig.show_in_front = True; ad.display_type = 'STICK'
 shot('v4_joints.png', (0, -4.6, 1.0), (0, 0, .92))
 shot('v4_joints_hand.png', tuple(hl + Vector((.12, -.05, .55))), tuple(hl + Vector((.1, 0, 0))), 85, (900, 700))
 sc.display.shading.show_xray = False
-# pose test: elbows, fingers curled, a step
 pb = rig.pose.bones
 for sd, sgn in (('L', 1), ('R', -1)):
     pb['Forearm' + sd].rotation_mode = 'XYZ'; pb['Forearm' + sd].rotation_euler = (0, 0, math.radians(70) * sgn)
@@ -837,7 +751,6 @@ shot('v4_posed_hand.png', tuple(hp + Vector((.25, -.45, .2))), tuple(hp), 70, (9
 shot('v4_posed_hand_b.png', tuple(hp + Vector((.35, .1, -.35))), tuple(hp), 70, (900, 700))
 open(os.path.join(GEN, 'build_v4.txt'), 'w').write('\n'.join(report))
 
-# wrist test: hand twisted and bent the way the carry and steering IK turn it
 for k in list(pb.keys()) if False else []: pass
 for b in rig.pose.bones: b.rotation_mode = 'XYZ'; b.rotation_euler = (0, 0, 0)
 pb['HandL'].rotation_euler = (math.radians(40), math.radians(75), 0)

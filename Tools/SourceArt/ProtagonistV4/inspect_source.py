@@ -1,5 +1,3 @@
-# Inspect an AI-generated character source: objects, skeleton, triangle counts, materials, bounds; renders
-# front, side and hand close-ups to generated/. Run: blender -b --factory-startup --python inspect_source.py -- <file>
 import bpy, sys, os, math, mathutils
 src = sys.argv[sys.argv.index("--") + 1]
 here = os.path.dirname(os.path.abspath(__file__)); out = os.path.join(here, "generated"); os.makedirs(out, exist_ok=True)
@@ -22,14 +20,13 @@ lo = mathutils.Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for
 hi = mathutils.Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
 lines.append(f"bounds min {tuple(round(x,3) for x in lo)} max {tuple(round(x,3) for x in hi)} size {tuple(round(x,3) for x in hi-lo)}")
 open(os.path.join(out, "inspect.txt"), "w").write("\n".join(lines)); print("\n".join(lines))
-# renders
 scene = bpy.context.scene; scene.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items] else "BLENDER_EEVEE"
 scene.render.resolution_x, scene.render.resolution_y = 900, 1100
 world = bpy.data.worlds.new("w"); scene.world = world; world.use_nodes = True; world.node_tree.nodes["Background"].inputs[0].default_value = (.32, .34, .38, 1); world.node_tree.nodes["Background"].inputs[1].default_value = 1.2
 sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN")); scene.collection.objects.link(sun); sun.rotation_euler = (math.radians(50), 0, math.radians(30)); sun.data.energy = 3
 cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam")); scene.collection.objects.link(cam); scene.camera = cam; cam.data.type = "ORTHO"
 center = (lo + hi) / 2; size = hi - lo
-up_axis = 2 if size.z >= size.y else 1  # glTF imports Y-up converted to Z-up normally
+up_axis = 2 if size.z >= size.y else 1
 def shot(name, direction, target, ortho):
     cam.data.ortho_scale = ortho
     cam.location = target + direction.normalized() * 6
@@ -37,7 +34,6 @@ def shot(name, direction, target, ortho):
     scene.render.filepath = os.path.join(out, name + ".png"); bpy.ops.render.render(write_still=True)
 shot("src_front", mathutils.Vector((0, -1, 0)), center, max(size.x, size.z) * 1.08)
 shot("src_side", mathutils.Vector((1, 0, 0)), center, max(size.y, size.z) * 1.08)
-# hands: extreme vertices along x (T-pose)
 right = max(pts, key=lambda p: p.x); left = min(pts, key=lambda p: p.x)
 for nm, p in (("src_hand_right", right), ("src_hand_left", left)):
     t = mathutils.Vector((p.x - math.copysign(.08, p.x), p.y, p.z))

@@ -5,8 +5,6 @@ public class HomeFlockView : MonoBehaviour
 {
     public GameObject chickenPrefab;
     public Vector3 DeliveryPoint=>transform.TransformPoint(new Vector3(-1,0,-2.7f));
-    // Coop layout (local to the coop root, see PlayerHomeBuilder.WornCoop): wire run 6 x 4.4 m, gate in the front
-    // fence between x -1.5 and -0.4; birds keep clear of the trough, the bucket and the fence.
     static readonly Rect Run=new Rect(-2.7f,-1.95f,5.4f,3.7f);
     static readonly Rect[] Obstacles={new Rect(1.3f,-1.1f,1.3f,.6f),new Rect(-2.5f,.15f,.5f,.5f)};
     public Vector3 GateInside=>transform.TransformPoint(new Vector3(-.95f,0,-1.55f));
@@ -17,7 +15,6 @@ public class HomeFlockView : MonoBehaviour
     int visible=-1;
     bool delivering;Vector3 deliveryOrigin;
 
-    // Birds go in at the gate (any distance up to 2.5 m from the entrance) or straight from inside the run.
     public bool InsideRun(Vector3 world){var p=transform.InverseTransformPoint(world);return p.x>-3 && p.x<3 && p.z>-2.2f && p.z<2.2f;}
     public bool CanReceive(Vector3 playerPosition)=>Vector3.Distance(playerPosition,DeliveryPoint)<=2.5f || InsideRun(playerPosition);
     public void AnimateDelivery(Vector3 origin)
@@ -31,7 +28,6 @@ public class HomeFlockView : MonoBehaviour
         bird.position=deliveryOrigin;
         yield return new WaitForSeconds(delay+(InsideRun(deliveryOrigin)?0:.45f));
         if(bird==null)yield break;
-        // From the hands (or the truck) down to the gate, through it, then into the run.
         var path=new List<Vector3>{bird.position};
         if(!InsideRun(deliveryOrigin)){path.Add(GateOutside);path.Add(GateInside);}
         path.Add(target);

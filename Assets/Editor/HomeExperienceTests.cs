@@ -27,7 +27,6 @@ public static class HomeExperienceTests
         if(body.articulatedPlayer)
         {
             var shirt=body.GetComponentsInChildren<SkinnedMeshRenderer>().Single(r=>r.name=="ProtagonistBody");
-            // The low-poly body has a closed tunic; the first-person copy hides the torso instead of an inner shirt.
             Check(body.transform.Find("Corpo em primeira pessoa")!=null,"First person body is present below the camera");
         }
         else Check(liner!=null && liner.GetComponent<Renderer>().enabled,"Closed shirt lining exists");
@@ -82,4 +81,3 @@ public static class HomeExperienceTests
         finally{RenderTexture.active=previous;Object.DestroyImmediate(image);}
     }
 }
-

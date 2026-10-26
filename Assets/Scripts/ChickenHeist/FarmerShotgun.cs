@@ -8,7 +8,6 @@ public class FarmerShotgun : MonoBehaviour
     public float LastShotDamage {get;private set;}
     Transform weapon,body;FarmerStateMachine ai;RuralCharacterAnimator animator;NPCFootContact feet;
     Transform[] arms=new Transform[6];
-    // End of the stock in the weapon's own space (the stock capsule, tilted 78 degrees, ends 42 cm behind the receiver).
     static readonly Vector3 ButtLocal=new Vector3(0,-.085f,-.41f);
     readonly List<Material> materials=new List<Material>();
     AudioSource audioSource;AudioClip shot,reload;
@@ -52,7 +51,6 @@ public class FarmerShotgun : MonoBehaviour
         Vector3 direction=(target-Muzzle.position).normalized;
         var player=HeistGameManager.Instance.player;
         var movement=player.GetComponent<PlayerMovement>();float distance=Vector3.Distance(player.position,transform.position);
-        // A tight pattern: whether it hits is decided by the aim (FarmerStateMachine.AimPoint lags a running target)
         float spread=3.2f+(movement!=null && movement.estaMovendo?1.2f:0)+(OldPickupTruck.IsDriving?3:0)+distance*.03f;
         Quaternion aim=Quaternion.LookRotation(direction);
         for(int pellet=0;pellet<6;pellet++)
@@ -65,7 +63,6 @@ public class FarmerShotgun : MonoBehaviour
                 if(hit.transform.IsChildOf(transform))continue;
                 var health=hit.transform.GetComponentInParent<PlayerHealth>();
                 if(hit.collider.isTrigger && health==null)continue;
-                // up close every pellet carries more
                 if(health!=null)LastShotDamage+=Mathf.Lerp(14,1.5f,Mathf.Clamp01(hit.distance/20));
                 break;
             }
@@ -87,12 +84,8 @@ public class FarmerShotgun : MonoBehaviour
         weapon.gameObject.SetActive(!asleep && awakeBlend>.95f);
         if(ai.Activity==FarmerActivity.Reloading && previous!=FarmerActivity.Reloading)audioSource.PlayOneShot(reload,.3f);
         previous=ai.Activity;
-        // The gun is placed by its butt (the stock reaches 42 cm behind the receiver): aiming, the butt sits in the
-        // pocket of the right shoulder and the barrels point ahead; otherwise it rests in front of the right hip with
-        // the barrels down (reloading: further down). Recoil pushes it back along its own axis.
         bool aiming=ai.Activity==FarmerActivity.Aiming,stunned=ai.Activity==FarmerActivity.Stunned;
         float pitch=aiming?0:ai.Activity==FarmerActivity.Reloading?38:stunned?55:22;
-        // stunned: he reels, swaying on his feet with the gun hanging down
         if(body!=null && stunned)body.localRotation=bodyRotation*Quaternion.Euler(-8+Mathf.Sin(Time.time*3.1f)*7,Mathf.Sin(Time.time*1.7f)*12,Mathf.Sin(Time.time*2.3f)*9);
         var rotation=transform.rotation*Quaternion.Euler(pitch,0,0);
         Vector3 butt;
@@ -107,7 +100,6 @@ public class FarmerShotgun : MonoBehaviour
         weapon.position=butt-rotation*ButtLocal-rotation*Vector3.forward*(Time.time<flashUntil?.05f:0);
         flash.intensity=Time.time<flashUntil?3:0;
         if(!weapon.gameObject.activeSelf)return;
-        // wrist targets: the palms close on the forend and on the grip (the wrist sits a little under and beside them)
         Reach(0,weapon.TransformPoint(new Vector3(-.045f,-.015f,.10f)),-1);
         Reach(3,weapon.TransformPoint(new Vector3(.045f,-.03f,-.15f)),1);
     }
@@ -122,7 +114,6 @@ public class FarmerShotgun : MonoBehaviour
         upper.rotation=Quaternion.FromToRotation(lower.position-upper.position,elbow-upper.position)*upper.rotation;
         lower.rotation=Quaternion.FromToRotation(hand.position-lower.position,target-lower.position)*lower.rotation;
     }
-    // Original synthesized placeholders, pending the plan's listening/mix pass.
     static AudioClip Sound(bool bang)
     {
         const int rate=22050;int length=(int)(rate*(bang?.65f:1.1f));var data=new float[length];var random=new System.Random(123);

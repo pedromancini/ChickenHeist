@@ -7,7 +7,6 @@ using System.Reflection;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Explicit opt-in only. HouseholdEconomy routes these sessions away from user saves.
 public class ReleaseAuditRunner : MonoBehaviour
 {
     RenderTexture auditTarget;
@@ -71,4 +70,3 @@ public class ReleaseAuditRunner : MonoBehaviour
         Check(economy.Account.declineSeen,"Completed vision persisted");Finish();
     }
 }
-

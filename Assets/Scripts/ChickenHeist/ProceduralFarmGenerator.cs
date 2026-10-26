@@ -188,7 +188,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
         Rect cowPen = InnerRect(lot, 0.58f, 0.08f, 0.34f, 0.30f);
         Rect fieldRect = InnerRect(lot, 0.10f, 0.43f, 0.80f, 0.22f);
 
-        // As galinhas ficam somente no galinheiro fechado; nao criar o cercado antigo ao redor.
         CreatePen("Cercado das Vacas - Fazenda " + (farmIndex + 1), cowPen, false, root.transform, farmIndex + 1);
         CreateCropPen("Cercado da Plantacao - Fazenda " + (farmIndex + 1), fieldRect, root.transform, farmIndex + 2);
         Rect enclosedCoop = InnerRect(chickenPen, 0.10f, 0.10f, 0.80f, 0.80f);
@@ -1030,7 +1029,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
 
         int segmentCount = Mathf.Max(1, Mathf.CeilToInt(length / fenceReferenceLength));
         float segmentLength = length / segmentCount;
-        // Os prefabs de cerca usam o eixo X como comprimento. LookRotation usaria o Z.
 
         for (int i = 0; i < segmentCount; i++)
         {
@@ -1070,9 +1068,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
 
     private float GetPrefabLength(GameObject prefab, out Vector3 lengthAxis)
     {
-        // Estes assets possuem escalas internas diferentes no importador. Usar
-        // Mesh.bounds aqui mistura a escala do FBX com a escala do prefab e
-        // pode gerar valores enormes. Mantemos as medidas reais dos modelos usados.
         lengthAxis = Vector3.right;
 
         if (prefab.name == "Fence" || prefab.name.StartsWith("Fence"))
@@ -1142,7 +1137,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
         float ridgeHeight = height + 0.85f;
         float doorZ = bottomZ - 0.04f;
 
-        // Estrutura de madeira: quatro cantos e as duas laterais da porta.
         CreateCoopBar(new Vector3(leftX, height * 0.5f, bottomZ), new Vector3(postWidth, height, postWidth), enclosure.transform, coopWoodMaterial);
         CreateCoopBar(new Vector3(rightX, height * 0.5f, bottomZ), new Vector3(postWidth, height, postWidth), enclosure.transform, coopWoodMaterial);
         CreateCoopBar(new Vector3(leftX, height * 0.5f, topZ), new Vector3(postWidth, height, postWidth), enclosure.transform, coopWoodMaterial);
@@ -1152,15 +1146,12 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
         CreateCoopBar(new Vector3(rect.center.x, height - 0.05f, bottomZ), new Vector3(rect.width, postWidth, postWidth), enclosure.transform, coopWoodMaterial);
         CreateCoopBar(new Vector3(rect.center.x, height - 0.05f, topZ), new Vector3(rect.width, postWidth, postWidth), enclosure.transform, coopWoodMaterial);
 
-        // Tela fina em todos os lados, com abertura real para a porta.
         CreateCoopMeshPanel(rect, bottomZ, topZ, eaveHeight, ridgeHeight, doorWidth, enclosure.transform);
 
-        // Piso baixo e pequena rampa deixam a construcao apoiada no terreno.
         CreateColoredCube("Piso do Galinheiro", new Vector3(rect.center.x, 0.08f, rect.center.y), new Vector3(rect.width, 0.16f, rect.height), coopWoodMaterial, enclosure.transform);
         GameObject ramp = CreateColoredCube("Rampa do Galinheiro", new Vector3(rect.center.x, 0.05f, bottomZ - 0.72f), new Vector3(doorWidth, 0.12f, 1.45f), coopWoodMaterial, enclosure.transform);
         ramp.transform.rotation = Quaternion.Euler(-8f, 0f, 0f);
 
-        // Telhado de duas aguas, com beiral e cumeeira marcados.
         float halfRoofDepth = rect.height * 0.5f + 0.45f;
         float roofRise = ridgeHeight - eaveHeight;
         float roofLength = Mathf.Sqrt(halfRoofDepth * halfRoofDepth + roofRise * roofRise);
@@ -1188,7 +1179,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
         float rightX = rect.xMax;
         float frontHeight = GetCoopDepthRoofHeight(bottomZ, bottomZ, topZ, eaveHeight, ridgeHeight) - 0.06f;
 
-        // Frente e fundo ficam no beiral. A porta permanece na frente.
         for (float x = leftX + 0.35f; x < rightX; x += verticalSpacing)
         {
             CreateCoopBar(new Vector3(x, frontHeight * 0.5f, topZ), new Vector3(meshThickness, frontHeight, meshThickness), parent, coopMeshMaterial);
@@ -1204,7 +1194,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
             CreateCoopBar(new Vector3(rightX - sideWidth * 0.5f, y, bottomZ), new Vector3(sideWidth, meshThickness, meshThickness), parent, coopMeshMaterial);
         }
 
-        // As laterais seguem o perfil do telhado: beiral nas pontas e cumeeira no centro.
         for (float z = bottomZ + 0.35f; z < topZ; z += verticalSpacing)
         {
             float sideHeight = GetCoopDepthRoofHeight(z, bottomZ, topZ, eaveHeight, ridgeHeight) - 0.06f;
@@ -1225,7 +1214,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
     private float GetCoopDepthRoofHeight(float z, float bottomZ, float topZ, float eaveHeight, float ridgeHeight)
     {
         float distanceFromRidge = Mathf.Abs(z - (bottomZ + topZ) * 0.5f) / Mathf.Max(0.01f, (topZ - bottomZ) * 0.5f);
-        // Match the straight roof sheets, including their 45 cm overhang.
         float halfDepth = (topZ - bottomZ) * 0.5f;
         float arch = 1f - Mathf.Clamp01(distanceFromRidge * halfDepth / (halfDepth + 0.45f));
         return Mathf.Lerp(eaveHeight, ridgeHeight, arch);
@@ -1830,7 +1818,6 @@ public partial class ProceduralFarmGenerator : MonoBehaviour
 
         Material material = new Material(shader);
         material.color = color;
-        // URP Lit defaults to 0.5, which makes grass and wood read as wet plastic under the moon.
         if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.1f);
         return material;
     }

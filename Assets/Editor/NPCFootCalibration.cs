@@ -5,10 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Calibrates NPCFootContact heel/toe contact points from each character's skinned mesh (bind pose):
-// the lowest vertices under each boot, farthest apart, stored in foot-bone space. Meshes are not readable
-// in the player build, so this runs in the editor and the points are serialized on the component.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod NPCFootCalibration.Run
 public static class NPCFootCalibration
 {
     public static void Run()
@@ -50,7 +46,6 @@ public static class NPCFootCalibration
         int hips=System.Array.FindIndex(bones,b=>b!=null && (b.name=="Pelvis" || b.name=="Hips" || b.name=="hips"));
         Vector3 footPos=bind[footIndex].inverse.MultiplyPoint3x4(Vector3.zero);
         Vector3 hipPos=hips>=0?bind[hips].inverse.MultiplyPoint3x4(Vector3.zero):footPos+Vector3.up;
-        // Vertical of the bind pose: from between the feet up to the pelvis (one leg alone tilts with the stance).
         Vector3 otherPos=bind[System.Array.IndexOf(bones,otherFoot)].inverse.MultiplyPoint3x4(Vector3.zero);
         Vector3 up=(hipPos-(footPos+otherPos)*.5f).normalized;
         var vertices=mesh.vertices;var weights=mesh.boneWeights;var candidates=new List<Vector3>();
@@ -64,7 +59,6 @@ public static class NPCFootCalibration
         Vector3 a=soles[0],b=soles[0];
         foreach(var p in soles)foreach(var q in soles)if((p-q).sqrMagnitude>(a-b).sqrMagnitude){a=p;b=q;}
         span=(a-b).magnitude*skin.transform.lossyScale.x;
-        // Project both points onto the sole plane (lowest height) so neither sits above the boot's bottom.
         Vector3 Flat(Vector3 v)=>v-up*(Vector3.Dot(v,up)-low);
         return new[]{bind[footIndex].MultiplyPoint3x4(Flat(a)),bind[footIndex].MultiplyPoint3x4(Flat(b))};
     }

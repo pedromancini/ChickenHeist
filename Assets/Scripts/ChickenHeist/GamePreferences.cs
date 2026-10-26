@@ -11,7 +11,6 @@ public class GamePreferences
     public int quality=1,width=1920,height=1080,frameLimit=144;
     public int performanceVersion;
     public bool fullscreen=true,vsync=false,invertY;
-    // Shift switches running on and off instead of being held (keyboards that drop W + Shift + Space together).
     public bool sprintToggle;
     const string Key="ChickenHeist.Settings.v1";
     static UniversalRenderPipelineAsset runtimePipeline;
@@ -60,8 +59,6 @@ public class GamePreferences
             int w=Mathf.Clamp(width,800,7680),h=Mathf.Clamp(height,600,4320);
             if(!fullscreen)
             {
-                // A window as large as the screen does not fit under its own title bar and the taskbar: Windows pushes its
-                // top (the HUD) or bottom off the screen. Shrink it, keeping its shape, to the desktop's free area.
                 var area=Screen.mainWindowDisplayInfo.workArea;int frame=Mathf.RoundToInt(48*Mathf.Max(1,Screen.dpi/96f));
                 if(area.width>0 && area.height>frame && (w>area.width || h>area.height-frame))
                 {float k=Mathf.Min(area.width/(float)w,(area.height-frame)/(float)h);w=Mathf.Max(800,Mathf.FloorToInt(w*k));h=Mathf.Max(600,Mathf.FloorToInt(h*k));}

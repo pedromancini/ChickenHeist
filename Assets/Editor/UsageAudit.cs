@@ -2,9 +2,6 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 
-// Which project assets the game actually uses: everything the build scenes and the Resources folders depend on.
-// Writes output/usage-audit/unused.txt (unused assets, largest first, with folder totals) for clean-ups.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod UsageAudit.Run
 public static class UsageAudit
 {
     public static void Run()

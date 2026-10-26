@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class HomeDoor : MonoBehaviour
 {
-    // The front door opens into the house (negative turn), as front doors do; past 76 degrees it would meet the wall
-    // beside it. It used to open out across the porch. The opening cinematic uses the same swing.
     public const float OpenAngle=-76f;
     public Transform hinge;
     public Collider doorCollider;

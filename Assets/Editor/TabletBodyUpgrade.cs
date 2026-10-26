@@ -41,7 +41,6 @@ public static class TabletBodyUpgrade
         int Bone(string name)=>Array.FindIndex(skin.bones,b=>b.name==name);
         int hips=Bone("Hips"),spine=Bone("Spine"),chest=Bone("Chest");
         Vector3 BoundPoint(Vector3 p)=>skin.sharedMesh.bindposes[hips].inverse.MultiplyPoint3x4(skin.bones[hips].InverseTransformPoint(character.transform.TransformPoint(p)));
-        // A closed inner shirt follows the same skeleton, behind the textured outer shirt.
         var rings=new[]{new Vector4(.76f,.13f,.08f,0),new Vector4(.80f,.14f,.085f,0),new Vector4(.84f,.145f,.09f,0),new Vector4(.88f,.145f,.09f,0),new Vector4(.91f,.14f,.085f,0)};
         for(int ring=0;ring<rings.Length;ring++)for(int j=0;j<32;j++)
         {
@@ -56,7 +55,6 @@ public static class TabletBodyUpgrade
         for(int j=0;j<32;j++)indices.AddRange(new[]{cap,128+(j+1)%32,128+j});
         cap=vertices.Count;vertices.Add(BoundPoint(new Vector3(0,.79f,0)));weights.Add(new BoneWeight{boneIndex0=hips,weight0=1});
         for(int j=0;j<32;j++)indices.AddRange(new[]{cap,j,(j+1)%32});
-        // Dark fabric behind each cuff prevents a view through the loose sleeve.
         foreach(string side in new[]{"L","R"})
         {
             int arm=Bone("UpperArm"+side);var upper=skin.bones[arm];var elbow=skin.bones[Bone("Forearm"+side)];
@@ -89,7 +87,6 @@ public static class TabletBodyUpgrade
         var old=character.transform.Find("Corpo em primeira pessoa");if(old!=null)Object.DestroyImmediate(old.gameObject);
         var source=full.sharedMesh;var vertices=source.vertices;
         var points=vertices.Select(v=>character.transform.InverseTransformPoint(full.transform.TransformPoint(v))).ToArray();
-        // Rebuild standard vertex streams rather than copying FBX GPU buffer metadata.
         var copy=new Mesh{name="First person arms and lower body",indexFormat=source.indexFormat};
         copy.vertices=source.vertices;copy.normals=source.normals;copy.tangents=source.tangents;
         copy.uv=source.uv;copy.boneWeights=source.boneWeights;copy.bindposes=source.bindposes;copy.subMeshCount=source.subMeshCount;

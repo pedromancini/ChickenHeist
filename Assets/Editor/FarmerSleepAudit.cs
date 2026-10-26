@@ -7,8 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic: where each sleeping farmer lies (bed, roof above, house nearby) and whether the Sleep clip
-// actually drives the farmer's skeleton. Run: Unity.exe -batchmode -projectPath . -executeMethod FarmerSleepAudit.Begin
 [InitializeOnLoad]
 public static class FarmerSleepAudit
 {

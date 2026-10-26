@@ -1,6 +1,3 @@
-# Low-poly pass for the protagonist so he matches the flat-shaded palette style of the NPCs.
-# Run: blender -b Protagonist_Rigged.blend --python lowpoly_protagonist.py
-# Output: generated/lowpoly_protagonist.json (+ preview renders). The .blend itself is not saved.
 import bpy, bmesh, os, json, math
 import numpy as np
 from mathutils import Vector
@@ -29,7 +26,6 @@ all_colors = []; per_mesh = {}
 for name, target in TARGETS.items():
     obj = bpy.data.objects[name]
     pixels = texture_pixels(obj.material_slots[0].material)
-    # Protect hands and fingers: they carry the grip poses and were rebuilt by hand.
     guard = obj.vertex_groups.new(name='decimate_guard')
     hand_groups = {g.index for g in obj.vertex_groups if g.name.startswith(HAND_BONES)}
     for v in obj.data.vertices:
@@ -39,7 +35,6 @@ for name, target in TARGETS.items():
     ratio = min(1.0, target / len(obj.data.polygons))
     mod = obj.modifiers.new('lowpoly', 'DECIMATE'); mod.decimate_type = 'COLLAPSE'; mod.ratio = ratio
     mod.vertex_group = guard.name; mod.vertex_group_factor = 1.0; mod.use_collapse_triangulate = True
-    # Decimate must run before the armature so it works on the rest pose.
     while obj.modifiers[0].name != 'lowpoly':
         bpy.ops.object.modifier_move_up(modifier='lowpoly')
     bpy.ops.object.modifier_apply(modifier='lowpoly')
@@ -54,7 +49,6 @@ for name, target in TARGETS.items():
     per_mesh[name] = (obj, np.array(colors))
     all_colors.append(np.array(colors))
 
-# k-means palette shared by head and body.
 data = np.concatenate(all_colors)
 rng = np.random.default_rng(7)
 centers = data[rng.choice(len(data), PALETTE_SIZE, replace=False)]
@@ -63,7 +57,7 @@ for _ in range(40):
     for k in range(PALETTE_SIZE):
         members = data[labels == k]
         if len(members): centers[k] = members.mean(0)
-result['palette'] = [[float(x) for x in c] for c in centers]  # linear RGB
+result['palette'] = [[float(x) for x in c] for c in centers]
 
 for name, (obj, colors) in per_mesh.items():
     labels = np.argmin(((colors[:, None, :] - centers[None]) ** 2).sum(-1), axis=1)
@@ -76,7 +70,6 @@ for name, (obj, colors) in per_mesh.items():
         verts.append({'p': list(obj.matrix_world @ v.co), 'w': [[b, w / total] for b, w in ws]})
     tris = [[list(p.vertices), int(labels[i])] for i, p in enumerate(mesh.polygons)]
     result['meshes'][name] = {'vertices': verts, 'triangles': tris}
-    # Preview colours: flat per-face attribute.
     attr = mesh.color_attributes.new('flat', 'BYTE_COLOR', 'CORNER')
     for i, p in enumerate(mesh.polygons):
         c = centers[labels[i]]
@@ -85,7 +78,6 @@ for name, (obj, colors) in per_mesh.items():
 
 with open(os.path.join(OUT, 'lowpoly_protagonist.json'), 'w') as f: json.dump(result, f)
 
-# Preview renders (workbench, flat shading, attribute colours).
 scene = bpy.context.scene
 scene.render.engine = 'BLENDER_WORKBENCH'
 scene.display.shading.light = 'STUDIO'; scene.display.shading.color_type = 'VERTEX'

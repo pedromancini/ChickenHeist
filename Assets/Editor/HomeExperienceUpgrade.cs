@@ -40,7 +40,6 @@ public static class HomeExperienceUpgrade
         lining.transform.localScale=new Vector3(.30f,.57f,.19f);lining.transform.SetParent(chest,true);lining.layer=30;
         Object.DestroyImmediate(lining.GetComponent<Collider>());lining.GetComponent<Renderer>().sharedMaterial=cloth;
         lining.GetComponent<Renderer>().shadowCastingMode=ShadowCastingMode.Off;
-        // The garment's reverse faces remain opaque when viewed down through its collar.
         var skin=root.GetComponentsInChildren<SkinnedMeshRenderer>().First(r=>r.name=="ProtagonistBody");
         skin.sharedMaterial.SetFloat("_Cull",0);
         var phoneRoot=new GameObject("Celular na mao");phoneRoot.transform.SetParent(root.transform,false);
@@ -51,14 +50,12 @@ public static class HomeExperienceUpgrade
             var model=(GameObject)PrefabUtility.InstantiatePrefab(modernPhone,phone);
             model.name="Aparelho moderno arredondado";
             model.transform.localPosition=Vector3.zero;
-            // The FBX exporter already maps the display toward the first-person camera.
             model.transform.localRotation=Quaternion.identity;
             model.transform.localScale=Vector3.one;
             AssignPhoneMaterials(model);
         }
         else
         {
-            // Fallback only for a fresh import before the generated FBX is available.
             var shell=Material("Celular gasto",new Color(.025f,.029f,.026f));
             Box(phone,"Carcaca provisoria",Vector3.zero,new Vector3(.088f,.176f,.012f),shell);
         }

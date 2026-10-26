@@ -5,10 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Diagnostic: the villagers' walk clips (MocapBake, Characters/Villagers/<model>-Walk.anim) measured like Elias' in
-// EliasGaitReview: each foot's share of the cycle on the floor, how far it rolls and turns while down. The takes went
-// through the same per-take avatars that twisted Elias' feet. Output: output/npc-gait.txt
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod NpcGaitProbe.Run
 public static class NpcGaitProbe
 {
     const string Models="Assets/ImportedMedievalPeople/fbx/people_unity/",Clips="Assets/ChickenHeistGenerated/Characters/Villagers/";
@@ -27,7 +23,6 @@ public static class NpcGaitProbe
                 Transform B(HumanBodyBones b)=>animator.GetBoneTransform(b);
                 var feet=new[]{B(HumanBodyBones.LeftFoot),B(HumanBodyBones.RightFoot)};var toes=new[]{B(HumanBodyBones.LeftToes),B(HumanBodyBones.RightToes)};
                 if(idle!=null)idle.SampleAnimation(root,0);
-                // the foot's forward and side at rest (toes, or the foot's own axes when there are none)
                 Vector3 Tip(int s)=>toes[s]!=null?toes[s].position:feet[s].position+feet[s].forward*.12f;
                 var restForward=new Vector3[2];var restSide=new Vector3[2];
                 for(int s=0;s<2;s++){var f=Tip(s)-feet[s].position;f.y=0;restForward[s]=feet[s].InverseTransformDirection(f.normalized);restSide[s]=feet[s].InverseTransformDirection(Vector3.Cross(Vector3.up,f.normalized));}

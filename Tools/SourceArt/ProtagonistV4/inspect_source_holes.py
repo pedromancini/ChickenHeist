@@ -1,5 +1,3 @@
-# Open boundary loops of a source model (after welding coincident vertices): size, perimeter and position, and
-# the non-manifold edges. Run: blender -b --factory-startup --python inspect_source_holes.py -- <file>
 import bpy, bmesh, sys
 from collections import Counter
 src = sys.argv[sys.argv.index("--") + 1]

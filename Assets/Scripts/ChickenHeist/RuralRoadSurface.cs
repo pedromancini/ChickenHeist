@@ -65,7 +65,6 @@ public static class RuralRoadSurface
             if (a.distance>0 && b.distance>0 && c.distance>0 && d.distance>0) continue;
             var chunkKey = new Vector2Int(Mathf.FloorToInt(key.x/(float)ChunkCells),Mathf.FloorToInt(key.y/(float)ChunkCells));
             if (!chunks.TryGetValue(chunkKey,out Chunk chunk)) chunks.Add(chunkKey,chunk=new Chunk());
-            // Every cell is triangulated once. Union happens in the distance field, not overlapping strips.
             Clip(a,c,b,chunk);
             Clip(b,c,d,chunk);
         }

@@ -6,11 +6,6 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-// Opt-in player QA (--layout-review, isolated save only): the screens where text piles up, at the resolutions the game
-// has to read well in (4:3, 16:10, 16:9, 21:9). The opening's longest line and its title card, driving with a message
-// up (the engine started) over the driving keys, a mission with a message and the mission card, the tablet's shop and
-// the market's supplies. Messages must keep clear of key bars and prompts, subtitles must fit on the screen.
-// Captures and checks in output/layout-review.
 public sealed class LayoutReview : MonoBehaviour
 {
     string folder;readonly List<string> report=new List<string>();bool failed;
@@ -28,7 +23,6 @@ public sealed class LayoutReview : MonoBehaviour
         var t=ScreenCapture.CaptureScreenshotAsTexture();File.WriteAllBytes(Path.Combine(folder,name+".png"),t.EncodeToPNG());Destroy(t);
     }
     static void Set(object target,string field,object value)=>target.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).SetValue(target,value);
-    // a message is clear when it touches none of the key bars, prompts and panels drawn this frame or the last
     bool MessageClear(out string what)
     {
         var toast=UITheme.LastToast;var hit=UITheme.Occupied.FirstOrDefault(o=>o.Overlaps(toast));
@@ -47,7 +41,6 @@ public sealed class LayoutReview : MonoBehaviour
         {
             Screen.SetResolution(size.x,size.y,false);yield return new WaitForSecondsRealtime(1.2f);
             string at=Screen.width+"x"+Screen.height;
-            // the opening, with a message still up from play: its longest line, then its title card
             game.ShowMessage("Galinhas entregues no sítio. Durma para começar um novo dia.",8);yield return new WaitForSecondsRealtime(.3f);
             Check(director.ReplayOpening(),"Opening replays at "+at);
             Set(director,"line",longest);Set(director,"lineClock",1f);
@@ -58,7 +51,6 @@ public sealed class LayoutReview : MonoBehaviour
             yield return Capture("subtitle-title-"+at);
             director.Complete();yield return new WaitForSecondsRealtime(.3f);
             if(SleepPrompt.IsOpen)SleepPrompt.SkipForReview();
-            // driving, with the engine-started message up over the driving keys
             var truck=OldPickupTruck.Instance;var player=game.player;var cc=player.GetComponent<CharacterController>();
             cc.enabled=false;player.position=truck.seat.position-truck.transform.right*1.6f;cc.enabled=true;yield return null;
             Check(truck.EnterDriver(),"Elias takes the wheel at "+at);yield return new WaitForSecondsRealtime(.4f);
@@ -66,13 +58,11 @@ public sealed class LayoutReview : MonoBehaviour
             yield return Capture("drive-"+at);
             Check(MessageClear(out var drive),"Driving: the message keeps clear of the driving keys at "+at+" ("+drive+")");
             truck.ForceExit(truck.seat.position-truck.transform.right*1.8f+Vector3.up*.2f);yield return new WaitForSecondsRealtime(.3f);
-            // a mission: its card, a prompt and a long message
             game.StartMission(0);yield return new WaitForSecondsRealtime(.4f);
             game.ShowMessage("Fio acionado! As latas alertaram o fazendeiro. Ele vai sair para ver o que foi; saia da vista dele.",4);
             yield return Capture("mission-"+at);
             Check(MessageClear(out var mission),"Mission: the message keeps clear of the mission card and prompts at "+at+" ("+mission+")");
             game.EndActiveMission();yield return new WaitForSecondsRealtime(.3f);
-            // the shops: the tablet's and the market's supplies
             var phone=ProtagonistPhone.Instance;phone.ReviewTab=3;phone.SetOpen(true);
             yield return Capture("shop-tablet-"+at);phone.SetOpen(false);yield return null;
             var market=FindAnyObjectByType<VillageMarket>();

@@ -70,18 +70,14 @@ public static class ProtagonistActionReview
         var lightObj=new GameObject("Review light");var light=lightObj.AddComponent<Light>();light.type=LightType.Directional;light.intensity=2;light.cullingMask=1<<28;lightObj.transform.rotation=Quaternion.Euler(40,-30,0);
         Save(camera,"-body");foreach(var t in layers)t.Key.gameObject.layer=t.Value;Object.DestroyImmediate(lightObj);
         Save(eyes,"-eyes");
-        // What the player sees when looking down at the hands, and close-ups of each hand on the body the player sees
-        // (the first-person copy while the hands are busy, otherwise the full body).
         Transform Bone(string n)=>rig.GetComponentsInChildren<Transform>(true).First(t=>t.name==n);
         var hl=Bone("HandL");var hr=Bone("HandR");var mid=(hl.position+hr.position)*.5f;
         var eyeRot=eyes.transform.rotation;eyes.transform.rotation=Quaternion.LookRotation(mid-eyes.transform.position,game.player.up);
         Save(eyes,"-eyes-hands");
-        // the same view split into what is body and what is world
         var eyeMask=eyes.cullingMask;eyes.cullingMask=eyeMask&(1<<30);var eyeClear=eyes.clearFlags;var eyeBg=eyes.backgroundColor;
         eyes.clearFlags=CameraClearFlags.SolidColor;eyes.backgroundColor=new Color(.9f,.2f,.8f);Save(eyes,"-eyes-hands-bodyonly");
         eyes.cullingMask=eyeMask&~(1<<30);eyes.clearFlags=eyeClear;eyes.backgroundColor=eyeBg;Save(eyes,"-eyes-hands-nobody");
         eyes.cullingMask=eyeMask;
-        // a natural glance down (35 degrees below the horizon), like the player looking at the wheel
         eyes.transform.rotation=Quaternion.AngleAxis(35,game.player.right)*Quaternion.LookRotation(game.player.forward,game.player.up);Save(eyes,"-eyes-glance");
         eyes.transform.rotation=eyeRot;
         var fp=rig.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(r=>r.name=="Corpo em primeira pessoa");
@@ -95,7 +91,6 @@ public static class ProtagonistActionReview
             {camera.transform.position=palm+dir.normalized*.32f;camera.transform.LookAt(palm+(Bone(label=="L"?"Middle2L":"Middle2R").position-palm)*.5f,game.player.up);camera.fieldOfView=40;Save(camera,"-hand"+label+"-"+tag);}
         }
         foreach(var t in saved)t.Key.gameObject.layer=t.Value;
-        // The wheel grip seen from outside: full body and steering wheel only, from the dashboard and from the left.
         if(name=="wheel" && OldPickupTruck.Instance!=null)
         {
             var wheel=OldPickupTruck.Instance.steeringWheel;

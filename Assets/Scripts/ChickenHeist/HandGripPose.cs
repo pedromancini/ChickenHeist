@@ -1,21 +1,14 @@
 using UnityEngine;
 
-// Calibrate the contact surface from the actual skinned hand in its bind pose.
 public sealed class HandGripPose
 {
     readonly Vector3 contact;
     readonly Quaternion frame;
     readonly Transform hand;
-    // Hand-local palm normal (out of the palm), knuckle direction and palm surface level along the normal.
     public Vector3 PalmLocal {get;private set;}=Vector3.forward;
     public Vector3 FingersLocal {get;private set;}=Vector3.up;
     public float SurfaceLevel {get;private set;}
     public Transform Hand=>hand;
-    // palmDown: the model's bind pose is a T-pose with the palms facing down (Elias). Defaults to the player's rig.
-    // fingersFromKnuckles: the hand's own frame measured on its skin. The palm faces along the flattest direction of the
-    // hand's skin (on the side of the assumed palm) and the fingers run from the wrist to the middle of the four knuckles,
-    // instead of the bind pose's down direction and the centre of the skin (a hand modelled turned or with a heavy thumb
-    // sits askew on whatever it holds).
     public HandGripPose(Transform hand, Transform character, bool authored=false, bool wheel=false, bool? palmDown=null, bool fingersFromKnuckles=false)
     {
         this.hand=hand;
@@ -46,7 +39,6 @@ public sealed class HandGripPose
             var palm=bind.MultiplyVector(skin.transform.InverseTransformDirection(articulated?-character.up:-character.forward)).normalized;
             if(fingersFromKnuckles)
             {
-                // covariance of the hand's skin; its least spread direction (power iteration on trace*I - C)
                 float xx=0,xy=0,xz=0,yy=0,yz=0,zz=0;int n=0;
                 for(int i=0;i<vertices.Length;i++)
                 {
@@ -71,9 +63,6 @@ public sealed class HandGripPose
                 foreach(var f in new[]{"Index1","Middle1","Ring1","Little1"}){var b=hand.Find(f+side);if(b!=null){sumK+=b.localPosition;n++;}}
                 if(n>0)fingers=Vector3.ProjectOnPlane(sumK/n,palm).normalized;
             }
-            // Palm surface: deepest point along the palm normal of the palm's central strip, between the wrist and the
-            // knuckles. The whole hand would include the base of the thumb, which hangs below the palm on some models
-            // and would hold every grip several centimetres away from what it touches.
             var lateral=Vector3.Cross(palm,fingers).normalized;
             Vector3 knuckles=Vector3.zero;int found=0;float halfWidth=0;
             string suffix=hand.name.Length>0?hand.name.Substring(hand.name.Length-1):"";
@@ -119,6 +108,5 @@ public sealed class HandGripPose
     public Quaternion Rotation(Vector3 palmNormal,Vector3 fingers)=>Quaternion.LookRotation(palmNormal,fingers)*Quaternion.Inverse(frame);
     public Vector3 Wrist(Vector3 surface,Quaternion rotation)=>surface-rotation*Vector3.Scale(contact,hand.lossyScale);
     public Vector3 Contact=>hand.TransformPoint(contact);
-    // Hand-local centre of the palm surface (the point Contact returns).
     public Vector3 ContactLocal=>contact;
 }

@@ -178,7 +178,6 @@ public static class PlayableVillageTests
                 economy.Buy(2);Expect(economy.Account.balance==70,"Upgrade cannot be purchased twice");
                 economy.Pay(0);Expect(economy.Account.balance==70 && economy.Account.debts[0].amount==160,"Insufficient funds cannot pay a debt");
                 market.Close();Expect(!VillageMarket.IsOpen,"Trade panel closes cleanly");
-                // Delivery happens at the coop entrance (HomeFlockView.DeliveryPoint, 2.5 m rule since 10/09).
                 Position(economy.home.GetComponentInChildren<HomeFlockView>().DeliveryPoint+Vector3.up*.1f);
                 game.backpack.TryAddChicken();game.CompleteMission();game.backpack.TryAddChicken();game.CompleteMission();game.backpack.TryAddChicken();
                 game.CompleteMission();

@@ -8,16 +8,11 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// One low-poly family for every character (Medieval People pack, present-day rural palettes).
-// Elias keeps ProtagonistRig: only the skinned meshes are rebuilt from
-// Tools/SourceArt/ProtagonistV2/generated/lowpoly_elias.json (build_lowpoly_elias.py).
-// Run: Unity.exe -projectPath . -executeMethod UniformCastUpgrade.Install
 public static class UniformCastUpgrade
 {
     const string EliasJson="Tools/SourceArt/ProtagonistV2/generated/lowpoly_elias.json";
     const string ProtagonistFolder="Assets/ChickenHeistGenerated/Characters/ProtagonistV2";
-    static readonly string[] Stages={"Assets/Resources/Cinematics/OpeningStage.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"};
-    // Three farmer types in rotation: khaki shirt and jeans, red flannel, blue shirt and vest.
+    static readonly string[] Stages={"Assets/Resources/Cinematics/VisitorStage.prefab"};
     static readonly (string model,string palette)[] Farmers={("peasant_5","farmerKhaki"),("rich_citizzens_1","flannel"),("city_dwellers_1",null)};
     static readonly Dictionary<int,(string model,string palette)> Residents=new Dictionary<int,(string,string)>
     {
@@ -38,7 +33,6 @@ public static class UniformCastUpgrade
         var scene=EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);
         var log=new List<string>();
         var elias=BuildElias(log);
-        // Protagonist prefab, the player in the scene and both cinematic stages share the same meshes.
         var prefab=PrefabUtility.LoadPrefabContents(ProtagonistFolder+"/Protagonist.prefab");
         try{ApplyElias(prefab,elias,true,log);PrefabUtility.SaveAsPrefabAsset(prefab,ProtagonistFolder+"/Protagonist.prefab");}
         finally{PrefabUtility.UnloadPrefabContents(prefab);}
@@ -56,14 +50,12 @@ public static class UniformCastUpgrade
         Debug.Log("UNIFORM CAST INSTALLED\n"+string.Join("\n",log));
     }
 
-    // ---------- Elias ----------
     class EliasMeshes{public Mesh body,head;public Material material;}
     static EliasMeshes BuildElias(List<string> log)
     {
         var data=JsonUtility.FromJson<EliasData>(File.ReadAllText(EliasJson));
         var template=AssetDatabase.LoadAssetAtPath<GameObject>(ProtagonistFolder+"/Protagonist.prefab").GetComponentsInChildren<SkinnedMeshRenderer>(true).First(s=>s.name=="ProtagonistBody");
         var bindposes=template.sharedMesh.bindposes;var boneNames=template.bones.Select(b=>b.name).ToArray();
-        // Blender -> mesh space: fit the axis conversion from the rig's bone heads (bindposes hold them in mesh space).
         var pairs=data.bones.Where(b=>Array.IndexOf(boneNames,b.name)>=0).Select(b=>(blender:V(b.head),unity:(Vector3)bindposes[Array.IndexOf(boneNames,b.name)].inverse.GetColumn(3))).ToArray();
         var fit=FitAxes(pairs);
         log.Add($"Elias from {data.model}: axis fit error {fit.error:0.0000} scale {fit.scale:0.000} mirrored {fit.mirrored}");
@@ -99,7 +91,6 @@ public static class UniformCastUpgrade
         public List<Vector3> positions=new List<Vector3>();public List<Vector2> uvs=new List<Vector2>();public List<BoneWeight> weights=new List<BoneWeight>();
         public Mesh Save(string path,string name,Matrix4x4[] bindposes)
         {
-            // Unshared vertices per triangle: flat facets like the rest of the cast.
             var existing=AssetDatabase.LoadAssetAtPath<Mesh>(path);
             var mesh=existing??new Mesh();mesh.Clear();mesh.name=name;
             mesh.SetVertices(positions);mesh.SetUVs(0,uvs);mesh.SetTriangles(Enumerable.Range(0,positions.Count).ToArray(),0);
@@ -115,7 +106,6 @@ public static class UniformCastUpgrade
         {
             if(skin.name=="ProtagonistBody"){skin.sharedMesh=elias.body;skin.sharedMaterials=new[]{elias.material};count++;}
             else if(skin.name.StartsWith("ProtagonistHead")){skin.sharedMesh=elias.head;skin.sharedMaterials=new[]{elias.material};count++;}
-            // The inner shirt only covered gaps in the previous model's open collar and sleeves.
             else if(skin.name=="Camisa fechada - interior")skin.enabled=false;
             else if(skin.name=="Corpo em primeira pessoa" && !rebuildFirstPerson)skin.sharedMaterials=new[]{elias.material};
         }
@@ -147,7 +137,6 @@ public static class UniformCastUpgrade
     }
     static Vector3 V(float[] a)=>new Vector3(a[0],a[1],a[2]);
 
-    // ---------- NPCs ----------
     static GameObject Recreate(Transform old,string name,(string model,string palette) cast,bool keepDrivers=true)
     {
         var parent=old.parent;var position=old.localPosition;var rotation=old.localRotation;int sibling=old.GetSiblingIndex();
@@ -204,11 +193,10 @@ public static class UniformCastUpgrade
         }
         finally{PrefabUtility.UnloadPrefabContents(root);}
         log.Add("Decline stage: Osvaldo peasant_5 farmerKhaki, Joana peasant_2 dress");
-        CutsceneTwoInstall.Install();   // Bento, Elias and the villagers' speech shapes
+        CutsceneTwoInstall.Install();
     }
     static GameObject Actor(Transform old,string name,(string model,string palette) cast)
     {
-        // Cinematic actors are posed by their stage, not by gameplay drivers.
         var actor=Recreate(old,name,cast,false);
         Object.DestroyImmediate(actor.GetComponent<RuralCharacterAnimator>());Object.DestroyImmediate(actor.GetComponent<NPCFootContact>());
         return actor;

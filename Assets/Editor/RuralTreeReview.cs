@@ -103,7 +103,6 @@ public static class RuralTreeReview
         var points=new List<Vector3>();
         foreach(var filter in instance.GetComponentsInChildren<MeshFilter>(true))
         {
-            // Editor access is allowed even when runtime mesh Read/Write is disabled.
             var mesh=filter.sharedMesh;
             foreach(var vertex in mesh.vertices)points.Add(instance.transform.InverseTransformPoint(filter.transform.TransformPoint(vertex)));
             var renderer=filter.GetComponent<Renderer>();

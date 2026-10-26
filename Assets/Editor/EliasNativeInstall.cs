@@ -9,11 +9,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Object=UnityEngine.Object;
 
-// Replaces the protagonist body with native Elias (Tools/SourceArt/ProtagonistV2/build_elias_native.py):
-// real human proportions, cap and stubble, bones named like ProtagonistRig so gameplay code is unchanged.
-// Every protagonist state is re-baked for the new skeleton: captured takes for locomotion/talk/breathing,
-// and the authored action poses (carry, drive, lockpick...) retargeted from the previous rig through Humanoid.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EliasNativeInstall.Install
 public static class EliasNativeInstall
 {
     internal const string Folder="Assets/ChickenHeistGenerated/Characters/EliasNative/";
@@ -45,7 +40,6 @@ public static class EliasNativeInstall
         foreach(string state in Authored)
         {
             var old=AssetDatabase.LoadAssetAtPath<AnimationClip>(OldFolder+state+".anim");
-            // Source is always the previous rig from its own FBX (the prefab now holds native Elias).
             var source=new GameObject("old rig");
             var oldModel=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(OldFolder+"Protagonist_Rigged.fbx"),source.transform);oldModel.name=ModelChild;
             foreach(var a in oldModel.GetComponentsInChildren<Animation>())Object.DestroyImmediate(a);foreach(var a in oldModel.GetComponentsInChildren<Animator>())Object.DestroyImmediate(a);
@@ -54,8 +48,6 @@ public static class EliasNativeInstall
                 var sourceRoot=source.GetComponentsInChildren<Transform>().First(t=>t.name=="ProtagonistRig").parent;
                 var oldHips=sourceRoot.GetComponentsInChildren<Transform>().First(t=>t.name=="Hips");
                 var reader=new HumanPoseHandler(oldAvatar,sourceRoot);var pose=new HumanPose();
-                // Humanoid transfer keeps limb angles but not the pelvis drop of sitting and crouching poses:
-                // the pelvis follows the source, scaled by the ratio of standing pelvis heights.
                 AssetDatabase.LoadAssetAtPath<AnimationClip>(OldFolder+"Idle.anim").SampleAnimation(source,0);
                 float oldStanding=sourceRoot.InverseTransformPoint(oldHips.position).y;
                 clips[state]=Bake(state,avatar,(target,t)=>
@@ -80,7 +72,7 @@ public static class EliasNativeInstall
                 Swap(body,clips,material);log.Add("Elias body swapped: "+where+"/"+body.name);
             }
         }
-        foreach(var path in new[]{OldFolder+"Protagonist.prefab","Assets/Resources/Cinematics/OpeningStage.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
+        foreach(var path in new[]{OldFolder+"Protagonist.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
         {var root=PrefabUtility.LoadPrefabContents(path);try{Apply(root,Path.GetFileName(path));PrefabUtility.SaveAsPrefabAsset(root,path);}finally{PrefabUtility.UnloadPrefabContents(root);}}
         const string backup="output/scene-backups/ChickenHeistRuralWorld-before-elias-native.unity";
         if(!File.Exists(backup))File.Copy(RuralWorldReview.WorldScene,backup);
@@ -91,10 +83,9 @@ public static class EliasNativeInstall
         Debug.Log("ELIAS NATIVE INSTALLED\n"+string.Join("\n",log));
     }
 
-    // Cinematic actors are seen in third person only: drop the first-person copy and keep the full body visible.
     public static void CleanStages()
     {
-        foreach(var path in new[]{"Assets/Resources/Cinematics/OpeningStage.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
+        foreach(var path in new[]{"Assets/Resources/Cinematics/VisitorStage.prefab"})
         {
             var root=PrefabUtility.LoadPrefabContents(path);
             try
@@ -109,7 +100,6 @@ public static class EliasNativeInstall
         Debug.Log("ELIAS STAGES CLEANED");
     }
 
-    // First-person copy of the upper body: torso and arms (the head is cut on older models; legs never show).
     static void FirstPersonBody(GameObject character,SkinnedMeshRenderer full)
     {
         var old=character.transform.Find("Corpo em primeira pessoa");if(old!=null)Object.DestroyImmediate(old.gameObject);
@@ -117,18 +107,14 @@ public static class EliasNativeInstall
         var points=baked.vertices.Select(v=>character.transform.InverseTransformPoint(full.transform.TransformPoint(v))).ToArray();Object.DestroyImmediate(baked);
         int head=Array.FindIndex(full.bones,b=>b.name=="Head"),neck=Array.FindIndex(full.bones,b=>b.name=="Neck");
         var weights=source.boneWeights;
-        // Elias v3 ships the head as its own mesh and closes the neck on the body: nothing is cut, so the collar stays whole.
         bool cutHead=!File.Exists(Folder+"EliasV3_Palette.png");
         bool Hidden(int i)
         {
             if(!cutHead)return false;
-            // Only the head (and the cap on it) is removed: shoulders, collar and neck stay closed, so looking
-            // down never reveals an open garment; the camera near plane handles the rest.
             var w=weights[i];float headWeight=0;
             if(w.boneIndex0==head)headWeight+=w.weight0;if(w.boneIndex1==head)headWeight+=w.weight1;
             return headWeight>.4f;
         }
-        // Two-sided copy of the body material: the cut at the neckline must not read as a hole.
         string twoSidedPath=Folder+"EliasFirstPerson.mat";var twoSided=AssetDatabase.LoadAssetAtPath<Material>(twoSidedPath);
         if(twoSided==null){twoSided=new Material(full.sharedMaterial){name="Elias first person"};AssetDatabase.CreateAsset(twoSided,twoSidedPath);}
         twoSided.CopyPropertiesFromMaterial(full.sharedMaterial);twoSided.SetFloat("_Cull",0);twoSided.doubleSidedGI=true;EditorUtility.SetDirty(twoSided);
@@ -142,14 +128,10 @@ public static class EliasNativeInstall
             {var tri=source.GetTriangles(sub);var keep=new List<int>();for(int i=0;i<tri.Length;i+=3)if(!hidden(tri[i]) && !hidden(tri[i+1]) && !hidden(tri[i+2]))keep.AddRange(new[]{tri[i],tri[i+1],tri[i+2]});kept[sub]=keep;}
             if(!float.IsPositiveInfinity(capAbove))
             {
-                // Close the openings left by the cut (the waist, seen from straight above) with a fan per boundary
-                // loop; vertices are welded by position because flat shading splits them per face.
                 var all=kept.SelectMany(k=>k).ToList();
                 var key=new Dictionary<Vector3Int,int>();int Weld(int i){var p=Vector3Int.RoundToInt(vertices[i]*10000);if(!key.TryGetValue(p,out int w)){w=i;key[p]=i;}return w;}
                 var edges=new Dictionary<(int,int),int>();
                 for(int i=0;i<all.Count;i+=3)for(int e=0;e<3;e++){int x=Weld(all[i+e]),y=Weld(all[i+(e+1)%3]);var k=x<y?(x,y):(y,x);edges[k]=edges.TryGetValue(k,out int n)?n+1:1;}
-                // Only openings made by the cut: the source mesh may have open edges of its own (the generated fingers are
-                // open shells), and fanning those adds stray faces.
                 var sourceEdges=new Dictionary<(int,int),int>();
                 for(int sub=0;sub<source.subMeshCount;sub++){var tri=source.GetTriangles(sub);for(int i=0;i<tri.Length;i+=3)for(int e=0;e<3;e++){int x=Weld(tri[i+e]),y=Weld(tri[i+(e+1)%3]);var k=x<y?(x,y):(y,x);sourceEdges[k]=sourceEdges.TryGetValue(k,out int n)?n+1:1;}}
                 var next=new Dictionary<int,List<int>>();
@@ -166,7 +148,6 @@ public static class EliasNativeInstall
                         prev=cur;cur=nxt;
                     }
                     if(loop.Count<6)continue;
-                    // Height is read in character space (the mesh space may carry the FBX axis conversion).
                     if(loop.Average(i=>points[i].y)<capAbove)continue;
                     var centre=loop.Aggregate(Vector3.zero,(acc,i)=>acc+vertices[i])/loop.Count;
                     int c=vertices.Count;vertices.Add(centre);normals.Add(full.transform.InverseTransformDirection(character.transform.up).normalized);uvs.Add(uvs[loop[0]]);
@@ -186,8 +167,6 @@ public static class EliasNativeInstall
             renderer.updateWhenOffscreen=true;renderer.shadowCastingMode=ShadowCastingMode.Off;
             return renderer;
         }
-        // The first-person copy has no legs: looking down never shows hips, legs or boots. It is only shown while
-        // the hands do something (FirstPersonArms); the waist opening left by the cut is closed with caps.
         var legBones=new HashSet<int>(Enumerable.Range(0,full.bones.Length).Where(i=>{var n=full.bones[i].name;return n=="Hips" || n.StartsWith("Thigh") || n.StartsWith("Shin") || n.StartsWith("Foot") || n.StartsWith("Toe");}));
         bool Leg(int i){var w=weights[i];float l=(legBones.Contains(w.boneIndex0)?w.weight0:0)+(legBones.Contains(w.boneIndex1)?w.weight1:0)+(legBones.Contains(w.boneIndex2)?w.weight2:0)+(legBones.Contains(w.boneIndex3)?w.weight3:0);return l>=.5f;}
         var whole=Copy("Corpo em primeira pessoa","First person body",Folder+"FirstPersonBody.asset",i=>Hidden(i) || Leg(i),.75f);
@@ -209,8 +188,6 @@ public static class EliasNativeInstall
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();Debug.Log("FIRST PERSON REBUILT");
     }
 
-    // The playable body keeps the view 22 cm in front of the shoulder line (PlayerFirstPersonView); an earlier
-    // scene rebuild dropped the component, leaving the camera straight above the neck.
     static void EnsureFirstPersonView(GameObject body)
     {
         if(body.GetComponentInParent<PlayerMovement>()!=null && body.GetComponent<PlayerFirstPersonView>()==null)body.AddComponent<PlayerFirstPersonView>();
@@ -224,7 +201,6 @@ public static class EliasNativeInstall
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);Debug.Log("FIRST PERSON VIEW RESTORED "+added);
     }
 
-    // Serialized bone references on the protagonist components point at the new skeleton by name.
     static void Rebind(GameObject body)
     {
         Transform Bone(string name)=>body.GetComponentsInChildren<Transform>(true).First(t=>t.name==name);
@@ -235,16 +211,14 @@ public static class EliasNativeInstall
     public static void RebindAll()
     {
         void Apply(GameObject root){foreach(var a in root.GetComponentsInChildren<Animation>(true).Where(a=>a.transform.Find(ModelChild)!=null))Rebind(a.gameObject);}
-        foreach(var path in new[]{OldFolder+"Protagonist.prefab","Assets/Resources/Cinematics/OpeningStage.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
+        foreach(var path in new[]{OldFolder+"Protagonist.prefab","Assets/Resources/Cinematics/VisitorStage.prefab"})
         {var root=PrefabUtility.LoadPrefabContents(path);try{Apply(root);PrefabUtility.SaveAsPrefabAsset(root,path);}finally{PrefabUtility.UnloadPrefabContents(root);}}
         var scene=EditorSceneManager.OpenScene(RuralWorldReview.WorldScene);foreach(var go in scene.GetRootGameObjects())Apply(go);
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);Debug.Log("ELIAS REBOUND");
     }
 
-    // Elias v3 (Tools/SourceArt/ProtagonistV3) ships its own flat palette; earlier builds use the cast atlas.
     static Material EliasMaterial()
     {
-        // Elias v4 (Tools/SourceArt/ProtagonistV4) keeps its painted texture: eyes, brows and beard live there.
         const string albedo=Folder+"EliasV4_Albedo.png";
         if(File.Exists(albedo))
         {
@@ -278,11 +252,6 @@ public static class EliasNativeInstall
         if(path==Model && (importer.importAnimation || !importer.isReadable)){importer.importAnimation=false;importer.isReadable=true;dirty=true;}
         if(dirty)importer.SaveAndReimport();
     }
-    // The takes keep the character's T-pose only as the armature's rest pose: each file's nodes default to that take's
-    // first frame, and an avatar made from a take treats that frame as its T-pose. Retargeted, the legs carried the
-    // difference as a constant offset per take (a foot rolled onto its edge and turned inwards walking backwards, one
-    // foot on tiptoe while the other hovered walking forwards). Every take converts through one avatar made from the
-    // rest pose instead (HumanM_TPose.fbx, exported by Tools/SourceArt/HumanBasicMotions/export_tpose.py).
     internal const string TakeAvatarModel=Takes+"HumanM_TPose.fbx";
     internal static void ImportTake(string path)
     {
@@ -296,8 +265,6 @@ public static class EliasNativeInstall
         if(importer.animationType!=ModelImporterAnimationType.Human || importer.avatarSetup!=ModelImporterAvatarSetup.CopyFromOther || importer.sourceAvatar!=avatar)
         {importer.animationType=ModelImporterAnimationType.Human;importer.avatarSetup=ModelImporterAvatarSetup.CopyFromOther;importer.sourceAvatar=avatar;importer.SaveAndReimport();}
     }
-    // Bakes the captured walks and runs again, in place, through the takes' shared avatar, then grounds them again.
-    // Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EliasNativeInstall.RebakeLocomotion
     public static void RebakeLocomotion()
     {
         var avatar=Avatar(HumanoidCopy);if(avatar==null)throw new InvalidOperationException("Humanoid avatar missing");
@@ -314,9 +281,6 @@ public static class EliasNativeInstall
     internal static Avatar Avatar(string path){var a=AssetDatabase.LoadAllAssetsAtPath(path).OfType<Avatar>().FirstOrDefault();return a!=null && a.isHuman && a.isValid?a:null;}
     static AnimationClip Take(string take)=>AssetDatabase.LoadAllAssetsAtPath(Takes+"HumanM@"+take+".fbx").OfType<AnimationClip>().First(c=>!c.name.StartsWith("__preview__"));
 
-    // Bakes one state onto the Elias hierarchy used in game: holder / Protagonist_Rigged(Clone) / ProtagonistRig / ...
-    // asset: where to save (default: the game clip of that state, overwritten in place so references keep working).
-    // modelPath/childName/rigName: another character on the same bone names (the hooded visitor: HoodedVisitorInstall).
     internal static AnimationClip Bake(string state,Avatar avatar,Action<GameObject,float> poseAt,float length,string asset=null,bool? loop=null,
         string modelPath=null,string childName=null,string rigName="ProtagonistRig")
     {
@@ -330,7 +294,6 @@ public static class EliasNativeInstall
             int frames=Mathf.Max(2,Mathf.RoundToInt(length*30));
             var rot=bones.ToDictionary(b=>b,b=>Enumerable.Range(0,4).Select(_=>new AnimationCurve()).ToArray());
             var pos=Enumerable.Range(0,3).Select(_=>new AnimationCurve()).ToArray();
-            // Humanoid posing may also move the non-human Root bone above the pelvis; record it too.
             var root=hips.parent!=rig?hips.parent:null;var rootPos=Enumerable.Range(0,3).Select(_=>new AnimationCurve()).ToArray();
             for(int f=0;f<=frames;f++)
             {
@@ -370,15 +333,12 @@ public static class EliasNativeInstall
         body.clip=clips["Idle"];
         Rebind(body.gameObject);
         EnsureFirstPersonView(body.gameObject);
-        // the hands' roll spreads along the forearms (twist bones), after every animation and grip
         if(body.GetComponent<ArmTwistDriver>()==null)body.gameObject.AddComponent<ArmTwistDriver>();
         clips["Idle"].SampleAnimation(body.gameObject,0);
-        // First-person arms and legs are cut from the new body, torso hidden under the camera.
         var full=model.GetComponentsInChildren<SkinnedMeshRenderer>().First(s=>s.name=="ProtagonistBody");
         var shirt=body.transform.Find("Camisa fechada - interior");if(shirt!=null)Object.DestroyImmediate(shirt.gameObject);
         FirstPersonBody(body.gameObject,full);
         var firstPerson=body.transform.Find("Corpo em primeira pessoa");
-        // CreateFirstPersonBody moves the full body to layer 31 (hidden from the gameplay camera); keep the head there too.
         foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>())if(skin.name.StartsWith("ProtagonistHead"))skin.gameObject.layer=31;
     }
 }

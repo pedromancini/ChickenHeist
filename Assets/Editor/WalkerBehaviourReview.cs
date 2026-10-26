@@ -7,8 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Follows every resident for a while and reports whether they roam naturally instead of pacing.
-// Run: Unity.exe -projectPath . -executeMethod WalkerBehaviourReview.Begin
 [InitializeOnLoad]
 public static class WalkerBehaviourReview
 {
@@ -40,7 +38,6 @@ public static class WalkerBehaviourReview
         if(trails.Count==0)
         {
             GameMenu.Instance.Resume();
-            // Keep the player out of everyone's way.
             var player=HeistGameManager.Instance.player;var cc=player.GetComponent<CharacterController>();cc.enabled=false;player.position+=Vector3.up*400;
             player.GetComponent<PlayerMovement>().enabled=false;
             foreach(var w in Object.FindObjectsByType<RoadsideWalker>(FindObjectsSortMode.None)){trails[w]=new List<Vector3>();pauses[w]=0;wasWalking[w]=true;}
@@ -58,10 +55,8 @@ public static class WalkerBehaviourReview
             var t=kv.Value;var home=t[0];
             float walked=kv.Key.DistanceWalked,far=t.Max(p=>Vector3.Distance(p,home));
             var min=t.Aggregate(t[0],Vector3.Min);var max=t.Aggregate(t[0],Vector3.Max);float area=(max.x-min.x)*(max.z-min.z);
-            // Pacing = coming back through the same few cells over and over.
             int cells=t.Select(p=>(Mathf.RoundToInt(p.x/4),Mathf.RoundToInt(p.z/4))).Distinct().Count();
             bool pace=walked>20 && cells<walked/4*.45f;if(pace)pacing++;
-            // About-turns: the walking direction flipping by more than 150 degrees between samples 2 s apart
             int turns=0;Vector3 last=Vector3.zero;
             for(int i=4;i<t.Count;i+=4){var d=t[i]-t[i-4];d.y=0;if(d.magnitude<1)continue;if(last!=Vector3.zero && Vector3.Angle(last,d)>150)turns++;last=d;}
             aboutTurns+=turns;
@@ -71,7 +66,6 @@ public static class WalkerBehaviourReview
         lines.Add((failed?"FAIL":"PASS")+" residents roam: repetitive="+pacing+"/"+trails.Count+", about-turns "+aboutTurns+", mean area "+trails.Values.Average(t=>{var lo=t.Aggregate(t[0],Vector3.Min);var hi=t.Aggregate(t[0],Vector3.Max);return (hi.x-lo.x)*(hi.z-lo.z);}).ToString("0")+" m2");
         Capture();File.WriteAllLines(Folder+"/report.txt",lines);EditorApplication.isPlaying=false;
     }
-    // Top view of each trail over the scene.
     static void Capture()
     {
         var all=trails.Values.SelectMany(p=>p).ToList();var min=all.Aggregate(all[0],Vector3.Min);var max=all.Aggregate(all[0],Vector3.Max);

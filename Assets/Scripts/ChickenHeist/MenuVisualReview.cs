@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-// Runs only with two explicit review flags, using the isolated household account.
 public class MenuVisualReview : MonoBehaviour
 {
     readonly List<string> results=new List<string>();
@@ -57,31 +56,23 @@ public class MenuVisualReview : MonoBehaviour
         var draft=GamePreferences.Defaults();draft.width=800;draft.height=600;draft.fullscreen=false;
         Set(menu,"settings",draft);menu.SendMessage("ApplySettings");
         yield return new WaitForSecondsRealtime(1);yield return Shot("06-video-confirm");
-        // Exercise the real deadline branch without waiting fifteen seconds for each review.
         Set(menu,"confirmUntil",Time.realtimeSinceStartup+.1f);yield return new WaitForSecondsRealtime(1);
         Check(Screen.width==1280 && Screen.height==800,"Unconfirmed video change restores original resolution");
         menu.SendMessage("LeaveSettings");var oldMenu=menu;menu.SendMessage("BeginGame");
-        // A fresh game reloads the scene and plays the opening; capture its first subtitle, then skip it.
         float reloadDeadline=Time.realtimeSinceStartup+30;
         while((GameMenu.Instance==null || GameMenu.Instance==oldMenu || !StoryDirector.Active) && Time.realtimeSinceStartup<reloadDeadline)yield return null;
         menu=GameMenu.Instance;
         if(StoryDirector.Active)
         {
             yield return new WaitForSecondsRealtime(2.5f);yield return Shot("ui-cutscene-subtitle");StoryDirector.Instance.Complete();
-            // after the conversation the tablet is only promised: a box sends Elias to bed
             yield return new WaitForSecondsRealtime(.5f);Check(SleepPrompt.IsOpen,"After the opening a box tells Elias to sleep");yield return Shot("ui-sleep-prompt");
             SleepPrompt.SkipForReview();
         }
         yield return new WaitForSecondsRealtime(1);
         Check(!GameMenu.IsOpen && !HeistGameManager.Instance.MissionActive,"Start game enters quiet free exploration");
         yield return Shot("07-exploration");
-        // a punch as the player sees it, at full reach
         {
             var look=HeistGameManager.Instance.player.GetComponentInChildren<PlayerLook>();if(look!=null)look.RestorePitch(0);
-            // four moments of one punch, on the punch's own clock (the first frames of a build can be slow): drawn back
-            // with the guard up, the jab on its way, at full reach, coming back. The right wrist never comes within 18 cm
-            // of the camera, the knuckles some 8 cm further (the view moved 22 cm ahead after the arms were posed put it
-            // at 5 cm, the fist filling half the screen); the arm's reach keeps it at about 22 cm at full stretch.
             foreach(var (label,at) in new[]{("a",.16f),("b",.32f),("c",.50f),("d",.76f)})
             {
                 yield return new WaitForSecondsRealtime(.8f);
@@ -92,8 +83,6 @@ public class MenuVisualReview : MonoBehaviour
                 var eye=Camera.main.transform;var hand=HeistGameManager.Instance.player.GetComponentsInChildren<Transform>().First(t=>t.name=="HandR");
                 var fist=eye.InverseTransformPoint(hand.position);
                 Check(fist.magnitude>.18f,"Punch ("+label+", at "+PlayerPunch.Instance.Progress.ToString("0.00")+" of the swing) keeps the fist off the camera: wrist at "+fist.ToString("0.00")+" m in eye space");
-                // what shows is the first-person fist (FirstPersonFist), not the body's arms: out on the jab it sits on screen,
-                // knuckles 35-55 cm out, below and right of the middle; drawn back and coming home it stays low
                 var arms=HeistGameManager.Instance.player.GetComponentInChildren<FirstPersonArms>();var view=PlayerPunch.Instance.GetComponent<FirstPersonFist>();
                 Check(arms==null || arms.full==null || !arms.full.enabled,"Punch ("+label+") hides the body's arms in first person");
                 if(label=="b" || label=="c")
@@ -187,7 +176,6 @@ public class MenuVisualReview : MonoBehaviour
                 vehicle.ExternalControl=false;
             }
             Check(truck.ExitDriver(),"Parked truck has safe exit beside cabin");
-            // Truck deliveries count only with the cargo bed parked by the home coop gate.
             var coopView=economy.home.GetComponentInChildren<HomeFlockView>();
             if(coopView!=null)
             {
@@ -338,7 +326,6 @@ public class MenuVisualReview : MonoBehaviour
         yield return Shot("14-main-save-summary");
         Finish();
     }
-    // Deliveries only count at the protagonist's own coop gate.
     static void AtHomeCoop(HeistGameManager game)
     {
         var flock=HouseholdEconomy.Instance?.home?.GetComponentInChildren<HomeFlockView>();if(flock==null)return;

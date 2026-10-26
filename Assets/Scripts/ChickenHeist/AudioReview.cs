@@ -6,9 +6,6 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-// Opt-in player QA (--review-session --audio-review): plays the game's sounds the way the game triggers them and
-// measures what actually comes out of the listener (the mix the player hears), so a sound that never reaches the
-// speakers fails here. Writes output/audio-review/checks.txt.
 public sealed class AudioReview : MonoBehaviour
 {
     string folder;bool done;float deadline;readonly List<string> checks=new List<string>();
@@ -22,7 +19,6 @@ public sealed class AudioReview : MonoBehaviour
     void Check(bool ok,string message){checks.Add((ok?"PASS ":"FAIL ")+message);File.WriteAllLines(Path.Combine(folder,"checks.txt"),checks);}
     void Note(string message){checks.Add("     "+message);File.WriteAllLines(Path.Combine(folder,"checks.txt"),checks);}
     void Finish(){if(done)return;done=true;Application.Quit(checks.Any(s=>s.StartsWith("FAIL"))?1:0);}
-    // loudness of the listener's output over `seconds`, in dB (RMS of both channels, frame by frame)
     IEnumerator Measure(float seconds,float[] result)
     {
         double sum=0;long count=0;float end=Time.realtimeSinceStartup+seconds;
@@ -53,7 +49,6 @@ public sealed class AudioReview : MonoBehaviour
         StoryDirector.Instance.Complete();yield return null;SleepPrompt.SkipForReview();yield return new WaitForSecondsRealtime(1.5f);
         var player=HeistGameManager.Instance.player;var r=new float[1];
         Note("volumes: master "+AudioListener.volume.ToString("0.00")+", effects "+GameAudioMix.Effects.ToString("0.00")+", ambience "+GameAudioMix.Ambience.ToString("0.00"));
-        // the doorbell, rung by the player from the porch
         var bell=HomeDoorbell.Instance;
         Check(bell!=null,"The doorbell exists");
         if(bell!=null)
@@ -64,7 +59,6 @@ public sealed class AudioReview : MonoBehaviour
             yield return Measure(.45f,r);float ring=r[0];
             Check(sounding && ring>quiet+6,"The doorbell is heard: "+ring.ToString("0.0")+" dB against "+quiet.ToString("0.0")+" dB quiet");
         }
-        // the truck: get in, crank, start, idle
         var truck=OldPickupTruck.Instance;
         Check(truck!=null,"The truck exists");
         if(truck!=null)
@@ -85,7 +79,6 @@ public sealed class AudioReview : MonoBehaviour
             Check(Sounding("engine") && idle>quiet+6,"The engine idling is heard: "+idle.ToString("0.0")+" dB");
             truck.ignition.StopEngine();yield return new WaitForSecondsRealtime(2);truck.ExitDriver();yield return null;
         }
-        // standing by the home coop for a while: what plays, and that sounds keep their slots
         var coop=FindObjectsByType<ChickenCoopLockpick>().OrderBy(c=>(c.transform.position-HouseholdEconomy.Instance.home.position).sqrMagnitude).FirstOrDefault();
         if(coop!=null)
         {
@@ -95,7 +88,6 @@ public sealed class AudioReview : MonoBehaviour
             Check(busiest<10,"Effect slots stay free for new sounds by the coop: at most "+busiest+" of 12 in use");
             Check(!Sounding("chicken_walk"),"No hens-scratching loop by the coops");
         }
-        // the night: something alive now and then (a cricket, frogs, an owl), never a constant chorus
         {
             float alive=0,total=0;var kinds=new HashSet<string>();float end=Time.realtimeSinceStartup+45;
             while(Time.realtimeSinceStartup<end)

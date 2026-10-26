@@ -8,17 +8,9 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Object=UnityEngine.Object;
 
-// Mixamo (or any humanoid FBX) -> Elias. Drop the downloads into E:\Jogo3D\Animacoes named after the game state
-// (Walk.fbx, CrouchIdle.fbx... see ANIMACOES_MIXAMO.md; common Mixamo names are recognised too). Each file is
-// imported as Humanoid, retargeted through Elias' humanoid avatar and baked into the legacy clip of that state,
-// overwritten in place so the player, the cinematic stages and the first-person body pick it up without rewiring.
-// The previous clip is kept once in EliasNative/Backup. A strip of four frames per clip goes to output/mixamo.
-// Install: Unity.exe -batchmode -quit -projectPath . -executeMethod MixamoInstall.Run
-// Trial (bakes to a scratch folder, game untouched): ... -executeMethod MixamoInstall.Trial -mixamoSource <folder>
 public static class MixamoInstall
 {
     const string Imported="Assets/ThirdParty/Mixamo/",Trial_="Assets/ThirdParty/Mixamo/_trial/",Backup=EliasNativeInstall.Folder+"Backup/",Out="output/mixamo";
-    // Game state, loops, accepted file names (lower case, letters only). The first name is the one to use.
     static readonly (string state,bool loop,string[] names)[] States=
     {
         ("Idle",true,new[]{"idle"}),
@@ -43,10 +35,7 @@ public static class MixamoInstall
         ("Ignite",true,new[]{"ignite"}),
         ("Trade",false,new[]{"trade","giving","handing"}),
     };
-    // A state without its own file borrows another one (the hands are placed by code on top of the body pose).
     static readonly Dictionary<string,string> Borrow=new Dictionary<string,string>{{"Ignite","Drive"}};
-    // One-shot gestures the game plays in a fixed time: keep only the dip (pelvis goes down and comes back up)
-    // and retime it to this length. Mixamo's "Picking Up" is 9.6 s, the game lifts the chicken in 0.85 s.
     static readonly Dictionary<string,float> Dip=new Dictionary<string,float>{{"Pickup",1.1f}};
 
     public static void Run()=>Install(Arg("-mixamoSource")??Path.GetFullPath("../Animacoes"),false);
@@ -93,14 +82,11 @@ public static class MixamoInstall
         if(missing.Count>0)log.Add("kept current clip for: "+string.Join(", ",missing));
         AssetDatabase.SaveAssets();
         Sheets(baked,log);
-        // every clip, captured or from Mixamo, with the feet on the floor (output/mixamo/grounding.txt)
         if(!trial){ClipGrounding.Run();log.Add("feet grounded: output/mixamo/grounding.txt");}
         Write(log);
     }
     static void Write(List<string> log){File.WriteAllLines(Out+"/install.txt",log);Debug.Log("MIXAMO INSTALL\n"+string.Join("\n",log));}
 
-    // Humanoid import with the root baked into the pose at its original height and heading, so sitting and
-    // crouching keep their pelvis drop; InPlace removes any travel left in the take.
     static AnimationClip Humanoid(string path,bool loop,out string problem)
     {
         problem=null;
@@ -124,8 +110,6 @@ public static class MixamoInstall
         return result;
     }
 
-    // Samples the take on Elias and cancels net travel: the pelvis starts over Elias' own and any drift between the
-    // first and last frame is removed linearly, keeping sway and bob. Height is left as captured.
     static Action<GameObject,float> InPlace(AnimationClip clip)
     {
         Vector3 rest=Vector3.zero,start=Vector3.zero,drift=Vector3.zero;bool ready=false;
@@ -147,7 +131,6 @@ public static class MixamoInstall
         };
     }
 
-    // From the last standing frame before the lowest pelvis point to the first standing frame after it.
     static (float,float) DipWindow(AnimationClip clip,Avatar avatar)
     {
         var model=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(EliasNativeInstall.Model));
@@ -173,7 +156,6 @@ public static class MixamoInstall
         AssetDatabase.CopyAsset(current,kept);
     }
 
-    // Four frames per clip on the protagonist prefab, side view, so each result can be checked at a glance.
     static void Sheets(Dictionary<string,AnimationClip> clips,List<string> log)
     {
         if(clips.Count==0)return;
@@ -188,10 +170,9 @@ public static class MixamoInstall
         cam.orthographic=true;cam.orthographicSize=1.05f;cam.nearClipPlane=.05f;cam.farClipPlane=20;
         var rt=new RenderTexture(300,400,24);cam.targetTexture=rt;
         var floor=GameObject.CreatePrimitive(PrimitiveType.Quad);floor.transform.rotation=Quaternion.Euler(90,0,0);floor.transform.localScale=Vector3.one*4;
-        cam.Render();// warm-up: the first render after loading can miss the material
+        cam.Render();
         foreach(var kv in clips)
         {
-            // How far the new clip is from the game's clip of that state (degrees, mean over bones and 8 moments).
             var current=AssetDatabase.LoadAssetAtPath<AnimationClip>(EliasNativeInstall.Folder+kv.Key+".anim");
             if(current!=null && current!=kv.Value)
             {

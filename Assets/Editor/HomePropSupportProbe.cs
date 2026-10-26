@@ -5,9 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Diagnostic: small props in the protagonist's home that have nothing under them (floating cups, plates,
-// bottles), plus the porch floor height under the doorbell button and the door handle height for reference.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod HomePropSupportProbe.Run
 public static class HomePropSupportProbe
 {
     public static void Run()
@@ -17,7 +14,6 @@ public static class HomePropSupportProbe
         Physics.SyncTransforms();
         var log=new List<string>();
         Vector3 Local(Vector3 p)=>home.InverseTransformPoint(p);
-        // Props up to 40 cm across: cast down from just under their base and report the gap to the first surface.
         foreach(var r in home.GetComponentsInChildren<Renderer>(true).Where(r=>r.enabled && r.gameObject.activeInHierarchy).OrderBy(r=>r.name))
         {
             var b=r.bounds;
@@ -26,7 +22,6 @@ public static class HomePropSupportProbe
             float gap=float.PositiveInfinity;string below="nothing";
             foreach(var hit in Physics.RaycastAll(from,Vector3.down,3f,~0,QueryTriggerInteraction.Ignore).OrderBy(h=>h.distance))
             {if(hit.collider.transform==r.transform)continue;gap=hit.distance;below=hit.collider.name;break;}
-            // Also accept a renderer directly under it (props often have no colliders).
             foreach(var other in home.GetComponentsInChildren<Renderer>(true))
             {
                 if(other==r || !other.enabled)continue;var o=other.bounds;
@@ -44,7 +39,6 @@ public static class HomePropSupportProbe
         }
         foreach(var r in home.GetComponentsInChildren<Renderer>().Where(r=>r.name.ToLowerInvariant().Contains("macaneta")||r.name.ToLowerInvariant().Contains("puxador")).Take(4))
             log.Add("handle "+r.transform.parent.name+"/"+r.name+" local "+Local(r.bounds.center).ToString("F3"));
-        // Furniture tops near the floating props, for re-seating them.
         foreach(var r in home.GetComponentsInChildren<Renderer>().Where(r=>{var c=Local(r.bounds.center);return c.x<-4f && c.x>-7.6f && c.z>2.5f && c.z<6.9f && r.bounds.size.x>.3f && r.bounds.size.z>.3f;}).OrderBy(r=>r.name))
             log.Add("surface "+r.transform.parent.name+"/"+r.name+" min "+Local(r.bounds.min).ToString("F3")+" max "+Local(r.bounds.max).ToString("F3"));
         Directory.CreateDirectory("output/home-review");

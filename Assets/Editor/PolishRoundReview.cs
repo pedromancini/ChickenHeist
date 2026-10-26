@@ -7,10 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// The polish round, played in the editor: spray paint reaching every security camera of every farm from in front of it
-// and from under it, the lock's dots, the punch, jumping, getting out of the truck, and the alarm wires (walked into,
-// jumped, driven through). Captures and report in output/polish-round.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod PolishRoundReview.Begin
 [InitializeOnLoad]
 public static class PolishRoundReview
 {
@@ -75,7 +71,6 @@ public static class PolishRoundReview
                 farm++;Wait(.05);return;
             case 2:
             {
-                // painting for real, with the backpack's spray: the lens gets coated and the jet shows
                 game.StartMission(0);sprayed=Object.FindObjectsByType<SecurityCamera>().First(c=>game.IsMissionTarget(c));sprayed.RestorePaint(0);
                 var head=sprayed.scanHead;var forward=head.forward;forward.y=0;forward.Normalize();
                 Position(Ground(head.position+forward*1.3f,6)+Vector3.up*.05f,head.position);
@@ -93,7 +88,6 @@ public static class PolishRoundReview
                 Capture("spray-first-person",view.position,head.position);
                 Lockpick();
                 game.EndActiveMission();
-                // the punch, seen from beside Elias and through his eyes, at three moments
                 var yard=HouseholdEconomy.Instance.home.position-HouseholdEconomy.Instance.home.forward*14;
                 Position(Ground(yard+Vector3.up*3,8)+Vector3.up*.05f,yard+HouseholdEconomy.Instance.home.right*10);
                 game.player.GetComponentInChildren<Camera>().transform.localRotation=Quaternion.identity;
@@ -113,12 +107,10 @@ public static class PolishRoundReview
             }
             case 5:
             {
-                // jumping: Shift in the air does not change the speed; on the ground it does
                 var move=game.player.GetComponent<PlayerMovement>();move.estaAgachado=false;move.estaSprinting=false;
                 float walk=move.SpeedFor(true);move.estaSprinting=true;float air=move.SpeedFor(false);float run=move.SpeedFor(true);
                 Check(Mathf.Approximately(air,walk) && run>walk*1.5f,"Shift pressed in mid-air keeps the takeoff speed ("+air.ToString("0.0")+" m/s, walking "+walk.ToString("0.0")+", running on the ground "+run.ToString("0.0")+")");
                 move.estaSprinting=false;
-                // getting out of the truck parked on a slope, having looked aside: upright, level, facing where he looked
                 truck=OldPickupTruck.Instance;truckRotation=truck.transform.rotation;truckPosition=truck.transform.position;
                 Position(truck.seat.position-truck.transform.right*1.6f,truck.seat.position);
                 Check(truck.EnterDriver(),"Elias gets in the truck");
@@ -140,7 +132,6 @@ public static class PolishRoundReview
                 truck.transform.SetPositionAndRotation(truckPosition,truckRotation);var body=truck.GetComponent<Rigidbody>();if(body!=null)body.isKinematic=false;
                 step=7;Wait(.3);return;
             }
-            // the alarm wires of a farm, walked into and jumped: the gate's (just outside it) and the coop door's
             case 7:
             {
                 game.EndActiveMission();Check(game.StartMission(0),"Mission 0 starts for the wires");
@@ -152,11 +143,9 @@ public static class PolishRoundReview
             }
             case 8:
             {
-                // trials: 0 walk into the gate wire, 1 jump it, 2 walk into the coop wire, 3 jump it
                 if(trial>0){var w=trial-1<2?gateWire:coopWire;bool walked=(trial-1)%2==0;Check(walked?w.triggered:!w.triggered,(walked?"Walking into":"Jumping over")+" the "+(w==gateWire?"gate":"coop door")+" wire "+(walked?"trips it":"clears it"));}
                 if(trial>=4)
                 {
-                    // the truck driven in through the gate: Elias at the wheel, the truck over the wire
                     gateWire.triggered=false;truck=OldPickupTruck.Instance;truckRotation=truck.transform.rotation;truckPosition=truck.transform.position;
                     truck.transform.SetPositionAndRotation(Middle(gateWire)-gateWire.Inward*5+Vector3.up*.4f,Quaternion.LookRotation(gateWire.Inward));
                     Position(truck.seat.position-truck.transform.right*1.6f,truck.seat.position);Check(truck.EnterDriver(),"Elias drives up to the gate");
@@ -166,12 +155,10 @@ public static class PolishRoundReview
                 }
                 {
                     var w=trial<2?gateWire:coopWire;bool walk=trial%2==0;w.triggered=false;game.player.GetComponent<PlayerMovement>().RestoreTrapSlow(0);
-                    // over the coop wire Elias jumps in through the open door (he has picked the lock)
                     var coop=Object.FindObjectsByType<ChickenCoopLockpick>(FindObjectsSortMode.None).First(c=>game.IsMissionTarget(c));coop.RestoreOpen(w==coopWire && !walk);
                     var mid=Middle(w);Position(Ground(mid-w.Inward*(walk?2f:1.3f)+Vector3.up*2,4)+Vector3.up*.03f,mid+w.Inward);
                     var mover=game.player.gameObject.AddComponent<ReviewMover>();var move=game.player.GetComponent<PlayerMovement>();
                     mover.velocity=w.Inward*move.velocidadeNormal+Vector3.up*(walk?-1:Mathf.Sqrt(move.alturaDoSalto*-2f*move.gravidade));mover.gravity=-move.gravidade;mover.until=Time.time+(walk?1.4f:1.0f);
-                    // over the wire, seen from beside it, three-quarters on
                     if(!walk)FrameCapture.Shot(Folder+"/wire-jump-"+(w==gateWire?"gate":"coop")+".png",mid+Vector3.Cross(Vector3.up,w.Inward)*3.8f-w.Inward*1.4f+Vector3.up*1.6f,mid+w.Inward*.3f+Vector3.up*.9f,60,.36f);
                     trial++;Wait(walk?1.8:1.4);return;
                 }
@@ -184,7 +171,6 @@ public static class PolishRoundReview
                 gateWire.triggered=false;coopWire.triggered=false;game.EndActiveMission();
                 coopLevel=0;coopParts.Clear();step=10;Wait(.2);return;
             }
-            // the home coop at each level of repair (the kits of boards and nails): every level shows more
             case 10:
             {
                 if(coopLevel>3)
@@ -210,7 +196,6 @@ public static class PolishRoundReview
         }
         catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}
     }
-    // The lock's panel: a dot lights for the piece that came free, whatever its place in the shuffled order.
     static void Lockpick()
     {
         int notFirst=0;
@@ -235,7 +220,6 @@ public static class PolishRoundReview
         var rt=new RenderTexture(960,540,24);cam.targetTexture=rt;cam.Render();var a=RenderTexture.active;RenderTexture.active=rt;var t=new Texture2D(960,540,TextureFormat.RGB24,false);t.ReadPixels(new Rect(0,0,960,540),0,0);t.Apply();RenderTexture.active=a;
         File.WriteAllBytes(Folder+"/"+name+".png",t.EncodeToPNG());cam.targetTexture=null;Object.DestroyImmediate(rt);Object.DestroyImmediate(t);Object.DestroyImmediate(go);
     }
-    // In front of the lens (1.3 m out) and right under the camera: aiming at it, the spray must reach it.
     static void CameraStands(SecurityCamera unit)
     {
         unit.RestorePaint(0);

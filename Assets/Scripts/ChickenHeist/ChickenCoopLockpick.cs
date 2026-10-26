@@ -16,7 +16,6 @@ public class ChickenCoopLockpick : MonoBehaviour
     public bool IsOpen {get;private set;}
     public bool ChallengeActive {get;private set;}
     public int PinsSet=>IsOpen?3:Latch.Completed;
-    // dot `pin` of the panel lights for that piece, whichever order they came free in
     public bool PinReleased(int pin)=>IsOpen || Latch.Released(pin);
     public const int RequiredPins=3;
     public float PickPosition=>Latch.Pressure;
@@ -135,9 +134,9 @@ public class ChickenCoopLockpick : MonoBehaviour
         float width=Mathf.Min(UITheme.Size(700),Screen.width-32);float x=(Screen.width-width)*.5f,y=Screen.height-UITheme.Size(170);
         UITheme.Panel(new Rect(x,y-UITheme.Size(10),width,UITheme.Size(160)));UITheme.Occupy(new Rect(x,y-UITheme.Size(10),width,UITheme.Size(160)));
         var label=new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.MiddleCenter,wordWrap=true};
-        string state=Latch.Stress>.65f?"RANGENDO — solte ESPAÇO":Latch.CanSlide(Professional)?"CEDENDO — mantenha a pressão":Latch.HasSlack?"COM FOLGA — ajuste a pressão":"PRESA — experimente outra peça";
+        string state=Latch.Stress>.65f?"RANGENDO: solte ESPAÇO":Latch.CanSlide(Professional)?"CEDENDO: mantenha a pressão":Latch.HasSlack?"COM FOLGA: ajuste a pressão":"PRESA: experimente outra peça";
         float s=UITheme.Scale;
-        GUI.Label(new Rect(x+10,y,width-20,28*s),"PEÇA "+(Latch.Selected+1)+" / 3    •    "+state,new GUIStyle(label){normal={textColor=Latch.Stress>.65f?UITheme.Danger:UITheme.Ink}});
+        GUI.Label(new Rect(x+10,y,width-20,28*s),"PEÇA "+(Latch.Selected+1)+" / 3    |    "+state,new GUIStyle(label){normal={textColor=Latch.Stress>.65f?UITheme.Danger:UITheme.Ink}});
         UITheme.Meter(new Rect(x+24*s,y+34*s,width-48*s,10*s),Latch.Pressure,Color.Lerp(UITheme.Accent,UITheme.Danger,Latch.Stress));
         for(int pin=0;pin<3;pin++)UITheme.Panel(new Rect(Screen.width*.5f-40*s+pin*28*s,y+52*s,20*s,20*s),PinReleased(pin)?UITheme.Good:new Color(.12f,.10f,.08f,.95f),pin==Latch.Selected?UITheme.Accent:UITheme.Edge,5);
         GUI.Label(new Rect(x+10,y+74*s,width-20,22*s),"Pressão "+Mathf.RoundToInt(Latch.Pressure*100)+"%   ·   "+PinsSet+" de 3 peças liberadas",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleCenter});

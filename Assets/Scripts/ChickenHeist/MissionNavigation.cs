@@ -2,8 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Uses the same authored road spans that paint the terrain. Every connection
-// is checked against the live collision world, including gates and fences.
 public class MissionNavigation : MonoBehaviour
 {
     public static MissionNavigation Instance {get;private set;}
@@ -72,8 +70,6 @@ public class MissionNavigation : MonoBehaviour
                 Link(current[0],current[1]);Link(current[1],current[2]);previous=current;
             }
         }
-        // Small gaps between road ends and farm access lanes are genuine junctions
-        // only if collision clearance succeeds during route calculation.
         for(int i=0;i<nodes.Count;i++)for(int j=i+1;j<nodes.Count;j++)
             if((nodes[i]-nodes[j]).sqrMagnitude<36)Link(i,j);
     }
@@ -162,14 +158,13 @@ public class MissionNavigation : MonoBehaviour
         for(int i=0;i<hitCount;i++)
         {
             var c=passageHits[i].collider;
-            if(terrain.Contains(c))continue; // Elevation is checked along the path above.
+            if(terrain.Contains(c))continue;
             if(c.bounds.max.y<Mathf.Min(a.y,b.y)+.18f)continue;
             if(Game?.player!=null && c.transform.IsChildOf(Game.player))continue;
             if(c.GetComponentInParent<OldPickupTruck>()!=null)continue;
             if(Moving(c))continue;
             LastObstacle=c.name;return false;
         }
-        // Capsule casts don't report initial overlaps.
         int overlapCount=Physics.OverlapCapsuleNonAlloc(low,high,radius,overlapHits,~0,QueryTriggerInteraction.Ignore);
         if(overlapCount==overlapHits.Length){LastObstacle="Passagem congestionada";return false;}
         for(int i=0;i<overlapCount;i++)
@@ -182,8 +177,6 @@ public class MissionNavigation : MonoBehaviour
         }
         return true;
     }
-    // Animals and people move out of the way: residents walking the roads, farmers, the merchant and any other body
-    // carried by a CharacterController would otherwise close a road for as long as they stand on it.
     static bool Moving(Collider c)=>c is CharacterController || c.GetComponentInParent<SimpleAnimalWander>()!=null || c.GetComponentInParent<InteractableChicken>()!=null
         || c.GetComponentInParent<FarmerSleepSystem>()!=null || c.GetComponentInParent<RoadsideWalker>()!=null || c.GetComponentInParent<RuralCharacterAnimator>()!=null;
     public IEnumerator CalculateRoute(Vector3 start,Vector3 end,bool vehicle)
@@ -239,7 +232,6 @@ public class MissionNavigation : MonoBehaviour
         if(Game==null || !Game.MissionActive || Game.missionEnded || GameMenu.IsOpen || ChickenCoopLockpick.Active!=null || ChickenScare.Active!=null || ProtagonistPhone.IsOpen || VillageMarket.IsOpen || roads==null)return;
         GUI.skin=UITheme.Skin;float s=UITheme.Scale;
         float size=Mathf.Min(UITheme.Size(230),Screen.width*.25f);Rect area=new Rect(Screen.width-size-UITheme.Size(28),Screen.height-size-UITheme.Size(84),size,size);
-        // the route map's panel: messages keep clear of it (UITheme.Toast)
         var panel=new Rect(area.x-10*s,area.y-42*s,size+20*s,size+92*s);UITheme.Panel(panel,UITheme.PanelSoft);UITheme.Occupy(panel);
         GUI.Label(new Rect(area.x,area.y-36*s,26*s,26*s),"N",UITheme.Style("key"));
         GUI.Label(new Rect(area.x+34*s,area.y-38*s,size-34*s,30*s),ReturningHome?"Voltar à fazenda":"Rota para o sítio",new GUIStyle(UITheme.Style("hudSmall")){alignment=TextAnchor.MiddleLeft,normal={textColor=UITheme.Ink}});
@@ -262,7 +254,6 @@ public class MissionNavigation : MonoBehaviour
     static float mapSize;
     static void Line(Vector2 a,Vector2 b,Color color,float width)
     {
-        // Rasterize in the group's coordinates: rotating GUI.matrix also rotates its clip.
         var d=b-a;float lo=0,hi=1;
         bool Clip(float p,float q){if(Mathf.Abs(p)<.00001f)return q>=0;float t=q/p;if(p<0){if(t>hi)return false;lo=Mathf.Max(lo,t);}else{if(t<lo)return false;hi=Mathf.Min(hi,t);}return true;}
         if(!Clip(-d.x,a.x) || !Clip(d.x,mapSize-a.x) || !Clip(-d.y,a.y) || !Clip(d.y,mapSize-a.y))return;

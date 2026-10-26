@@ -19,18 +19,12 @@ public class GameAudioMix : MonoBehaviour
         foreach(var d in doorNodes)doors[d]=d.opened;
         foreach(var f in farmerNodes){farmers[f]=f.Activity;steps[f]=0;}
         foreach(var key in new[]{"engine","starter","start","stall","wood","door","sleep","wake","chicken","cow","spray"})Clip(key);
-        // the night all round: a breeze through the grass and trees, quiet, on the ambience volume (NightLife adds the
-        // crickets, frogs and the owl, here and there, with silences between)
         var night=SoundLibrary.Load("night_ambience");
         if(night!=null){var bed=Source("Noite no vale");bed.spatialBlend=0;bed.loop=true;bed.clip=night;bed.volume=.22f;bed.GetComponent<AudioBusGain>().ambient=true;bed.time=Random.Range(0,night.length);bed.Play();}
-        // a new day: the rooster, a moment after waking up
         if(HomeNextNight.JustWoke){HomeNextNight.JustWoke=false;var home=HouseholdEconomy.Instance?.home;if(home!=null)StartCoroutine(Rooster(home.position+home.right*14+home.forward*9));}
     }
     System.Collections.IEnumerator Rooster(Vector3 at){yield return new WaitForSeconds(1.2f);PlayRecorded("rooster_morning",at,.5f);}
-    // A recorded effect only: silent while the file is missing (no synthesized stand-in for these).
     public void PlayRecorded(string key,Vector3 position,float volume=.35f){if(SoundLibrary.Load(key)!=null)Play(key,position,volume);}
-    // One of the pool's slots: no bus filter on it (a filter on a source without a clip turns it into a generator that
-    // Unity reports as playing forever: the slots all looked busy and no effect ever played); Play scales its volume.
     AudioSource Effect(string label)
     {
         var node=new GameObject(label);node.transform.SetParent(transform,false);var s=node.AddComponent<AudioSource>();s.playOnAwake=false;s.spatialBlend=1;s.minDistance=1.5f;s.maxDistance=35;s.rolloffMode=AudioRolloffMode.Linear;return s;
@@ -51,8 +45,6 @@ public class GameAudioMix : MonoBehaviour
         else if(noise==NoiseSource.CowMoo)Play("cow",position,.2f);
         else if(noise==NoiseSource.FloorCreak)Play("wood",position,.17f);
     }
-    // Something alive in the dark every so often, never on a beat: a cricket's bout close by, frogs or an owl far off,
-    // from a direction of its own, with silences of 6-24 s between (a constant chorus read as a buzzing machine).
     readonly AudioSource[] nightLife=new AudioSource[2];float nextLife=4;
     static readonly string[] Life={"night_cricket_1","night_cricket_2","night_cricket_3","night_cricket_1","night_cricket_2","night_frogs","night_owl"};
     void NightLife(Vector3 around)
@@ -109,15 +101,13 @@ public class GameAudioMix : MonoBehaviour
             float freq=kind=="cow"?110+25*Mathf.Sin(t*4):kind=="chicken"?650+180*Mathf.Sin(t*24):kind=="engine"?45:kind=="starter"?35:kind=="sleep"?65:kind=="wake"?130:220;
             phase+=2*Mathf.PI*freq/rate;
             float sound=(Mathf.Sin(phase)+Mathf.Sin(phase*2)*.35f)*.25f;
-            if(kind=="spray" || kind=="step" || kind=="wood" || kind=="door")sound=previous*(kind=="spray"?.6f:.8f)+Mathf.Sin(phase)*.12f;
+            if(kind=="spray" || kind=="wood" || kind=="door")sound=previous*(kind=="spray"?.6f:.8f)+Mathf.Sin(phase)*.12f;
             if(kind=="engine")sound+=previous*.12f;
             if(kind=="starter")sound=(sound+previous*.2f)*(.25f+.75f*Mathf.Max(0,Mathf.Sin(t*2*Mathf.PI*7)));
             if(kind=="start")sound=Mathf.Sin(2*Mathf.PI*(40*t+90*t*t))*.4f+previous*.12f;
             if(kind=="stall")sound=(Mathf.Sin(2*Mathf.PI*(95*t-80*t*t))*.35f+previous*.18f)*Mathf.Max(0,Mathf.Sin(t*40));
-            // Old doorbell: two-tone buzzer struck by its hammer, cutting out on tired wiring.
             if(kind=="bell"){float hammer=Mathf.Sin(2*Mathf.PI*31*t)>0?1:.35f;float cut=(t%.41f)<.31f?1:.12f;
                 sound=(Mathf.Sin(2*Mathf.PI*880*t)*.42f+Mathf.Sin(2*Mathf.PI*1176*t)*.28f+previous*.18f)*hammer*cut;envelope=Mathf.Min(1,t*60)*Mathf.Clamp01((duration-t)*8);}
-            // Gate hinge: stick-slip squeal sliding in pitch.
             if(kind=="creak"){float f=210+130*Mathf.Sin(t*6.5f);float slip=Mathf.Max(0,Mathf.Sin(2*Mathf.PI*19*t));
                 sound=(Mathf.Sin(2*Mathf.PI*f*t)*.38f*slip+previous*.22f)*(.6f+.4f*Mathf.Sin(t*11));envelope=Mathf.Min(1,t*25)*Mathf.Clamp01((duration-t)*5);}
             data[i]=Mathf.Clamp(sound*envelope,-.8f,.8f);

@@ -52,7 +52,6 @@ public static class BackpackEquipmentTests
                 CoopPressureTests.SolvePiece(coop,basic*1.35f);
                 Check(coop.IsOpen==(pin==2),"professional tool still requires all three pins: "+pin);
             }
-            // Place only the test player near a real camera, above surrounding fence geometry.
             var cc=game.player.GetComponent<CharacterController>();cc.enabled=false;
             game.player.position=camera.transform.position+Vector3.up*.8f+Vector3.back*1.7f-Vector3.up*1.65f;
             movement.RestorePosture(false);Camera.main.transform.LookAt(camera.transform.position);cc.enabled=true;Physics.SyncTransforms();

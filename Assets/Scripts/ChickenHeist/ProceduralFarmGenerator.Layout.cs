@@ -11,7 +11,6 @@ public partial class ProceduralFarmGenerator
         "Tres Irmaos - Leiteira", "Sol Nascente - Granjeira", "Terra Firme - Cereais",
         "Vista Alegre - Pomar", "Riacho Fundo - Sitio Antigo", "Pedra Alta - Encosta"
     };
-    // Slots are separated by a central lane and two cross lanes. Roles vary by farm.
     private static readonly int[,] Roles = {
         {0, 2, 4, 3, 1, 5}, {0, 4, 2, 5, 3, 1}, {4, 0, 5, 2, 1, 3},
         {2, 0, 3, 4, 5, 1}, {0, 5, 1, 3, 2, 4}, {4, 2, 0, 5, 3, 1}
@@ -81,7 +80,6 @@ public partial class ProceduralFarmGenerator
         }
         SpawnContainedAnimals(coopRect, coop.transform.parent, true, index, coopObstacles.ToArray(), coop);
         CreatePen("Pastagem das Vacas", pasture, false, parent, index);
-        // Fit the pen's equipment independently of source importer scales.
         Transform penRoot = parent.Find("Pastagem das Vacas");
         var cowObstacles = new List<Rect>();
         int equipmentIndex = 0;
@@ -144,7 +142,6 @@ public partial class ProceduralFarmGenerator
         Vector3 center = new Vector3(zone.center.x, 0f, zone.center.y);
         GameObject obj = prefab != null ? Instantiate(prefab, parent) : CreateColoredCube(name, center, Vector3.one, fallback, parent);
         obj.name = name;
-        // Preserve FBX axis conversion at its root instead of replacing its rotation.
         FitAsset(obj, center, new Vector3(Mathf.Min(width, zone.width * 0.85f), height, Mathf.Min(depth, zone.height * 0.8f)));
         ApplyAssetMaterials(obj, fallback);
         EnsureBuildingCollision(obj);
@@ -162,14 +159,12 @@ public partial class ProceduralFarmGenerator
 
     private void FitFenceToSpan(GameObject fence, Vector3 center, Vector3 direction, float length)
     {
-        // Measure the instantiated geometry, including prefab and importer transforms.
         fence.transform.rotation = Quaternion.identity;
         Bounds b = VisualBounds(fence);
         if (b.size.y < Mathf.Min(b.size.x, b.size.z)) fence.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
         b = VisualBounds(fence);
         if (b.size.z > b.size.x) fence.transform.rotation = Quaternion.Euler(0f, 90f, 0f) * fence.transform.rotation;
         b = VisualBounds(fence);
-        // Scale in world-aligned axes with a wrapper, so imported local axes cannot flatten a panel.
         var holder = new GameObject(fence.name + " - Encaixe");
         holder.transform.SetParent(fence.transform.parent);
         holder.transform.position = b.center;
@@ -225,7 +220,6 @@ public partial class ProceduralFarmGenerator
             var crop = Instantiate(prefab, root.transform);
             crop.name = "Canteiro " + (z*columns+x+1);
             FitAsset(crop, center, new Vector3(usable.width/columns - 0.75f, 1.2f, usable.height/rows - 0.65f));
-            // Soil tiles sit flush; the crop's leaves remain above ground.
             Bounds b = VisualBounds(crop);
             if (!prefab.name.Contains("Wheat")) crop.transform.position += Vector3.up * (0.035f - b.max.y);
             ApplyAssetMaterials(crop, cropFallbackMaterial);
@@ -299,7 +293,6 @@ public partial class ProceduralFarmGenerator
     public static void CreatePhaseTwoWires(FarmLayoutInfo farm)
     {
         if(farm.GetComponentInChildren<TrapSystem>()!=null)return;
-        // Across the open entry lane, away from fences and building walls.
         var wire=new GameObject("Fio de alarme - entrada");wire.transform.SetParent(farm.transform,false);
         wire.transform.position=farm.entrance+Vector3.forward*2.5f;
         wire.AddComponent<TrapSystem>();

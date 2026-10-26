@@ -1,7 +1,3 @@
-# Builds a low-poly Elias from the Medieval People pack (same family as every NPC) and fits it to
-# the existing ProtagonistRig, so animations, first-person view and cutscenes keep working.
-# Run: blender -b Protagonist_Rigged.blend --python build_lowpoly_elias.py
-# Output: generated/lowpoly_elias.json and preview renders. The .blend is not saved.
 import bpy, os, json, math
 from mathutils import Vector, Matrix
 
@@ -23,7 +19,6 @@ src_meshes = [o for o in new if o.type == 'MESH']
 
 def side(name):
     return 'L' if name.endswith('_L') else 'R'
-# medieval bone -> (protagonist bone, how the segment is fitted)
 MAP = {'Root': ('Hips', 'rigid'), 'Pelvis': ('Hips', 'rigid'), 'Spine_01': ('Spine', 'rigid'), 'Spine_02': ('Spine', 'rigid'),
        'Spine_03': ('Chest', 'rigid'), 'Neck_01': ('Neck', 'rigid'), 'Head': ('Head', 'rigid')}
 for s in 'LR':
@@ -38,7 +33,6 @@ def world_bone(arm, name):
     b = arm.data.bones[name]
     return arm.matrix_world @ b.head_local, arm.matrix_world @ b.tail_local
 
-# Global scale: fit the model's height to the rig (1.78 m) before per-segment fitting.
 pts = [m.matrix_world @ v.co for m in src_meshes for v in m.data.vertices]
 lo = min(p.z for p in pts); hi = max(p.z for p in pts)
 scale = 1.78 / (hi - lo)
@@ -50,7 +44,6 @@ SRC_FORWARD = facing(src_arm, 'Foot_L', 'Ball_L')
 DST_FORWARD = Vector((0, -1, 0))
 
 def frame(head, tail, forward):
-    # Orthonormal frame from the bone axis and the character's facing, so vertical bones keep their roll.
     d = (tail - head).normalized()
     ref = forward if abs(d.dot(forward)) < .9 else Vector((0, 0, 1))
     side = d.cross(ref).normalized(); up = side.cross(d).normalized()
@@ -61,16 +54,13 @@ for mb, (pb, mode) in MAP.items():
     if mb not in src_arm.data.bones: continue
     mh, mt = world_bone(src_arm, mb); ph, pt = world_bone(rig, pb)
     if mode == 'hand':
-        # Hand and fingers move rigidly with the medieval hand bone -> placed at the rig's hand.
         mh, mt = world_bone(src_arm, 'Hand_' + side(mb))
     if mode == 'stretch':
         rot_src = frame(mh, mt, SRC_FORWARD); rot_dst = frame(ph, pt, DST_FORWARD)
         rotation = rot_dst @ rot_src.inverted()
     else:
-        # Torso, head, hands and feet stay upright: only the facing is aligned, never the bone tilt.
         rotation = SRC_FORWARD.rotation_difference(DST_FORWARD).to_matrix().to_4x4()
     axial = ((pt - ph).length / max(1e-5, (mt - mh).length * scale)) if mode == 'stretch' else 1.0
-    # Scale along the source bone axis only, so limb thickness keeps the pack's proportions.
     d = (mt - mh).normalized()
     stretch = Matrix.Identity(3) + (axial - 1) * Matrix(((d.x * d.x, d.x * d.y, d.x * d.z), (d.y * d.x, d.y * d.y, d.y * d.z), (d.z * d.x, d.z * d.y, d.z * d.z)))
     M = Matrix.Translation(ph) @ rotation @ (stretch.to_4x4() * 1) @ Matrix.Diagonal((scale, scale, scale, 1)) @ Matrix.Translation(-mh)
@@ -101,7 +91,6 @@ for m in src_meshes:
             tris.append([base + m.data.loops[l].vertex_index for l in tri])
             uvs.append([list(uv[l].uv) for l in tri])
 
-# Flat, JsonUtility-friendly layout for the Unity installer (UniformCastUpgrade).
 export = {'model': MODEL,
           'vertices': [{'p': v['p'], 'bones': [b for b, _ in v['w']], 'weights': [w for _, w in v['w']]} for v in verts],
           'triangles': [i for t in tris for i in t],
@@ -111,7 +100,6 @@ with open(os.path.join(OUT, 'lowpoly_elias.json'), 'w') as f:
     json.dump(export, f)
 print('ELIAS verts', len(verts), 'tris', len(tris))
 
-# Preview: rebuild the fitted mesh, skin it to the rig and render rest pose and a walk frame.
 mesh = bpy.data.meshes.new('EliasLowPoly')
 mesh.from_pydata([Vector(v['p']) for v in verts], [], tris)
 uvl = mesh.uv_layers.new()

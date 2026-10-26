@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Original synthesized placeholders, no third-party recording or license.
-// Replace/tune during the plan's final audio and listening pass.
 public class SecurityEquipmentAudio : MonoBehaviour
 {
     AudioSource source;AudioClip alert,rattle;

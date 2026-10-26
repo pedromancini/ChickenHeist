@@ -102,8 +102,6 @@ public class DeveloperConsole : MonoBehaviour
                 if(number<0 || number>game.backpack.capacity){Reply("Use /mochila de 0 a "+game.backpack.capacity+".");return false;}
                 game.backpack.RestoreCount(number);Reply("Mochila de teste: "+number+". Entregar ou vender afeta seu progresso.");return true;
             case "/cutscene":
-                // a replay: nothing in the account changes (the opening does not promise the tablet again, the vision
-                // does not clear the pending one)
                 if(number!=1 && number!=2){Reply("Use /cutscene 1 (abertura) ou /cutscene 2 (a visao).");return false;}
                 if(game.MissionActive){Reply("Cancele a missao antes (/cancelar).");return false;}
                 Close();

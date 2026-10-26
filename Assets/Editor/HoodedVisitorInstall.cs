@@ -7,11 +7,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Object=UnityEngine.Object;
 
-// The hooded visitor of the opening cinematic, rigged offline by Tools/SourceArt/HoodedVisitor/build_visitor.py on
-// Elias' bone names (fingers included). Its clips are baked from the same captured takes as Elias' through its own
-// humanoid avatar (with a backward step: he backs away from the door after knocking), and it replaces, in VisitorStage.prefab, the villager skeleton the static mesh used to be glued to
-// at run time (weights cut by height, no fingers: the arms broke and the hands stayed open like starfish).
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod HoodedVisitorInstall.Install
 public static class HoodedVisitorInstall
 {
     const string Folder="Assets/ChickenHeistGenerated/Characters/HoodedVisitor/";
@@ -45,8 +40,6 @@ public static class HoodedVisitorInstall
         Debug.Log("HOODED VISITOR INSTALLED\n"+string.Join("\n",log));
     }
 
-    // Empties the actor and puts the rigged visitor in it, with its clips on an Animation component at the actor
-    // (the clip paths start at the model: Visitor_Rigged(Clone)/VisitorRig/Root/Hips/...).
     public static void Build(Transform actor)
     {
         for(int i=actor.childCount-1;i>=0;i--)Object.DestroyImmediate(actor.GetChild(i).gameObject);
@@ -70,8 +63,6 @@ public static class HoodedVisitorInstall
         animation.clip=animation.GetClip("Idle");animation.GetClip("Idle").SampleAnimation(actor.gameObject,0);animation.enabled=false;
     }
 
-    // Four frames of each clip, front and side, from the stage prefab: output/visitor-opening/visitor-<clip>.png.
-    // Run: Unity.exe -batchmode -quit -projectPath . -executeMethod HoodedVisitorInstall.Preview
     public static void Preview()
     {
         UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,UnityEditor.SceneManagement.NewSceneMode.Single);
@@ -83,7 +74,6 @@ public static class HoodedVisitorInstall
         var light=new GameObject("light").AddComponent<Light>();light.type=LightType.Directional;light.intensity=1.4f;light.transform.rotation=Quaternion.Euler(40,-30,0);
         RenderSettings.ambientMode=AmbientMode.Flat;RenderSettings.ambientLight=new Color(.5f,.5f,.55f);
         var cam=new GameObject("cam").AddComponent<Camera>();cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.42f,.44f,.48f);
-        // -visitorView <centre height>,<half height>: a closer look (e.g. 1.25,0.42 for the shoulders)
         var args=Environment.GetCommandLineArgs();int at=Array.IndexOf(args,"-visitorView");
         float centreY=.9f,size=1f;if(at>=0 && at+1<args.Length){var v=args[at+1].Split(',');centreY=float.Parse(v[0],System.Globalization.CultureInfo.InvariantCulture);size=float.Parse(v[1],System.Globalization.CultureInfo.InvariantCulture);}
         cam.orthographic=true;cam.orthographicSize=size;cam.nearClipPlane=.05f;cam.farClipPlane=20;
@@ -100,7 +90,6 @@ public static class HoodedVisitorInstall
             }
             sheet.Apply();Directory.CreateDirectory("output/visitor-opening");File.WriteAllBytes("output/visitor-opening/visitor-"+state.name+(at>=0?"-close":"")+".png",sheet.EncodeToPNG());Object.DestroyImmediate(sheet);
         }
-        // lowest point of the body in each clip, against the floor (the stage stands the actor on it)
         var skin=actor.GetComponentsInChildren<SkinnedMeshRenderer>().First(s=>s.name==Body);var baked=new Mesh();var lines=new List<string>();
         foreach(AnimationState state in animation)
         {
@@ -118,7 +107,6 @@ public static class HoodedVisitorInstall
         if(material==null){material=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Tecido e rosto - visitante fornecido"};AssetDatabase.CreateAsset(material,MaterialPath);}
         material.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(Texture));material.SetColor("_BaseColor",Color.white);
         material.SetFloat("_Metallic",0);material.SetFloat("_Smoothness",.08f);
-        // the rigged surface is closed: back faces are never seen
         material.SetFloat("_Cull",2);
         EditorUtility.SetDirty(material);return material;
     }

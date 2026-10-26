@@ -79,7 +79,6 @@ public class FarmAnimalMotion : MonoBehaviour
         for(int group=0;group<4;group++)
         {
             float legPhase=phase+((group&1)!=0?Mathf.PI:0)+(group>=2?Mathf.PI:0);
-            // During stance the foot travels backward at body speed; lift belongs to the return stroke.
             float cycle=Mathf.Repeat(legPhase/(Mathf.PI*2),1);
             float stride=cycle<.6f?Mathf.Lerp(.5f,-.5f,cycle/.6f):Mathf.Lerp(-.5f,.5f,(cycle-.6f)/.4f);
             float lift=cycle<.6f?0:Mathf.Sin((cycle-.6f)/.4f*Mathf.PI);

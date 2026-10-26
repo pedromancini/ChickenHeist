@@ -5,9 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Diagnostic: cows that overlap. Edit-time pass: cow roots closer than 2 m and cows carrying more than one model.
-// Play pass: 90 s of wandering, recording the closest pair per farm.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod CowOverlapProbe.Begin
 [InitializeOnLoad]
 public static class CowOverlapProbe
 {
@@ -43,7 +40,6 @@ public static class CowOverlapProbe
                 log.Add("  renderer "+Path(r.transform).Substring(Path(c).Length)+" enabled "+r.enabled+" active "+r.gameObject.activeInHierarchy+" mesh "+(mesh!=null?mesh.name+" v"+mesh.vertexCount:"none")+" size "+r.bounds.size.ToString("F2"));
             }
         }
-        // Render one cow with both meshes and with each mesh alone.
         {
             var cow=cows[0];var rs=cow.GetComponentsInChildren<Renderer>(true);
             var go=new GameObject("probe cam");var cam=go.AddComponent<Camera>();cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.55f,.6f,.65f);

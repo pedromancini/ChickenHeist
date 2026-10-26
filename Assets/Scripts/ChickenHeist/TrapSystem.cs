@@ -2,17 +2,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-// A farmer's alarm wire across a way in: the farm's gate (just outside it) and the way up to the coop's door. Two
-// weathered wooden stakes driven into the ground, a taut galvanized wire at shin height tied round them, and tin cans
-// hanging off it on strings. Each wire is wider than its opening (at the gate the fence leaves no way round): walking
-// into it slows Elias and the cans rattle (the farmer hears it), a jump clears it. Driving the truck through the gate snaps it too. With a wire
-// across it, the farm gate always swings into the farm, clear of the wire. Each farm's wires are laid out on the first
-// frame: the first at the gate nearest the farm's entrance, the next at the coop door.
 public class TrapSystem : MonoBehaviour
 {
     public float slowDuration=2.5f;
     public bool triggered;
-    // the wire's height, and the top of what it catches: feet that pass above this have jumped it
     public const float WireHeight=.22f,CatchHeight=.45f;
     Transform hanging;
     readonly List<Material> materials=new List<Material>();
@@ -22,9 +15,7 @@ public class TrapSystem : MonoBehaviour
     public float Span {get;private set;}
     public Vector3 StakeLeft {get;private set;}
     public Vector3 StakeRight {get;private set;}
-    // the way someone comes from outside, towards the opening (horizontal)
     public Vector3 Inward {get;private set;}
-    // the gate this wire runs across (the first wire of a farm), and the width of the opening it closes
     public RuralGate Gate {get;private set;}
     public bool AtCoop {get;private set;}
     public float Opening {get;private set;}
@@ -33,8 +24,6 @@ public class TrapSystem : MonoBehaviour
     void Awake()
     {
         if(GetComponent<SecurityEquipmentAudio>()==null)gameObject.AddComponent<SecurityEquipmentAudio>();
-        // the older plate traps this object was built as: their meshes go for good (the security progression switches
-        // every renderer under a trap on and off)
         foreach(var r in GetComponentsInChildren<Renderer>(true)){var f=r.GetComponent<MeshFilter>();DestroyImmediate(r);if(f!=null)DestroyImmediate(f);}
         foreach(var c in GetComponentsInChildren<Collider>(true))DestroyImmediate(c);
         for(int i=transform.childCount-1;i>=0;i--)DestroyImmediate(transform.GetChild(i).gameObject);
@@ -44,7 +33,6 @@ public class TrapSystem : MonoBehaviour
     }
     void OnEnable(){if(!all.Contains(this))all.Add(this);}
     void OnDisable(){all.Remove(this);}
-    // Where this wire goes: its order among the farm's wires decides the opening, the opening decides the rest.
     void Layout()
     {
         var farm=GetComponentInParent<FarmLayoutInfo>();
@@ -55,28 +43,21 @@ public class TrapSystem : MonoBehaviour
             var lot=new Vector3(farm.lot.center.x,0,farm.lot.center.y);
             if(index==0 && Entrance(farm,out var gate,out var middle,out var along,out float width))
             {
-                // just outside the gate, a little wider than it: the leaf swings in, the fence stops anyone going round
                 Gate=gate;Opening=width;across=along;inward=Square(along,lot-middle);center=middle-inward*.7f;half=width*.5f+.3f;
             }
             else if(CoopDoor(farm,out var door,out var doorAlong,out float doorWidth,out var outward))
             {
-                // across the way up to the coop door, at the foot of its ramp: far enough out that a jump over it lands
-                // before the doorway (closer, the head meets the wall over the door and Elias drops onto the wire)
                 AtCoop=true;Opening=doorWidth;across=doorAlong;inward=-outward;center=door+outward*(1.55f+Mathf.Max(0,index-1)*1.2f);half=doorWidth*.5f+.4f;
             }
         }
         Inward=inward;
         Vector3 a=Ground(center-across*half),b=Ground(center+across*half);
-        // stakes clear of fences, posts and walls: slide in towards the middle until free (never shorter than a metre)
         for(int k=0;k<8 && Blocked(a) && Vector3.Distance(a,b)>1.0f;k++)a=Ground(Vector3.MoveTowards(a,b,.12f));
         for(int k=0;k<8 && Blocked(b) && Vector3.Distance(a,b)>1.0f;k++)b=Ground(Vector3.MoveTowards(b,a,.12f));
         StakeLeft=a;StakeRight=b;Span=Vector3.Distance(new Vector3(a.x,0,a.z),new Vector3(b.x,0,b.z));
         transform.SetPositionAndRotation((a+b)*.5f,Quaternion.LookRotation(inward,Vector3.up));
     }
-    // a horizontal direction square to `along`, on the side of `towards`
     static Vector3 Square(Vector3 along,Vector3 towards){var n=Vector3.Cross(Vector3.up,along).normalized;return Vector3.Dot(n,towards)>=0?n:-n;}
-    // The leaf of the farm gate nearest the farm's entrance, as it stands closed: its middle on the ground, the way it
-    // runs, and how wide it is.
     static bool Entrance(FarmLayoutInfo farm,out RuralGate gate,out Vector3 middle,out Vector3 along,out float width)
     {
         gate=farm.GetComponentsInChildren<RuralGate>(true).OrderBy(g=>Vector3.Distance(Flat(Leaf(g.transform,out _,out _)),Flat(farm.entrance))).FirstOrDefault();
@@ -85,7 +66,6 @@ public class TrapSystem : MonoBehaviour
         var centre=Leaf(gate.transform,out along,out width);middle=Ground(centre);
         return width>.5f;
     }
-    // The coop door: its middle on the ground, the way it runs, how wide it is, and the way out of the coop.
     static bool CoopDoor(FarmLayoutInfo farm,out Vector3 middle,out Vector3 along,out float width,out Vector3 outward)
     {
         var coop=farm.GetComponentInChildren<ChickenCoopLockpick>(true);middle=Vector3.zero;along=Vector3.right;width=0;outward=Vector3.back;
@@ -97,7 +77,6 @@ public class TrapSystem : MonoBehaviour
         middle=Ground(new Vector3(middle.x,middle.y+.3f,middle.z)+outward*.35f)-outward*.35f;
         return true;
     }
-    // A panel's middle, the horizontal way it runs and its length along it (from its largest mesh, in its own axes).
     static Vector3 Leaf(Transform panel,out Vector3 along,out float width)
     {
         along=Vector3.right;width=0;Vector3 centre=panel.position;float best=-1;
@@ -127,7 +106,6 @@ public class TrapSystem : MonoBehaviour
             if(c.GetComponentInParent<CharacterController>()==null && !(c is TerrainCollider) && c.bounds.max.y>p.y+.1f)return true;
         return false;
     }
-    // ---------------------------------------------------------------- the look: low poly, flat shaded
     void Build()
     {
         var wood=Mat("Tripwire stake - weathered wood",new Color(.34f,.25f,.16f));
@@ -138,37 +116,30 @@ public class TrapSystem : MonoBehaviour
         Vector3 la=transform.InverseTransformPoint(StakeLeft),lb=transform.InverseTransformPoint(StakeRight);
         var random=new System.Random(Mathf.RoundToInt(transform.position.x*13+transform.position.z*7));
         float R(float a,float b)=>a+(float)random.NextDouble()*(b-a);
-        // the floor along the wire (the coop's ramp rises under it): the wire keeps its height above the highest of it
         float floorTop=float.NegativeInfinity,floorLow=float.PositiveInfinity;
         for(int i=0;i<=6;i++){float y=transform.InverseTransformPoint(Ground(Vector3.Lerp(StakeLeft,StakeRight,i/6f))).y;floorTop=Mathf.Max(floorTop,y);floorLow=Mathf.Min(floorLow,y);}
         wireAt=floorTop+WireHeight;
         foreach(var p in new[]{la,lb})
         {
-            // a split wooden stake driven in at a slight lean, pointed end up, the ground broken round its foot
             float tall=wireAt+.26f-p.y;
             Piece("Estaca de madeira",Prism(4,.034f,tall+.06f,.05f),wood,p+Vector3.down*.06f,Quaternion.Euler(R(-4,4),R(0,90),R(-4,4)));
             Piece("Terra remexida",Prism(7,.13f,.025f,0),earth,p+Vector3.down*.012f,Quaternion.Euler(0,R(0,60),0));
-            // the wire wound round the stake twice
             for(int w=0;w<2;w++)Piece("Volta do arame",Prism(6,.041f,.008f,0),steel,new Vector3(p.x,wireAt-.012f+w*.014f,p.z),Quaternion.Euler(R(-6,6),R(0,60),R(-6,6)));
         }
         hanging=new GameObject("Arame e latas").transform;hanging.SetParent(transform,false);
-        // taut: the wire sags a centimetre between the stakes
         const int Segments=8;Vector3 previous=Sag(la,lb,0);
         for(int i=1;i<=Segments;i++){var next=Sag(la,lb,(float)i/Segments);Wire("Arame galvanizado",previous,next,.006f,steel,hanging);previous=next;}
-        // tin cans on strings, spread along it, each a little different (a pebble or two inside makes the rattle)
         int count=Mathf.Clamp(Mathf.RoundToInt(Span/1.1f),2,5);
         for(int c=0;c<count;c++)
         {
             float t=(c+.5f)/count+R(-.06f,.06f);Vector3 on=Sag(la,lb,t);float drop=R(.025f,.045f);
             Wire("Barbante",on,on+Vector3.down*drop,.003f,twine,hanging);
             var can=Piece("Lata",Prism(8,.035f,.105f,0),cans[(c+random.Next(3))%3],on+Vector3.down*(drop+.105f),Quaternion.Euler(R(-9,9),R(0,45),R(-9,9)),hanging);
-            can.transform.localScale=new Vector3(R(.88f,1f),1,R(.92f,1.04f));// dented
+            can.transform.localScale=new Vector3(R(.88f,1f),1,R(.92f,1.04f));
         }
-        // what catches a foot: from the floor to a little above the wire, the whole width
         float bottom=floorLow-.05f,top=floorTop+CatchHeight;
         trigger.center=new Vector3(0,(bottom+top)*.5f,0);trigger.size=new Vector3(Span+.12f,top-bottom,.3f);
     }
-    // the wire's height (local), above the highest floor along it
     float wireAt=WireHeight;
     Vector3 Sag(Vector3 a,Vector3 b,float t){var p=Vector3.Lerp(a,b,t);p.y=wireAt-.012f*4*t*(1-t);return p;}
     GameObject Piece(string name,Mesh mesh,Material material,Vector3 local,Quaternion rotation,Transform parent=null)
@@ -179,7 +150,6 @@ public class TrapSystem : MonoBehaviour
     }
     void Wire(string name,Vector3 a,Vector3 b,float thickness,Material material,Transform parent)
     {var go=Piece(name,Prism(4,thickness*.5f,1,0),material,a,Quaternion.FromToRotation(Vector3.up,b-a),parent);go.transform.localScale=new Vector3(1,Vector3.Distance(a,b),1);}
-    // A flat-shaded prism standing on its base (`sides` faces round, `radius` to the corners), with a pointed `tip` on top.
     readonly Dictionary<(int,float,float,float),Mesh> shapes=new Dictionary<(int,float,float,float),Mesh>();
     Mesh Prism(int sides,float radius,float height,float tip)
     {
@@ -199,7 +169,6 @@ public class TrapSystem : MonoBehaviour
     }
     void LateUpdate()
     {
-        // tripped: the wire comes off the stakes and lies on the ground with its cans
         if(hanging!=null)hanging.localPosition=Vector3.down*(triggered?WireHeight-.03f:0);
     }
     public bool TryTrigger(PlayerMovement movement)=>TryTrigger(movement,false);
@@ -213,8 +182,6 @@ public class TrapSystem : MonoBehaviour
         return true;
     }
     void OnTriggerEnter(Collider other){TryTrigger(other.GetComponentInParent<PlayerMovement>());}
-    // The truck driven through it snaps the wire too: its body rides above what catches a foot, so the wire looks for it
-    // in a taller box of its own.
     void FixedUpdate()
     {
         var truck=OldPickupTruck.Instance;

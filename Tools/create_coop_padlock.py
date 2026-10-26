@@ -45,7 +45,6 @@ box('Cast brass body', (0, 0, -.18), (.94, .78, .60), brass, .065)
 box('Bottom steel seam', (0, 0, -.446), (.88, .71, .045), steel, .02)
 box('Top collar', (0, 0, .091), (.83, .66, .055), wear, .022)
 
-# Continuous U-shaped shackle, with a genuine empty opening above the body.
 path = [Vector((-.285, 0, .08)), Vector((-.285, 0, .205))]
 for step in range(1, 17):
     angle = math.pi - math.pi * step / 16

@@ -116,7 +116,6 @@ public static partial class PlayerHomeBuilder
     }
     static void GradeHiddenTrail(List<Vector3> points)
     {
-        // A narrow graded track eases the steep transition around the home plateau.
         for(int pass=0;pass<2;pass++)
         for(int k=1;k<points.Count;k++)
         {

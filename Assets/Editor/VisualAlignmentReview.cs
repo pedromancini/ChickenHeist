@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic only: measures how characters, animals and props sit on the ground,
-// looks for broken materials/skins and renders contact sheets for manual review.
-// Run: Unity.exe -projectPath . -executeMethod VisualAlignmentReview.Begin
 [InitializeOnLoad]
 public static class VisualAlignmentReview
 {
@@ -68,7 +65,6 @@ public static class VisualAlignmentReview
         catch(Exception e){failed=true;Line("FAIL "+e);Flush();EditorApplication.isPlaying=false;}
     }
 
-    // ---------- measurements ----------
     class Subject{public Transform root;public string kind;public Bounds body;public float gap,height,width;public List<string> issues=new List<string>();}
 
     static void AuditWorld()
@@ -153,7 +149,6 @@ public static class VisualAlignmentReview
         if(points.Count==0){s.issues.Add("no visible geometry");return s;}
         var b=new Bounds(points[0],Vector3.zero);foreach(var p in points)b.Encapsulate(p);
         s.body=b;s.height=b.size.y;s.width=Mathf.Max(b.size.x,b.size.z);
-        // Ground directly below the lowest vertices, ignoring the subject's own colliders.
         var sole=points.Where(p=>p.y<b.min.y+.03f).Aggregate(Vector3.zero,(a,p)=>a+p)/Mathf.Max(1,points.Count(p=>p.y<b.min.y+.03f));
         s.gap=Ground(new Vector3(sole.x,b.max.y+.2f,sole.z),root,out var hit)?b.min.y-hit.y:float.NaN;
         if(float.IsNaN(s.gap))s.issues.Add("no ground below");
@@ -236,7 +231,6 @@ public static class VisualAlignmentReview
         return ordered;
     }
 
-    // Lists every collider and visible surface stacked under a tree base, to explain ground/collider mismatches.
     static void Probe(string name,int count)
     {
         Line("== Probe under "+name);
@@ -254,7 +248,6 @@ public static class VisualAlignmentReview
         }
     }
 
-    // ---------- rendering ----------
     static Action Lighting()
     {
         bool fog=RenderSettings.fog;var ambient=RenderSettings.ambientLight;var mode=RenderSettings.ambientMode;
@@ -277,7 +270,6 @@ public static class VisualAlignmentReview
             if(lying)dir=s.root.right;
             float distance=size*.62f/Mathf.Tan(eye.fieldOfView*.5f*Mathf.Deg2Rad);
             var target=b.center;var position=target+dir*distance+Vector3.up*size*(lying?.9f:.12f);
-            // Eye level: what a standing player sees from conversation distance, nothing hidden.
             if(eyeLevel){position=new Vector3(b.center.x,b.min.y+1.62f,b.center.z)+dir*2.6f;target=b.center+Vector3.up*b.extents.y*.35f;}
             eye.transform.position=position;eye.transform.LookAt(target);
             var hidden=eyeLevel?new List<Renderer>():Occluders(position,b,s.root);

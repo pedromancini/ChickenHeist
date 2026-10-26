@@ -152,7 +152,6 @@ public class GameMenu : MonoBehaviour
     }
     IEnumerator LoadScene()
     {
-        // Present the loading frame before scene deserialization starts.
         yield return new WaitForEndOfFrame();
         loading=SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().path);
         while(!loading.isDone)yield return null;
@@ -176,7 +175,6 @@ public class GameMenu : MonoBehaviour
     void Quit(){Application.Quit();}
     void Styles()
     {
-        // Rebuilt from the shared theme whenever the theme rebuilds (resolution change).
         if(title!=null && label.font==UITheme.Body && label.fontSize==UITheme.Style("body").fontSize)return;
         var skin=UITheme.Skin;
         title=new GUIStyle(UITheme.Style("title")){fontSize=UITheme.Size(46)};
@@ -195,10 +193,8 @@ public class GameMenu : MonoBehaviour
         if(!IsOpen || settings==null)return;
         GUI.skin=UITheme.Skin;Styles();GUI.depth=-1000;
         var color=GUI.color;
-        // Darken the world behind the menu (lighter on the title screen, where the valley is the backdrop).
         GUI.color=new Color(.02f,.018f,.015f,menuBackdrop?.35f:.66f);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);GUI.color=color;
         float panelWidth=Mathf.Min(UITheme.Size(page==Page.Settings?760:470),Screen.width-UITheme.Size(160));
-        // Settings use the full height; the other pages fit their measured content (from the previous repaint), centred vertically.
         float maxHeight=Screen.height-UITheme.Size(96);
         float height=page==Page.Settings || contentHeight<=0?maxHeight:Mathf.Min(maxHeight,contentHeight+UITheme.Size(52));
         var panel=new Rect(UITheme.Size(48),page==Page.Settings?UITheme.Size(48):(Screen.height-height)*.5f,panelWidth+UITheme.Size(64),height);

@@ -5,16 +5,10 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// The animal library ships some animals as two full alternative meshes under one node (e.g. BrownCow: alt578 and
-// alt579, two coat patterns). Both were drawn on top of each other and FarmAnimalMotion only bends the first mesh,
-// so a walking cow showed a second, rigid cow inside it. Keeps one mesh per animal (alternating the variant between
-// animals for variety) in the generated prefabs and in the world scene.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod AnimalDuplicateMeshFix.Run
 public static class AnimalDuplicateMeshFix
 {
     const string Folder="Assets/ChickenHeistGenerated/Animals";
     static readonly List<string> log=new List<string>();
-    // Renderers whose bounds nearly coincide are alternative copies of the same animal, not separate parts.
     static List<List<Renderer>> Duplicates(GameObject animal)
     {
         var rs=animal.GetComponentsInChildren<Renderer>(true).Where(r=>r.GetComponent<MeshFilter>()!=null || r is SkinnedMeshRenderer).ToList();
@@ -59,7 +53,6 @@ public static class AnimalDuplicateMeshFix
         log.Add("scene: "+animals.Count+" animals checked, "+fixedAnimals+" fixed, "+total+" duplicate meshes removed");
         int left=animals.Count(a=>a!=null && Duplicates(a).Count>0);
         log.Add("animals still carrying duplicate meshes: "+left);
-        // FarmAnimalMotion bends a readable rest copy from Resources/AnimalMotion; the second variants had none.
         foreach(var filter in animals.Where(a=>a!=null && a.GetComponent<FarmAnimalMotion>()!=null).Select(a=>a.GetComponentInChildren<MeshFilter>()).Where(f=>f!=null))
         {
             var source=filter.sharedMesh;string path="Assets/Resources/AnimalMotion/"+source.name+".asset";

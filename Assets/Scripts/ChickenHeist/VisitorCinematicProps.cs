@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-// Mesh props, including an open-front cloth hood. No prerendered cinematic panels.
 public sealed class VisitorCinematicProps
 {
     public readonly Transform tablet;
@@ -24,11 +23,8 @@ public sealed class VisitorCinematicProps
             var hood=new GameObject("Capuz de lona - abertura do rosto").transform;
             hood.SetParent(root,false);hood.position=head.position;hood.rotation=visitor.rotation;
             hood.SetParent(head,true);
-            // Build in world metres, then retain the rig's head attachment.
             hood.localScale=new Vector3(1/head.lossyScale.x,1/head.lossyScale.y,1/head.lossyScale.z);
             Hood(hood,cloth);
-            // Fallback for a missing supplied asset. This keeps the opening
-            // usable in a partially imported checkout.
             FaceWrap(hood,cloth);
             var seams=new[]{new Vector3(-.19f,-.17f,.15f),new Vector3(.19f,-.17f,.15f)};
             foreach(var p in seams)Part(hood,"Cordao do capuz",PrimitiveType.Capsule,p,new Vector3(.013f,.105f,.013f),leather);
@@ -36,12 +32,8 @@ public sealed class VisitorCinematicProps
         }
 
         var paper=Material("Papel amarelado",new Color(.76f,.72f,.59f));
-        // both within reach of Elias at the desk's near edge (z towards him): the bill under his right hand, the
-        // calculator under his left
         note=Part(root,"Aviso final de cobranca",PrimitiveType.Cube,desk+new Vector3(-.23f,.01f,.12f),new Vector3(.31f,.006f,.38f),paper);
         note.localRotation=Quaternion.Euler(0,-8,0);
-        // the printed bill (Tools/make_bill_texture.py) on the paper's top face, its head away from Elias so it reads
-        // upright to him
         var printed=Resources.Load<Texture2D>("Cinematics/ContaDeEnergia");
         if(printed!=null)
         {
@@ -64,17 +56,14 @@ public sealed class VisitorCinematicProps
         var offer=new GameObject("Proposta na tela").AddComponent<TextMesh>();offer.transform.SetParent(tablet,false);offer.transform.localPosition=new Vector3(-.19f,-.067f,-.031f);
         offer.text="R$ 45 / AVE VIVA\nENTREGA: MERCADO CLANDESTINO";offer.fontSize=48;offer.characterSize=.0031f;offer.color=new Color(.81f,.88f,.76f);offer.anchor=TextAnchor.UpperLeft;
         DepthText(offer);
-        // Quad faces local -Z; normal matches the camera side of the tilted tablet.
         Part(tablet,"Camera frontal",PrimitiveType.Sphere,new Vector3(0,.139f,-.024f),new Vector3(.009f,.009f,.003f),dark);
         var scratch=Material("Trinca fina do vidro",new Color(.57f,.61f,.63f));
         var crack=Part(tablet,"Trinca no canto",PrimitiveType.Cube,new Vector3(.188f,.095f,-.026f),new Vector3(.002f,.054f,.001f),scratch);crack.localRotation=Quaternion.Euler(0,0,-27);
         photos=Resources.LoadAll<Texture2D>("Cinematics/Recon");if(photos.Length==0)photos=ProtagonistPhone.Instance?.farmPhotos;
         ShowPhoto(0);tablet.gameObject.SetActive(false);
     }
-    // the bill's corner nearest Elias' right hand
     public Vector3 NoteContact=>note.TransformPoint(new Vector3(-.25f,0,.3f));
     public Vector3 NoteCentre=>note.position;
-    // the desk top beside the bill, under Elias' left hand
     public Vector3 DeskBeside=>root.TransformPoint(deskBeside);
     public Vector3 NoteUp=>note.up;
     Material Material(string name,Color color,bool unlit=false)
@@ -84,8 +73,6 @@ public sealed class VisitorCinematicProps
         var material=new Material(shader);
         material.name=name;material.SetColor("_BaseColor",color);material.SetFloat("_Smoothness",.12f);owned.Add(material);return material;
     }
-    // The supplied hooded model is rigged offline on Elias' bone names, fingers included (HoodedVisitorInstall); the
-    // canvas hood, mask and cloak below only stand in for it in a checkout without the rigged model.
     static bool ProvidedCharacter(Transform visitor)=>visitor.GetComponentsInChildren<SkinnedMeshRenderer>(true).Any(s=>s.name=="VisitorBody");
     void DepthText(TextMesh text)
     {
@@ -103,8 +90,6 @@ public sealed class VisitorCinematicProps
     void Hood(Transform parent,Material material)
     {
         const int sides=18;var vertices=new List<Vector3>();var indices=new List<int>();
-        // Head origin in these rigs is at the base of the skull. Open front
-        // retains a visible human face, with crown, sides and shoulder drape.
         var rings=new[]{new Vector4(-.10f,.24f,.215f,0),new Vector4(.06f,.225f,.215f,0),new Vector4(.25f,.19f,.19f,0),new Vector4(.32f,.045f,.10f,0)};
         for(int r=0;r<rings.Length;r++)for(int j=0;j<=sides;j++)
         {
@@ -120,8 +105,6 @@ public sealed class VisitorCinematicProps
     {
         var node=new GameObject("Mascara de tecido sob o capuz").transform;
         node.SetParent(parent,false);node.localPosition=new Vector3(0,.035f,.188f);
-        // A subtle taper and a shallow lower fold make this read as fabric,
-        // rather than a flat square placed over the face.
         var mesh=new Mesh{name="Mascara de tecido afunilada"};
         mesh.SetVertices(new[]{new Vector3(-.090f,.070f,0),new Vector3(.090f,.070f,0),new Vector3(.065f,-.060f,.010f),new Vector3(-.065f,-.060f,.010f)});
         mesh.SetTriangles(new[]{0,1,2,0,2,3,2,1,0,3,2,0},0);mesh.RecalculateNormals();mesh.RecalculateBounds();owned.Add(mesh);
@@ -143,10 +126,6 @@ public sealed class VisitorCinematicProps
         mesh.bindposes=new[]{hips.worldToLocalMatrix*node.transform.localToWorldMatrix,chest.worldToLocalMatrix*node.transform.localToWorldMatrix};
         mesh.boneWeights=vertices.Select(v=>{float w=Mathf.InverseLerp(.95f,1.5f,v.y);return new BoneWeight{boneIndex0=0,weight0=1-w,boneIndex1=1,weight1=w};}).ToArray();
         var skin=node.AddComponent<SkinnedMeshRenderer>();skin.sharedMesh=mesh;skin.sharedMaterial=material;skin.bones=new[]{hips,chest};skin.rootBone=hips;skin.updateWhenOffscreen=true;skin.forceMatrixRecalculationPerRender=true;skin.localBounds=new Bounds(Vector3.up,Vector3.one*3);
-        // The cape is intentionally independent from the arms, but the exposed
-        // villager forearms made it look as though they were detached from the
-        // garment. These sleeves follow the same rig bones and leave only hands
-        // visible for the tablet and door actions.
         Sleeve(actor,"UpperArmL","Upperarm_L","ForearmL","Lowerarm_L",material,"Manga esquerda - capa");
         Sleeve(actor,"ForearmL","Lowerarm_L","HandL","Hand_L",material,"Punho esquerdo - capa");
         Sleeve(actor,"UpperArmR","Upperarm_R","ForearmR","Lowerarm_R",material,"Manga direita - capa");
@@ -161,9 +140,6 @@ public sealed class VisitorCinematicProps
         Vector3 direction=first.InverseTransformPoint(second.position);
         float length=direction.magnitude;
         if(length<.01f)return;
-        // Cylinders keep the silhouette narrow. Capsules made the temporary
-        // animated sleeves read as floating padded tubes beside the supplied
-        // character's shoulders in close shots.
         var sleeve=Part(first,name,PrimitiveType.Cylinder,direction*.50f,new Vector3(.16f,length*.50f,.16f),material);
         sleeve.localRotation=Quaternion.FromToRotation(Vector3.up,direction.normalized);
     }

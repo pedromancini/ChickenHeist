@@ -1,4 +1,3 @@
-// New voice IDs intentionally cannot resolve to the previous Elias/Lia recordings.
 public static class VisitorOpeningDialogue
 {
     public static readonly string[] Speakers={"Elias","","Elias","Visitante","Elias","Visitante","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Elias","Visitante","Visitante","Elias","Visitante","","",""};

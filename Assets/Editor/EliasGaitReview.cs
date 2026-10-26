@@ -6,20 +6,12 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Elias' walk cycles, forward and backward (and the other directional walks and runs), frame by frame: each foot's
-// height, which way it points (yaw against the body's forward), how far it rolls onto its edge, and how a planted foot
-// moves. Left and right should mirror each other: each foot carries the body about half the cycle, flat (little roll),
-// pointing ahead, without skating sideways. Sheets of side and front views go with the numbers (output/elias-gait).
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod EliasGaitReview.Run
 public static class EliasGaitReview
 {
     const string Folder="output/elias-gait";
     static readonly string[] Sheets={"Walk","WalkBackward"};
     static readonly string[] Measured={"Walk","WalkBackward","WalkLeft","WalkRight","WalkForwardLeft","WalkForwardRight","WalkBackwardLeft","WalkBackwardRight",
         "Run","RunBackward","RunLeft","RunRight","RunForwardLeft","RunForwardRight","RunBackwardLeft","RunBackwardRight"};
-    // the planted foot: this much roll, or turning while it stands, reads as a twisted foot, this much sliding off its
-    // line as skating; how far the feet may point apart (or away from ahead, walking forwards or back), and how unequal
-    // the share of the cycle each foot carries the body may be
     const float MaxRoll=12,MaxYaw=20,MaxTwist=15,MaxApart=25,MaxDrift=3;const int MaxImbalance=5;
     public static void Run()
     {
@@ -35,21 +27,18 @@ public static class EliasGaitReview
             foreach(var r in body.GetComponentsInChildren<Renderer>(true)){r.gameObject.layer=0;r.enabled=!r.name.Contains("em primeira pessoa");if(r is SkinnedMeshRenderer sk){sk.forceMatrixRecalculationPerRender=true;sk.updateWhenOffscreen=true;}}
             var lightGo=new GameObject("light");var light=lightGo.AddComponent<Light>();light.type=LightType.Directional;light.intensity=1.3f;lightGo.transform.rotation=Quaternion.Euler(40,-30,0);
             RenderSettings.ambientMode=AmbientMode.Flat;RenderSettings.ambientLight=new Color(.5f,.5f,.55f);
-            // a floor line at the standing level, seen edge-on from the side
             var floor=GameObject.CreatePrimitive(PrimitiveType.Cube);floor.transform.localScale=new Vector3(3,.004f,3);
             var floorMat=new Material(Shader.Find("Universal Render Pipeline/Lit"));floorMat.color=new Color(.62f,.58f,.50f);floor.GetComponent<Renderer>().sharedMaterial=floorMat;
             var camGo=new GameObject("cam");var cam=camGo.AddComponent<Camera>();cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.2f,.22f,.25f);
             cam.orthographic=true;cam.orthographicSize=.5f;cam.nearClipPlane=.05f;cam.farClipPlane=20;
             var tex=new RenderTexture(240,300,24);cam.targetTexture=tex;
             Transform Bone(string n)=>body.GetComponentsInChildren<Transform>(true).First(t=>t.name==n);
-            // the standing floor: the lowest point of the feet in the Idle
             body.GetClip("Idle").SampleAnimation(body.gameObject,0);
             float floorY=Mathf.Min(Bone("ToeL").position.y,Bone("ToeR").position.y);
-            // a flat foot: the slope from ankle to toe standing in the Idle
             var restAlong=body.transform.InverseTransformPoint(Bone("ToeL").position)-body.transform.InverseTransformPoint(Bone("FootL").position);
             flatPitch=Mathf.Atan2(-restAlong.y,new Vector2(restAlong.x,restAlong.z).magnitude)*Mathf.Rad2Deg;
             floor.transform.position=new Vector3(0,body.transform.position.y-.002f,0);
-            cam.Render();// the first render after loading draws untextured
+            cam.Render();
             foreach(var name in Measured)
             {
                 var clip=body.GetClip(name);if(clip==null){log.Add(name+": missing");continue;}
@@ -72,20 +61,15 @@ public static class EliasGaitReview
             }
             int bad=Measured.Count(n=>body.GetClip(n)!=null && !Gait(n,body.GetClip(n),body.gameObject,body.transform,Bone,floorY).ok);
             checks.Add((bad==0?"PASS ":"FAIL ")+$"Every directional walk and run keeps both feet flat, steady and alike ({Measured.Length-bad}/{Measured.Length} clips)");
-            // The cutscenes (VisitorCinematicActor): Elias walks to the door, and backs out of it pulling it shut.
             checks.AddRange(CutsceneWalk("Elias",root.transform));
         }
         finally{Object.DestroyImmediate(root);}
-        // and the hooded visitor: he walks up to the door and backs away from it after knocking
         var stage=(GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Cinematics/VisitorStage.prefab"));
         try{foreach(var b in stage.GetComponentsInChildren<MonoBehaviour>(true))b.enabled=false;checks.AddRange(CutsceneWalk("Visitor",stage.GetComponent<VisitorCinematicStage>().visitor));}
         finally{Object.DestroyImmediate(stage);}
         File.WriteAllLines(Folder+"/gait.txt",log);File.WriteAllLines(Folder+"/checks.txt",checks);
         Debug.Log("ELIAS GAIT\n"+string.Join("\n",checks));
     }
-    // A cutscene actor walking 3 m forwards, then backwards, posed as the cinematic does. The cycle follows the distance
-    // walked, so the foot on the floor should stay where it was put down, and one foot should always be on the floor:
-    // neither gliding along it nor sinking into it or floating above it.
     static IEnumerable<string> CutsceneWalk(string who,Transform actorRoot)
     {
         var animation=actorRoot.GetComponentInChildren<Animation>(true);
@@ -97,7 +81,6 @@ public static class EliasGaitReview
         var actor=new VisitorCinematicActor(actorRoot);var results=new List<string>();
         foreach(bool backward in new[]{false,true})
         {
-            // a foot is down when it lies level on the floor: toe and heel (the ankle, less its standing height) both low
             float slide=0,planted=0,low=float.PositiveInfinity,high=float.NegativeInfinity;Vector3 last=Vector3.zero;int lastFoot=-1;
             for(int k=0;k<=300;k++)
             {
@@ -117,13 +100,7 @@ public static class EliasGaitReview
         }
         return results;
     }
-    // One cycle in 24 samples: per foot, height of the ankle and the toe above the standing floor, yaw of the foot
-    // (ankle to toe against the body's forward, + to his right), roll (its side axis against the floor). The planted
-    // foot is the lower one. While it carries the body it should stay flat, keep the direction it was put down in
-    // (stepping sideways the takes turn both feet towards the travel, alike), and only slide straight against the
-    // travel (the cycles are in place).
     static float flatPitch=25;
-    // metres the body travels in one cycle of the last measured clip (the planted foot's travel under it)
     static float stride;
     static (List<string> lines,bool ok,string summary) Gait(string name,AnimationClip clip,GameObject sample,Transform frame,System.Func<string,Transform> bone,float floorY)
     {
@@ -140,13 +117,11 @@ public static class EliasGaitReview
                 Vector3 ankle=frame.InverseTransformPoint(foot.position),tip=frame.InverseTransformPoint(toe.position);
                 var along=tip-ankle;along.y=0;
                 float yaw=Mathf.Atan2(along.x,along.z)*Mathf.Rad2Deg;
-                // roll: the foot's width axis (perpendicular to ankle-toe) against the floor
                 var footDir=(tip-ankle).normalized;var width=Vector3.ProjectOnPlane(frame.InverseTransformDirection(foot.rotation*Vector3.right),footDir).normalized;
                 float roll=Mathf.Asin(Mathf.Clamp(width.y,-1,1))*Mathf.Rad2Deg;
                 float ah=(ankle.y-floorY)*100,th=(tip.y-floorY)*100;
                 row+=$"| {ah,6:0.0} {th,5:0.0} {yaw,5:0} {roll,5:0} ";
                 toes[s,i]=tip;heights[s,i]=Mathf.Min(ah,th);yaws[s,i]=yaw;rolls[s,i]=roll;
-                // flat: ankle-to-toe slope as standing (on the toes at push-off, or on the heel, yaw says little)
                 float pitch=Mathf.Atan2(-(tip.y-ankle.y),along.magnitude)*Mathf.Rad2Deg;flat[s,i]=Mathf.Abs(pitch-flatPitch)<12;
             }
             lines.Add(row+"| "+(heights[0,i]<heights[1,i]?"L":"R"));
@@ -161,11 +136,8 @@ public static class EliasGaitReview
                 planted[s]++;worstRoll[s]=Mathf.Max(worstRoll[s],Mathf.Abs(rolls[s,i]));
                 if(flat[s,i])down.Add(yaws[s,i]);
             }
-            // the direction it stands in, and how far it turns about while standing flat
             heading[s]=down.Count>0?Mathf.Atan2(down.Sum(y=>Mathf.Sin(y*Mathf.Deg2Rad)),down.Sum(y=>Mathf.Cos(y*Mathf.Deg2Rad)))*Mathf.Rad2Deg:0;
             twist[s]=down.Count>0?down.Max(y=>Mathf.Abs(Mathf.DeltaAngle(heading[s],y))):0;
-            // skating: within each stretch on the ground the toe should move in a straight line (against the travel);
-            // any path beyond that straight line is the foot sliding about or twisting under the body
             for(int i=0;i<n;)
             {
                 if(!(heights[s,i]<heights[o,i])){i++;continue;}
@@ -175,10 +147,8 @@ public static class EliasGaitReview
             ok&=worstRoll[s]<=MaxRoll && twist[s]<=MaxTwist && drift[s]*100<=MaxDrift;
             lines.Add($"  {(s==0?"left ":"right")}: planted {planted[s]}/{n}, roll up to {worstRoll[s]:0} deg, stands pointing {heading[s]:0} deg and turns {twist[s]:0} deg, sliding off a straight line {drift[s]*100:0.0} cm");
         }
-        // the distance covered in a cycle (what the cutscenes step the cycle by)
         stride=VisitorCinematicActor.Stride(clip,sample,frame,bone("ToeL"),bone("ToeR")).stride;
         lines.Add($"  covers {stride:0.00} m per cycle ({stride/clip.length:0.00} m/s at normal speed)");
-        // both feet alike: carrying the body in turn, and pointing the same way (straight ahead going forwards or back)
         bool straight=!name.EndsWith("Left") && !name.EndsWith("Right");
         float apart=Mathf.Abs(Mathf.DeltaAngle(heading[0],heading[1]));
         ok&=Mathf.Abs(planted[0]-planted[1])<=MaxImbalance && apart<=MaxApart && (!straight || Mathf.Max(Mathf.Abs(heading[0]),Mathf.Abs(heading[1]))<=MaxYaw);

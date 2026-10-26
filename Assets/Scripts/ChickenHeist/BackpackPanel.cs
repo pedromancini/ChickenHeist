@@ -51,7 +51,6 @@ public class BackpackPanel : MonoBehaviour
             .OrderBy(c=>(c.PaintTarget-Camera.main.transform.position).sqrMagnitude).FirstOrDefault();
         if(target==null)
         {
-            // say what is missing for the nearest camera of this farm
             var near=FindObjectsByType<SecurityCamera>().Where(c=>game.IsMissionTarget(c) && c.PaintSecondsRemaining<=0 && FarmSecurityProgression.Installed)
                 .OrderBy(c=>(c.PaintTarget-Camera.main.transform.position).sqrMagnitude).FirstOrDefault();
             var why=near!=null && (near.PaintTarget-Camera.main.transform.position).magnitude<9?near.PaintCheck():SecurityCamera.PaintBlock.Unavailable;
@@ -71,7 +70,6 @@ public class BackpackPanel : MonoBehaviour
     {
         if(!open || GameMenu.IsOpen || HouseholdEconomy.Instance==null)return;
         GUI.skin=UITheme.Skin;
-        // Laid out in a fixed 690x546 space scaled by GUI.matrix, so sizes here are absolute.
         if(label==null)
         {
             label=new GUIStyle(UITheme.Skin.label){font=UITheme.Body,fontSize=18,wordWrap=true,normal={textColor=UITheme.Ink}};
@@ -110,7 +108,7 @@ public class BackpackPanel : MonoBehaviour
                 selected=i;if(Event.current.button==1)context=i;else context=-1;Event.current.Use();
             }
         }
-        GUI.Label(new Rect(26,386,638,48),"Clique para selecionar. Botão direito no slot para usar.\nUma galinha por vez, no colo — fora da mochila.",small);
+        GUI.Label(new Rect(26,386,638,48),"Clique para selecionar. Botão direito no slot para usar.\nUma galinha por vez, no colo, fora da mochila.",small);
         if(context>=0)
         {
             if(GUI.Button(new Rect(26,444,220,42),"Usar item selecionado",UITheme.Style("primary")))UseSelected();

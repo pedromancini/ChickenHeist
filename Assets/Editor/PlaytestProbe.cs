@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Reproduces reported play problems in the editor: E at the bed, a farmer waking up (captures around him), a punch
-// seen from Elias' eyes. Output: output/playtest-probe.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod PlaytestProbe.Begin
 [InitializeOnLoad]
 public static class PlaytestProbe
 {
@@ -50,7 +47,6 @@ public static class PlaytestProbe
                 Application.runInBackground=true;GameMenu.Instance.Resume();game=HeistGameManager.Instance;
                 var bed=Object.FindAnyObjectByType<HomeNextNight>();
                 Log("bed "+bed.name+" at "+bed.transform.position.ToString("F2")+" distance "+bed.distance+" colliders on it: "+string.Join(",",bed.GetComponentsInChildren<Collider>().Select(c=>c.GetType().Name+(c.enabled?"":"(off)"))));
-                // stand where a player would: in front of it at arm's length, looking at it
                 bedOffset=0;step=20;Wait(.1);return;
             }
             if(step==20 || step==21)
@@ -69,7 +65,6 @@ public static class PlaytestProbe
             }
             if(step==1)
             {
-                // a farmer waking up, out in his yard
                 Check(game.StartMission(0),"mission");farmer=Object.FindObjectsByType<FarmerStateMachine>().First(f=>game.IsMissionFarmer(f.sleepSystem));
                 farmer.sleepSystem.RestoreSleep(100);Log("farmer "+farmer.name+" activity "+farmer.Activity);
                 var p=farmer.transform.position;Position(p+Vector3.forward*30,p);
@@ -80,7 +75,6 @@ public static class PlaytestProbe
                 Log("farmer activity "+farmer.Activity+" at "+farmer.transform.position.ToString("F1"));
                 var p=farmer.transform.position;
                 for(int i=0;i<4;i++){var d=Quaternion.Euler(0,i*90,0)*Vector3.forward;Shot("farmer-awake-"+i,p+d*3.2f+Vector3.up*1.6f,p+Vector3.up*1f);}
-                // white things near him: every renderer within 2.5 m that is bright
                 foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
                 {
                     if(!r.enabled || !r.gameObject.activeInHierarchy || Vector3.Distance(r.bounds.center,p)>2.5f || r.transform.IsChildOf(farmer.transform) && r.name.Contains("Escopeta"))continue;
@@ -92,7 +86,6 @@ public static class PlaytestProbe
             }
             if(step==3)
             {
-                // a punch from Elias' own eyes
                 game.EndActiveMission();var yard=HouseholdEconomy.Instance.home.position+HouseholdEconomy.Instance.home.forward*-14;Position(yard+Vector3.up,yard+Vector3.forward*10);game.player.GetComponentInChildren<Camera>().transform.localRotation=Quaternion.identity;
                 var punch=game.player.GetComponent<PlayerPunch>();Log("PlayerPunch on player: "+(punch!=null)+" instance "+(PlayerPunch.Instance!=null)+" cursor "+Cursor.lockState);
                 Log("TryPunch: "+(punch!=null && punch.TryPunch()));step=4;Wait(.19);return;

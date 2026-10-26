@@ -7,15 +7,12 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic: renders the protagonist's house (interior, front door) and worn coop from fixed viewpoints in
-// play mode, with the game's own night lighting. Run: Unity.exe -batchmode -projectPath . -executeMethod HomeVisualReview.Begin
 [InitializeOnLoad]
 public static class HomeVisualReview
 {
     const string Key="HomeVisualReview",Folder="output/home-review";
     static readonly List<string> report=new List<string>();
     static int phase;static float next;
-    // home-local (camera position, look target)
     static readonly (string name,Vector3 eye,Vector3 look)[] Views=
     {
         ("interior-entrada",new Vector3(-3.2f,2.25f,2.7f),new Vector3(-3.2f,1.2f,6.6f)),
@@ -53,7 +50,6 @@ public static class HomeVisualReview
         {
             if(phase==0){GameMenu.Instance.Resume();next=Time.realtimeSinceStartup+5;phase++;return;}
             var home=HouseholdEconomy.Instance.home;
-            // hide the player so the body never blocks a view
             var player=HeistGameManager.Instance.player;foreach(var r in player.GetComponentsInChildren<Renderer>())r.forceRenderingOff=true;
             var main=Camera.main;
             if(Environment.GetEnvironmentVariable("HOME_REVIEW_DOOR_OPEN")=="1")home.GetComponentInChildren<HomeDoor>().RestoreOpen(true);

@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Spray paint going on a camera lens: a jet of fine black droplets from the can to the lens, then a little dark mist
-// settling over it. The particle material lives in Resources/Effects (made by EffectAssets), so its shader is in builds.
 public static class SprayEffect
 {
     static Material material;
@@ -16,7 +14,6 @@ public static class SprayEffect
     {
         var root=new GameObject("Jato de tinta");root.transform.position=from;
         var dir=to-from;float distance=Mathf.Max(.2f,dir.magnitude);root.transform.rotation=Quaternion.LookRotation(dir.normalized);
-        // the jet: droplets crossing the gap in about 0.35 s
         var jet=System(root.transform,"Jato",.7f,300);
         var main=jet.main;main.startLifetime=new ParticleSystem.MinMaxCurve(.3f,.4f);main.startSpeed=new ParticleSystem.MinMaxCurve(distance/.36f*.9f,distance/.36f*1.1f);
         main.startSize=new ParticleSystem.MinMaxCurve(.03f,.07f);main.gravityModifier=.04f;
@@ -25,7 +22,6 @@ public static class SprayEffect
         var shape=jet.shape;shape.shapeType=ParticleSystemShapeType.Cone;shape.angle=4.5f;shape.radius=.008f;
         var size=jet.sizeOverLifetime;size.enabled=true;size.size=new ParticleSystem.MinMaxCurve(1,AnimationCurve.Linear(0,.6f,1,2.4f));
         Fade(jet,.9f);
-        // the mist on the lens
         var mist=System(root.transform,"Nevoa na lente",.6f,60);mist.transform.position=to;
         var m=mist.main;m.startDelay=.3f;m.startLifetime=new ParticleSystem.MinMaxCurve(.8f,1.4f);m.startSpeed=new ParticleSystem.MinMaxCurve(.1f,.45f);
         m.startSize=new ParticleSystem.MinMaxCurve(.10f,.24f);m.gravityModifier=-.02f;

@@ -1,7 +1,3 @@
-# Low-poly hats for the Medieval People cast, mapped onto palette bands so each character's own
-# atlas colours them: straw hat -> "yellow" band, cap -> "red" band. Origin = top of the skull,
-# +Y forward in Unity (Blender -Y), sized for a 1.78 m character.
-# Run: blender -b --factory-startup --python build_cast_accessories.py
 import bpy, bmesh, math, os
 from mathutils import Vector
 
@@ -16,7 +12,6 @@ def finish(bm, name, v):
     for p in me.polygons: p.use_smooth = False
     obj = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(obj); return obj
 
-# Straw hat: low crown with a dent, wide slightly drooping brim.
 bm = bmesh.new(); seg = 12
 crown_r, crown_h, brim_r = .105, .085, .215
 rings = []
@@ -36,7 +31,6 @@ for i in range(seg):
     bm.faces.new([under[i], base[i], base[j], under[j]])
 finish(bm, 'StrawHat', band_v(40, 44))
 
-# Cap: fitted dome and a curved visor pointing forward (-Y in Blender = Unity forward).
 bm = bmesh.new(); r = .102
 dome = bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=6, radius=r)
 for v in list(bm.verts):

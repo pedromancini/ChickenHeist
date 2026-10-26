@@ -6,15 +6,10 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Hats that break up the repeated Medieval People silhouettes (Tools/SourceArt/build_cast_accessories.py).
-// Each hat uses the wearer's own atlas material, is measured onto the top of that character's skull in
-// the idle pose and follows the Head bone.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod CastAccessories.Apply
 public static class CastAccessories
 {
     const string Source="Assets/ChickenHeistGenerated/Characters/Villagers/CastAccessories.fbx";
     const string Tag="Acessorio - ";
-    // model -> hat (null: none). Farmers by type; residents by name.
     static readonly Dictionary<string,string> ByModel=new Dictionary<string,string>{{"peasant_5","StrawHat"},{"rich_citizzens_1","Cap"}};
     static readonly Dictionary<string,string> Residents=new Dictionary<string,string>{{"Morador 1","StrawHat"},{"Morador 2","Cap"},{"Morador 4","StrawHat"},{"Morador 9","Cap"}};
     public static void Apply()
@@ -50,11 +45,9 @@ public static class CastAccessories
         if(points.Count==0)return "no head vertices";
         float top=points.Max(p=>p.y);var crown=points.Where(p=>p.y>top-.06f).ToList();
         var center=new Vector3(crown.Average(p=>p.x),top,crown.Average(p=>p.z));
-        // Keep the importer's unit scale and axis rotation of the Blender object.
         var part=AssetDatabase.LoadAssetAtPath<GameObject>(Source).transform.Find(hatName);
         var go=Object.Instantiate(part.gameObject);go.name=Tag+(hatName=="Cap"?"bone":"chapeu de palha");
         go.GetComponent<MeshRenderer>().sharedMaterial=skin.sharedMaterial;
-        // A hat sits down over the skull: the crown top rests a little below the highest scalp vertex.
         go.transform.SetPositionAndRotation(character.TransformPoint(center-Vector3.up*(hatName=="Cap"?.035f:.045f)),character.rotation*part.localRotation);
         go.transform.localScale=part.localScale;
         go.transform.SetParent(head,true);

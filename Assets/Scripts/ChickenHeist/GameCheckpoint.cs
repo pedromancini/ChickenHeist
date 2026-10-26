@@ -49,7 +49,6 @@ public class GameCheckpointData
 
 public class GameCheckpoint : MonoBehaviour
 {
-    // IDs are captured before pickups destroy objects and change sibling indices.
     readonly Dictionary<string,InteractableChicken> birds=new Dictionary<string,InteractableChicken>();
     readonly Dictionary<string,ChickenCoopLockpick> coops=new Dictionary<string,ChickenCoopLockpick>();
     readonly Dictionary<string,FarmerSleepSystem> farmers=new Dictionary<string,FarmerSleepSystem>();
@@ -132,12 +131,10 @@ public class GameCheckpoint : MonoBehaviour
     {
         message="Progresso carregado.";
         var game=HeistGameManager.Instance;
-        // Migrate legacy hierarchy IDs on a copy; never modify the user's source save.
         if(data!=null){data=JsonUtility.FromJson<GameCheckpointData>(JsonUtility.ToJson(data));
             foreach(var list in new[]{data.birds,data.coops,data.farmers,data.gates,data.doors,data.cameras,data.traps})
                 if(list!=null)foreach(var state in list)if(state!=null && state.id!=null && legacyIds.TryGetValue(state.id,out var stable))state.id=stable;
         }
-        // Reject a changed world before touching either the account or the scene.
         if(data==null || !data.Valid || data.scene!=game.gameObject.scene.path ||
             !Matches(data.birds,birds) || !Matches(data.coops,coops) || !Matches(data.farmers,farmers) ||
             !Matches(data.gates,gates) || !Matches(data.doors,doors) ||

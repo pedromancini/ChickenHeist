@@ -6,12 +6,10 @@ public class ChickenHeistHUD : MonoBehaviour
     static readonly string[] States={"Sono profundo","Sono agitado","Alerta parcial","Procurando","Perseguição"};
     float messageAlpha;string shownMessage="";
 
-    // Top-left mission card (farm, farmer's sleep, distance), bottom-left carried birds, bottom-centre status toast.
     public static Rect MissionCard=>new Rect(UITheme.Size(20),UITheme.Size(20),UITheme.Size(330),UITheme.Size(112));
     void OnGUI()
     {
         var game=HeistGameManager.Instance;
-        // a cutscene has the screen to itself: a message still up from play went over its subtitles
         if(StoryDirector.Active){messageAlpha=0;return;}
         if(game==null || GameMenu.IsOpen || ProtagonistPhone.IsOpen || VillageMarket.IsOpen)return;
         GUI.skin=UITheme.Skin;
@@ -42,7 +40,6 @@ public class ChickenHeistHUD : MonoBehaviour
             GUI.Label(new Rect(r.x+14*s,r.y,r.width-28*s,r.height),game.backpack.chickensCarried+" / "+game.backpack.capacity,
                 new GUIStyle(UITheme.Style("hud")){alignment=TextAnchor.MiddleRight,normal={textColor=game.backpack.IsFull?UITheme.Accent:UITheme.Ink}});
         }
-        // Messages fade in and out instead of popping.
         if(game.HasMessage){shownMessage=game.statusMessage;messageAlpha=Mathf.MoveTowards(messageAlpha,1,Time.unscaledDeltaTime*6);}
         else messageAlpha=Mathf.MoveTowards(messageAlpha,0,Time.unscaledDeltaTime*3);
         if(messageAlpha>0)UITheme.Toast(shownMessage,messageAlpha);

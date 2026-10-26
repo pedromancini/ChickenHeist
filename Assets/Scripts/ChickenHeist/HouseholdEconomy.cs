@@ -70,9 +70,6 @@ public class HouseholdEconomy : MonoBehaviour
         RecordRaid(a,chickens);
         return true;
     },"As galinhas chegaram ao sitio.");
-    // A mission ends on arriving home: the chickens carried (and the truck's, when it is parked at home) join the flock,
-    // the night is settled once, and the raid goes to the news with everything taken from the farm (`stolen`, the truck's
-    // cargo included even when it is still parked elsewhere).
     public bool ArriveHome(int delivered,bool unloadTruck,bool settleNight,int stolen)=>Commit(a=>
     {
         if(unloadTruck)a.truckChickens=0;
@@ -135,4 +132,3 @@ public class HouseholdEconomy : MonoBehaviour
         if(repairStages!=null)for(int i=0;i<repairStages.Length;i++)if(repairStages[i]!=null)repairStages[i].SetActive(i<Account.repairs);
     }
 }
-

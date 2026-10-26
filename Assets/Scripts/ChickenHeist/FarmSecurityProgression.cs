@@ -16,13 +16,13 @@ public class FarmRaidNews
 public static class FarmSecurityProgression
 {
     public static bool Installed => HouseholdEconomy.Instance?.Account.regionalSecurity == true;
+    public static bool HiddenForStory;
+    public static bool Visible => Installed && !HiddenForStory;
 
-    // Keep the authored objects indexed by checkpoints, but hide every physical
-    // part and disable collisions until the farmers install their equipment.
     public static void Apply()
     {
-        foreach (var camera in UnityEngine.Object.FindObjectsByType<SecurityCamera>()) SetVisible(camera, Installed);
-        foreach (var trap in UnityEngine.Object.FindObjectsByType<TrapSystem>()) SetVisible(trap, Installed);
+        foreach (var camera in UnityEngine.Object.FindObjectsByType<SecurityCamera>()) SetVisible(camera, Visible);
+        foreach (var trap in UnityEngine.Object.FindObjectsByType<TrapSystem>()) SetVisible(trap, Visible);
     }
 
     static void SetVisible(Component item, bool visible)

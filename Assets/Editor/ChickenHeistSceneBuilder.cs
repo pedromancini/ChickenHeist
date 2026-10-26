@@ -73,7 +73,6 @@ public static class ChickenHeistSceneBuilder
         generator.terrainNoiseScale = 0.012f;
         generator.chickenCount = 8;
         generator.dirtAlbedo = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Materials/ground/Ground048_1K-JPG_Color.jpg");
-        // The source normal map is imported as color. Leave it untouched and use matte albedo.
         generator.orchardTreePrefab = LoadAsset("Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Env_Tree_01.prefab");
         generator.cropPlantPrefabs = LoadAssets(
             "Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Prefabs/Env_Wheat.prefab",

@@ -16,7 +16,6 @@ public class ChickenScare : MonoBehaviour
     {
         if(Active!=null || target==null || !target.gameObject.activeInHierarchy || camera==null)return false;
         bird=target;eye=camera;Active=this;elapsed=0;
-        // Keep parent and sibling index intact: checkpoint IDs remain stable.
         originalPosition=bird.localPosition;originalRotation=bird.localRotation;originalScale=bird.localScale;
         behaviours=bird.GetComponentsInChildren<Behaviour>();enabledStates=new bool[behaviours.Length];
         for(int i=0;i<behaviours.Length;i++){enabledStates[i]=behaviours[i].enabled;behaviours[i].enabled=false;}
@@ -39,7 +38,6 @@ public class ChickenScare : MonoBehaviour
         float blend=approach*(1-retreat);
         Quaternion facing=Quaternion.LookRotation(-eye.transform.forward,eye.transform.up)*Quaternion.Euler(0,8,0);
         Vector3 faceLocal=new Vector3(0,.94f,.295f);
-        // Fit the recognizable head to vertical FOV, while keeping the beak beyond the near plane.
         float distance=Mathf.Max(.145f,.12f/Mathf.Tan(eye.fieldOfView*.5f*Mathf.Deg2Rad));
         Vector3 target=eye.transform.position+eye.transform.forward*distance-facing*Vector3.Scale(faceLocal,bird.lossyScale);
         Vector3 start=bird.parent!=null?bird.parent.TransformPoint(originalPosition):originalPosition;
@@ -62,7 +60,6 @@ public class ChickenScare : MonoBehaviour
     }
     void OnDisable(){Cancel();}
     void OnDestroy(){Cancel();SoundLibrary.Release(cry);}
-    // Original provisional vocal synthesis; final listening/mix pass is still required.
     static AudioClip CreateCry()
     {
         const int rate=22050;var samples=new float[(int)(rate*.7f)];var random=new System.Random(39);float phase=0;
@@ -72,7 +69,6 @@ public class ChickenScare : MonoBehaviour
     }
 }
 
-// Articulates the existing wing region; source mesh and animal count are untouched.
 public class ChickenWingMotion : MonoBehaviour
 {
     MeshFilter filter;Mesh source,working;Vector3[] vertices,result;

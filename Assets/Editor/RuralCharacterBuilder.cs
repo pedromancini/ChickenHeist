@@ -62,7 +62,6 @@ public static class RuralCharacterBuilder
             renderer.sharedMaterial=i==2 || i==5 || i==8?skin:i==11 || i==14?boots:i>=9 || i==0?trousers:body;
             if(firstPerson && i==2)renderer.shadowCastingMode=ShadowCastingMode.ShadowsOnly;
         }
-        // Small facial features and a work cap distinguish the person from the unpainted source.
         foreach(float x in new[]{-.046f,.046f})Detail(bones[2],"Olho",new Vector3(x,.105f,.075f),new Vector3(.017f,.013f,.018f),boots,firstPerson);
         Detail(bones[2],"Aba do bone",new Vector3(0,.19f,.10f),new Vector3(.23f,.025f,.13f),body,firstPerson);
         Detail(bones[2],"Bone de trabalho",new Vector3(0,.21f,.025f),new Vector3(.215f,.055f,.18f),body,firstPerson);

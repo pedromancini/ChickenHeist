@@ -1,8 +1,5 @@
 using UnityEngine;
 
-// The visitor's promise kept: the morning after the opening the doorbell rings, and a cardboard box waits on the porch
-// beside the front door with the tablet inside. Opening it (E) hands the tablet over: the account stops waiting for it
-// and Elias keeps it with him (Tab opens it). The tablet never passes between the actors' hands.
 public sealed class TabletDeliveryBox : MonoBehaviour
 {
     GameObject box;bool rang;float ringAt=-1;
@@ -17,9 +14,7 @@ public sealed class TabletDeliveryBox : MonoBehaviour
     void Start()
     {
         var home=transform.parent;var door=home.GetComponentInChildren<HomeDoor>();
-        // on the porch beside the latch side of the front door (the door swings out over the hinge side)
         Vector3 spot=door!=null?door.hinge.parent.TransformPoint(door.hinge.localPosition+new Vector3(2.05f,0,-.55f)):home.TransformPoint(new Vector3(-2.2f,.63f,1.9f));
-        // on the porch boards: the nearest floor under it (the ground lies further down, under the porch)
         float nearest=float.PositiveInfinity;
         foreach(var hit in Physics.RaycastAll(spot+Vector3.up*1.2f,Vector3.down,2.5f,~0,QueryTriggerInteraction.Ignore))
             if(hit.distance<nearest && Vector3.Dot(hit.normal,Vector3.up)>.7f && !hit.transform.IsChildOf(HeistGameManager.Instance.player)){nearest=hit.distance;spot.y=hit.point.y;}
@@ -41,7 +36,6 @@ public sealed class TabletDeliveryBox : MonoBehaviour
         if(box==null)return;
         bool visible=Available;if(box.activeSelf!=visible)box.SetActive(visible);
         if(!visible)return;
-        // the morning delivery: the old bell stutters a moment after the day starts
         if(!rang)
         {
             if(ringAt<0)ringAt=Time.time+1.5f;

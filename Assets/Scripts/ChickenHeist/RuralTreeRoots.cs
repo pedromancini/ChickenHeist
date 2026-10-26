@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// Root contacts are baked from the source mesh, so player builds need no readable mesh copies.
 public class RuralTreeRoots : MonoBehaviour
 {
     public Vector3[] contacts;
@@ -10,7 +9,6 @@ public class RuralTreeRoots : MonoBehaviour
     {
         movement=0;
         if(contacts==null || contacts.Length==0)return false;
-        // A few edge trees have roots beyond the map. Bring their root footprint inside it.
         foreach(var surface in terrain)
         {
             if(surface.name!="Terreno Ondulado Low Poly")continue;

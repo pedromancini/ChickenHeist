@@ -8,11 +8,6 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Object=UnityEngine.Object;
 
-// Pulls the five art packs of the rural world towards one muted palette and gives the countryside
-// some structure: open pastures between farms, woods where trees already cluster, weathered fences
-// and dirt-coloured roads. Nothing is deleted: thinned trees are only deactivated, so hierarchy
-// paths used by checkpoints stay the same.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod WorldCohesionUpgrade.Install
 public static class WorldCohesionUpgrade
 {
     const string Folder="Assets/ChickenHeistGenerated/World/Cohesion";
@@ -29,19 +24,15 @@ public static class WorldCohesionUpgrade
         Directory.CreateDirectory("output/map-review");File.WriteAllLines("output/map-review/cohesion-install.txt",log);
     }
 
-    // One global grade for every pack: less saturation, a little contrast, slightly warm.
     static void Grade(List<string> log)
     {
         string path=Folder+"/RuralNightGrade.asset";
         var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
         if(profile==null){profile=ScriptableObject.CreateInstance<VolumeProfile>();AssetDatabase.CreateAsset(profile,path);}
         if(!profile.TryGet(out ColorAdjustments color))color=profile.Add<ColorAdjustments>(true);
-        // Volume components must live inside the profile asset, or the saved profile comes back empty.
         if(!AssetDatabase.Contains(color)){color.name="ColorAdjustments";color.hideFlags=HideFlags.HideInInspector|HideFlags.HideInHierarchy;AssetDatabase.AddObjectToAsset(color,profile);}
         color.saturation.Override(-22);color.contrast.Override(10);color.colorFilter.Override(new Color(1,.965f,.92f));
         color.postExposure.Override(.25f);
-        // Filmic finish for the night: neutral tonemapping keeps lamp highlights, bloom lets windows and
-        // lanterns glow, a light vignette pulls the eye to the centre of the frame.
         T Component<T>() where T:VolumeComponent
         {
             if(!profile.TryGet(out T c))c=profile.Add<T>(true);
@@ -60,24 +51,20 @@ public static class WorldCohesionUpgrade
         log.Add("Global grade: saturation -22, contrast +10, warm filter, exposure +0.25, neutral tonemapping, bloom, vignette; post-processing on "+cameras+" cameras");
     }
 
-    // Untextured pack colours that read as neon at night.
     static void MuteMaterials(List<string> log)
     {
-        // Vegetation materials are shared assets: mute them only once.
         const string marker=Folder+"/.vegetation-muted";
         bool alreadyMuted=File.Exists(marker);
         var seen=new HashSet<Material>();
         var forest=GameObject.Find("Floresta Low Poly");
         foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
         {
-            // Vegetation only: gameplay signals (security lights, traps, padlocks) keep their colours.
             if(alreadyMuted || forest==null || !r.transform.IsChildOf(forest.transform))continue;
             foreach(var m in r.sharedMaterials)
             {
                 if(m==null || !seen.Add(m) || !m.HasProperty("_BaseColor"))continue;
                 var tex=m.GetTexture("_BaseMap");if(tex!=null)continue;
                 string path=AssetDatabase.GetAssetPath(m);
-                // Materials inside FBX files are read-only; the Quaternius barns get project copies below.
                 if(path.EndsWith(".fbx",System.StringComparison.OrdinalIgnoreCase))continue;
                 var c=m.GetColor("_BaseColor");Color.RGBToHSV(c,out float h,out float s,out float v);
                 if(s<.45f || v<.4f)continue;
@@ -87,7 +74,6 @@ public static class WorldCohesionUpgrade
             }
         }
         if(!alreadyMuted)File.WriteAllText(marker,"vegetation muted by WorldCohesionUpgrade");
-        // Quaternius barns: bright red and pure white come from FBX-embedded materials.
         var copies=new Dictionary<Material,Material>();
         foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
         {
@@ -99,7 +85,6 @@ public static class WorldCohesionUpgrade
                 if(!copies.TryGetValue(m,out var copy))
                 {
                     var c=m.HasProperty("_BaseColor")?m.GetColor("_BaseColor"):m.color;Color.RGBToHSV(c,out float h,out float s,out float v);
-                    // Pure white trim becomes off-white; greys and black roofs stay; reds and browns age.
                     var target=s<.1f?(v>.85f?new Color(.74f,.71f,.64f):c):Color.HSVToRGB(h,s*.72f,v*.78f);
                     copy=new Material(m){name=m.name+" - envelhecido"};copy.SetColor("_BaseColor",target);if(copy.HasProperty("_Smoothness"))copy.SetFloat("_Smoothness",.08f);
                     string copyPath=AssetDatabase.GenerateUniqueAssetPath(Folder+"/Quaternius "+m.name+".mat");AssetDatabase.CreateAsset(copy,copyPath);
@@ -111,8 +96,6 @@ public static class WorldCohesionUpgrade
         }
     }
 
-    // Pack atlases carry the loudest colours (royal-blue roofs, candy-red silos, magenta trees).
-    // Muted copies replace them; the originals stay untouched.
     static readonly string[] Atlases={"Assets/Pandazole_Ultimate_Pack/Pandazole Farm Ranch Pack/Textures/PandaMat.png","Assets/Prefabs/Environment/FreePack/FBX/ColorAtlas.png"};
     static void MuteAtlases(List<string> log)
     {
@@ -138,7 +121,6 @@ public static class WorldCohesionUpgrade
         }
     }
 
-    // Farm fences: weathered wood instead of bright white pickets.
     static void Fences(List<string> log)
     {
         var copies=new Dictionary<Material,Material>();int count=0;
@@ -151,13 +133,11 @@ public static class WorldCohesionUpgrade
                     var m=mats[i];if(m==null)continue;
                     if(!copies.TryGetValue(m,out var copy))
                     {
-                        // Already repainted fences keep their material; it is only reconfigured.
                         bool repainted=AssetDatabase.GetAssetPath(m).StartsWith(Folder);
                         string path=repainted?AssetDatabase.GetAssetPath(m):Folder+"/Cerca de madeira envelhecida "+copies.Count+".mat";
                         copy=AssetDatabase.LoadAssetAtPath<Material>(path);
                         Texture texture=m.GetTexturePropertyNames().Select(n=>m.GetTexture(n)).FirstOrDefault(t=>t!=null);
                         if(copy==null){copy=new Material(Shader.Find("Universal Render Pipeline/Lit"));AssetDatabase.CreateAsset(copy,path);}
-                        // Pack shaders ignore _BaseColor, so the fence always uses URP Lit with the same texture.
                         copy.shader=Shader.Find("Universal Render Pipeline/Lit");copy.name="Cerca de madeira envelhecida";
                         copy.SetTexture("_BaseMap",texture);copy.SetColor("_BaseColor",texture!=null?new Color(.60f,.50f,.40f):new Color(.46f,.38f,.30f));
                         copy.SetFloat("_Smoothness",.05f);EditorUtility.SetDirty(copy);copies[m]=copy;
@@ -178,7 +158,6 @@ public static class WorldCohesionUpgrade
         }
     }
 
-    // Scattered trees standing alone in open ground become pasture; clusters, road edges and farm surroundings stay.
     static void Pastures(List<string> log)
     {
         var forest=GameObject.Find("Floresta Low Poly");if(forest==null){log.Add("No forest root found");return;}
@@ -195,16 +174,14 @@ public static class WorldCohesionUpgrade
         {
             var p=positions[i];
             int neighbours=0;for(int j=0;j<positions.Length && neighbours<4;j++)if(j!=i && (positions[j]-p).sqrMagnitude<14*14)neighbours++;
-            if(neighbours>=3)continue;                                   // part of a wood
-            if(roads.Any(r=>Segment(p,r.start,r.end)<14))continue;        // tree line along the road
+            if(neighbours>=3)continue;
+            if(roads.Any(r=>Segment(p,r.start,r.end)<14))continue;
             if(farms.Any(f=>Expand(f.lot,18).Contains(new Vector2(p.x,p.z))))continue;
             if(home!=null && (home.transform.position-p).sqrMagnitude<60*60)continue;
             if(rng.NextDouble()<.65){trees[i].gameObject.SetActive(false);hidden++;}
         }
         log.Add($"Pastures: {hidden} of {trees.Count} isolated trees deactivated");
     }
-    // Warm practical light at every inhabited door: amber against the cold moonlight is what gives the
-    // night depth. No shadows (cost), a small emissive lantern so bloom has something to catch.
     static void PorchLights(List<string> log)
     {
         var glass=AssetDatabase.LoadAssetAtPath<Material>(Folder+"/Lanterna acesa.mat");

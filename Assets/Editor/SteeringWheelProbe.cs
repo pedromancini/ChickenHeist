@@ -5,9 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Diagnostic: the pickup's steering wheel in its own space: rim radius, rim tube thickness, which side faces the
-// driver seat, and where SteeringGrip puts the hands.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod SteeringWheelProbe.Run
 public static class SteeringWheelProbe
 {
     public static void Run()
@@ -25,7 +22,6 @@ public static class SteeringWheelProbe
             var m=mf.sharedMesh;log.Add("mesh "+mf.name+" verts "+m.vertexCount+" local bounds "+m.bounds);
             foreach(var v in m.vertices)pts.Add(wheel.InverseTransformPoint(mf.transform.TransformPoint(v)));
         }
-        // radial distance in the wheel's local XY plane (the wheel turns about local Z)
         var radial=pts.Select(p=>new Vector2(p.x,p.y).magnitude).ToList();
         float outer=radial.Max();
         var rim=pts.Where(p=>new Vector2(p.x,p.y).magnitude>outer*.75f).ToList();

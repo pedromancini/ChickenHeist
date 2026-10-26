@@ -34,7 +34,6 @@ public class NoiseEmitter : MonoBehaviour
     {
         var player = HeistGameManager.Instance?.player;
         var movement = player != null ? player.GetComponent<PlayerMovement>() : null;
-        // Familiar animal activity is harmless; noisy nearby movement provokes an alarm.
         bool disturbed = movement != null && movement.estaMovendo && movement.nivelRuido > .2f
             && Vector3.SqrMagnitude(player.position - position) < 36f;
         EmitGlobal(noiseSource, position, disturbed ? 1f : 0f);

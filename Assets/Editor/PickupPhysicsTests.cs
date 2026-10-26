@@ -23,8 +23,6 @@ public static class PickupPhysicsTests
             Check(truck.Speed>2 && Vector3.Dot(body.position-departure,rotation*Vector3.forward)>4.5f,"rear wheel torque drives through home opening");
             float before=body.linearVelocity.magnitude;Step(0,0,true,100);
             Check(before>2 && body.linearVelocity.magnitude<.4f,"wheel brakes stop an accelerating truck");
-            // A private flat pad avoids relying on a particular procedural road
-            // for steering, reverse, collision and uneven-ground regression tests.
             var pad=GameObject.CreatePrimitive(PrimitiveType.Cube);objects.Add(pad);pad.transform.position=new Vector3(0,199.5f,0);pad.transform.localScale=new Vector3(100,1,100);
             vehicle.ResetPose(new Vector3(0,200.1f,0),Quaternion.identity);Step(0,0,true,100);
             Step(-1,0,false,90);Check(truck.Speed<-.5f,"reverse applies actual negative wheel torque");

@@ -60,11 +60,9 @@ def wheel_panel(side,zmin,zmax,zc,top):
         a=i*math.pi/12;profile.append((zc+.47*math.cos(a),.39+.47*math.sin(a)))
     profile.append((zmin,.43))
     panel('Stamped fender with open wheel arch',side,profile,paint)
-    # the rolled lip hugs the arch's own edge (radius .47) on the panel's outer face, instead of floating 2 cm out
     points=[(side*.889,.39+.477*math.sin(i*math.pi/16),zc+.477*math.cos(i*math.pi/16)) for i in range(17)]
     for a,b in zip(points,points[1:]):beam('Wheel arch rolled lip',a,b,.03,paint2)
 
-# Ladder chassis and a genuinely open cargo bed.
 for x in [-.55,.55]:box('Chassis rail',(x,.37,-.05),(.09,.13,4.25),rust)
 for z in [-1.72,-.35,.55,1.72]:box('Chassis crossmember',(0,.39,z),(1.25,.08,.07),steel)
 box('Bed floor',(0,.71,-1.22),(1.64,.08,1.87),paint)
@@ -79,13 +77,11 @@ for side in [-1,1]:
     panel('Inner door lining',side,[(-.25,.53),(.91,.53),(1.01,1.18),(-.25,1.20)],trim,x=.824,thick=.035)
     box('Door sill',(side*.82,.54,.34),(.13,.12,1.25),paint)
     box('Bed inner wall',(side*.79,.94,-1.22),(.055,.38,1.89),paint)
-    # Door outlines and belt line are fine seams, not separate oversized blocks.
     for a,b in [((-.22,.50),(.81,.50)),((.81,.50),(.93,1.12)),((-.22,.50),(-.22,1.80))]:
         beam('Door seam',(side*.892,a[1],a[0]),(side*.892,b[1],b[0]),.009,trim)
     beam('Belt trim',(side*.899,1.14,-.21),(side*.899,1.12,.95),.024,trim)
     box('Door handle recess',(side*.899,1.015,-.045),(.013,.055,.19),trim,.008)
     box('Door handle',(side*.913,1.022,-.04),(.019,.022,.14),steel,.009)
-    # Closed cabin frame, raked windshield and inset side windows.
     panel('Rear cabin pillar',side,[(-.27,1.10),(-.13,1.10),(-.11,1.89),(-.26,1.88)],paint,x=.82)
     beam('A pillar',(side*.82,1.12,1.035),(side*.755,1.87,.77),.075,paint)
     beam('Roof side rail',(side*.755,1.88,-.20),(side*.755,1.89,.78),.067,paint)
@@ -96,9 +92,6 @@ for side in [-1,1]:
     box('Mirror housing',(side*1.065,1.41,.96),(.17,.17,.075),trim,.028)
     box('Mirror surface',(side*1.065,1.41,.916),(.145,.14,.008),steel,.02)
     box('Mud flap',(side*.81,.25,-1.68),(.30,.29,.025),dark)
-    # Oxide spots, flush with the paint (2 mm proud, closed so they read from every side) and kept inside a single
-    # panel: clear of the door seams, the panel edges and the wheel arches. They used to float 1.4 cm off the body as
-    # one-sided stickers, some across the door gap or hanging past an edge.
     panels=[(-2.04,-.36,.56,1.03),(-.12,.70,.58,1.02),(1.02,2.06,.98,1.02)]
     placed=0
     for n in range(60):
@@ -112,7 +105,6 @@ for side in [-1,1]:
         faces=[tuple(reversed(range(7))),tuple(range(7,14))]+[(k,(k+1)%7,(k+1)%7+7,k+7) for k in range(7)]
         mesh('Oxide spot',verts,faces,rust if placed%3 else rust2);placed+=1
 
-# Hood is a tapered stamped shell with a sloping nose and central crease.
 verts=[(-.83,1.08,1.04),(.83,1.08,1.04),(.82,.98,2.17),(-.82,.98,2.17),
        (-.80,1.15,1.05),(.80,1.15,1.05),(.78,1.065,2.14),(-.78,1.065,2.14)]
 mesh('Tapered hood',verts,[(0,3,2,1),(4,5,6,7),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7)],paint,bevel=.035)
@@ -133,7 +125,6 @@ for x in [-.35,.33]:
     beam('Wiper arm',(x,1.175,1.055),(x-.10,1.37,.997),.014,trim)
     beam('Wiper rubber',(x-.26,1.38,.998),(x+.10,1.38,.998),.018,trim)
 
-# Front fascia: inset grille, two circular lenses, indicators and a bent bumper.
 box('Front fascia',(0,.865,2.15),(1.73,.35,.10),paint)
 box('Recessed grille',(0,.865,2.214),(1.04,.24,.024),trim)
 for x in [-.43,-.31,-.19,-.07,.07,.19,.31,.43]:box('Grille vertical',(x,.865,2.232),(.018,.215,.016),steel,.004)
@@ -160,7 +151,6 @@ for x in [-.54,.54]:box('Tailgate hinge',(x,.766,-2.235),(.14,.04,.04),steel,.00
 box('License plate',(0,.61,-2.329),(.34,.105,.013),paint2,.006)
 for x in [-.09,-.045,0,.045,.09]:box('Faded plate mark',(x,.61,-2.338),(.021,.055,.004),trim,.002)
 
-# Interior, seen through the windows and from the driver's seat.
 box('Dashboard',(0,1.10,.86),(1.47,.20,.30),trim,.045)
 box('Gauge binnacle',(-.39,1.21,.83),(.43,.09,.20),dark,.025)
 for x in [-.49,-.31]:
@@ -175,7 +165,6 @@ box('Exposed foam',(-.47,1.04,.057),(.16,.12,.012),foam,.015)
 beam('Gear lever',(.05,.59,.50),(.05,.96,.39),.021,steel)
 disc('Gear knob',(.05,.98,.39),.038,.06,trim,normal=(0,1,0),segments=12)
 beam('Steering column',(-.40,.86,.86),(-.40,1.14,.61),.04,trim)
-# A real ring, spokes and horn button; its origin is the steering pivot.
 steerCenter=Vector((-.40,1.14,.61))
 for i in range(32):
     a=i*math.tau/32;b=(i+1)*math.tau/32
@@ -186,8 +175,6 @@ for a in [math.pi/6,math.pi*5/6,math.pi*1.5]:
     beam('Steering spoke',steerCenter,steerCenter+Vector((math.cos(a)*.163,math.sin(a)*.135,math.sin(a)*.094)),.022,steel,'Steering')
 disc('Horn',steerCenter,.046,.024,trim,'Steering',normal=(0,.55,-.8),segments=16)
 
-# Four separately rigged wheels: rounded tire shoulders, inset stamped rims,
-# sidewall rings, tread blocks, central hubs and five lug nuts.
 wheel_centers={}
 for side in [-1,1]:
     for front,zc in [(True,1.40),(False,-1.25)]:
@@ -209,7 +196,6 @@ for side in [-1,1]:
             p=(center[0]-.065,center[1]+math.sin(a)*.381,zc+math.cos(a)*.381)
             q=(center[0]+.065,center[1]+math.sin(a+.05)*.381,zc+math.cos(a+.05)*.381)
             beam('Tread ridge',p,q,.012,trim,name)
-        # Axles are attached to the chassis, not to the spinning wheel.
 for z in [-1.25,1.40]:
     beam('Axle',(-.78,.37,z),(.78,.37,z),.09,steel)
     for x in [-.53,.53]:beam('Leaf spring',(x,.32,z-.37),(x,.31,z+.37),.035,rust)
@@ -223,7 +209,6 @@ for group,objects in groups.items():
     bpy.context.scene.cursor.location=V(wheel_centers.get(group,steerCenter if group=='Steering' else (0,0,0)))
     bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
     bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
-    # Consistent face normals on concave wheel arches and closed stampings.
     bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
 
 bpy.ops.object.select_all(action='SELECT')
@@ -232,7 +217,6 @@ bpy.ops.export_scene.fbx(filepath=str(OUT/'FarmPickup.fbx'),use_selection=True,a
 (ROOT/'Tools/SourceArt').mkdir(exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'Tools/SourceArt/FarmPickup.blend'))
 
-# Neutral studio render to inspect the shape before installing it in the game.
 scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=24
 scene.world=bpy.data.worlds.new('StudioWorld');scene.world.color=(.22,.22,.22)
 bpy.ops.mesh.primitive_plane_add(size=200,location=(0,0,0));floor=bpy.context.object;floor.name='Studio floor'

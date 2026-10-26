@@ -28,7 +28,6 @@ public static class RestFailureAudit
                 }
                 Check(bed.TryRest() && HomeNextNight.IsResting && economy.Account.day==day+1,"Unlocked save resumes same prepared morning");
                 Check(GameCheckpoint.TryRead(economy.CheckpointPath,out var data,out _) && data.account.day==day+1,"Retry writes correct day into checkpoint");
-                // Stop the transition in this isolated Editor fixture, before loading the production scene account path.
                 bed.StopAllCoroutines();Object.Destroy(bed);EditorApplication.isPlaying=false;
             }
         }catch(Exception e){Check(false,e.ToString());EditorApplication.isPlaying=false;}

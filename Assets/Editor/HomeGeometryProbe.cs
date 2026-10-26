@@ -5,9 +5,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Diagnostic: geometry around the protagonist's front door (door leaf, hinge, frame, wall faces, porch items),
-// the door's swept volume and every renderer that intersects another one it should not touch.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod HomeGeometryProbe.Run
 public static class HomeGeometryProbe
 {
     public static void Run()
@@ -19,7 +16,6 @@ public static class HomeGeometryProbe
         var door=home.GetComponentInChildren<HomeDoor>();
         log.Add("HomeDoor on "+door.name+" hinge "+door.hinge.name+" hingeLocal "+home.InverseTransformPoint(door.hinge.position).ToString("F2")+" hingeRot "+door.hinge.localEulerAngles);
         foreach(var r in door.hinge.GetComponentsInChildren<Renderer>())log.Add("  leaf part "+r.name+" "+L(r.bounds));
-        // swept volume of the door leaf from 0 to 100 degrees
         var rot=door.hinge.localRotation;var swept=new Bounds();bool first=true;
         for(int a=0;a<=100;a+=10)
         {
@@ -31,7 +27,6 @@ public static class HomeGeometryProbe
         var region=new Bounds(home.TransformPoint(new Vector3(-3.2f,1.6f,1.6f)),new Vector3(5,3.5f,2.6f));
         foreach(var r in home.GetComponentsInChildren<Renderer>().Where(r=>region.Intersects(r.bounds) && !r.transform.IsChildOf(door.hinge)).OrderBy(r=>r.name))
             log.Add("near door: "+r.transform.parent.name+"/"+r.name+" "+L(r.bounds)+(swept.Intersects(r.bounds)?"  <-- inside door sweep":""));
-        // exterior wall surface right of the door at bell height, by raycast from the porch
         foreach(float x in new[]{-4.6f,-4.2f,-2.3f,-2.0f,-1.7f})
             foreach(float y in new[]{1.4f,2.6f})
             {
@@ -39,7 +34,6 @@ public static class HomeGeometryProbe
                 var hits=Physics.RaycastAll(from,home.forward,3).OrderBy(h=>h.distance).Select(h=>h.collider.name+"@z"+home.InverseTransformPoint(h.point).z.ToString("F3")).Take(3);
                 log.Add("ray x="+x+" y="+y+": "+string.Join(", ",hits));
             }
-        // ---- overlap scan ----
         float Vol(Bounds b)=>Mathf.Max(1e-6f,b.size.x*b.size.y*b.size.z);
         float Share(Bounds a,Bounds b)
         {
@@ -58,7 +52,6 @@ public static class HomeGeometryProbe
         var lantern=home.Find("Lanterna da varanda");if(lantern!=null)porch.AddRange(lantern.GetComponentsInChildren<Renderer>());
         foreach(var r in porch)
         {
-            // door leaf at every 10 degrees
             for(int a=0;a<=100;a+=10)
             {
                 door.hinge.localRotation=Quaternion.Euler(0,a,0);
@@ -78,7 +71,6 @@ public static class HomeGeometryProbe
                     if(Share(g.bounds,p.bounds)>.05f && hitParts.Add(p.name+" @"+a))log.Add("CLASH coop gate at "+a+" deg x "+p.name+" "+L(p.bounds));
             }
             gate.localRotation=gateRot;
-            // exact check with the colliders (oriented boxes), which the bounding boxes above only approximate
             var gateCols=gate.GetComponentsInChildren<Collider>();var partCols=coop.GetComponentsInChildren<Collider>().Where(c=>!c.transform.IsChildOf(gate) && !c.name.StartsWith("Chao")).ToArray();
             int exact=0;
             for(int a=0;a>=-88;a-=8)

@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic sweep: missing scripts, missing/pink materials, empty meshes, silent audio sources in the scene and
-// prefabs; then a play session that visits the home, the coop, the market road and a farm and records every
-// warning and error the game logs. Run: Unity.exe -batchmode -projectPath . -executeMethod ProjectHealthScan.Begin
 [InitializeOnLoad]
 public static class ProjectHealthScan
 {
@@ -53,7 +50,7 @@ public static class ProjectHealthScan
         foreach(var guid in AssetDatabase.FindAssets("t:Prefab",new[]{"Assets/ChickenHeistGenerated","Assets/Resources","Assets/Prefabs"}))
         {var path=AssetDatabase.GUIDToAssetPath(guid);var go=AssetDatabase.LoadAssetAtPath<GameObject>(path);if(go==null)continue;prefabs++;Inspect(go,path);}
         report.Insert(0,"STATIC: missing scripts "+missing+", null materials "+noMat+", error shaders "+pink+", empty meshes "+emptyMesh+", silent play-on-awake audio "+silent+" (scene + "+prefabs+" prefabs)");
-        File.WriteAllLines(Folder+"/static.txt",report); // play mode reloads the domain and clears this list
+        File.WriteAllLines(Folder+"/static.txt",report);
         var economy=Object.FindAnyObjectByType<HouseholdEconomy>();economy.editorTestSavePath=Path.GetFullPath("Temp/health-"+Guid.NewGuid().ToString("N")+".json");
         HouseholdEconomy.SaveAccount(economy.editorTestSavePath,new HouseholdAccount{introSeen=true,flock=5});
         SessionState.SetBool(Key,true);EditorApplication.isPlaying=true;

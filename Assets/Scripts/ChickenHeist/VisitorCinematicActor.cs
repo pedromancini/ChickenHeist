@@ -1,49 +1,31 @@
 using System.Linq;
 using UnityEngine;
 
-// Cinematic actor (Elias and the hooded visitor, both on ProtagonistRig bone names with fingers): samples the
-// captured clips deterministically, then layers gaze and hand poses on top. Every evaluation begins from the clip,
-// so replay, skip and shot changes cannot accumulate rotations. Arms move like real ones (CinematicArm: the elbow is
-// a hinge, the forearm takes the hand's roll, the wrist bends within its range) and the hands take the shape of what
-// they hold (CinematicHand): flat on a desk, a fist knocking, the index on a key, folded over the tablet's edge.
 public sealed class VisitorCinematicActor
 {
     public readonly Transform root,head,spine,leftHand,rightHand;
     readonly Animation animation;readonly AnimationClip idle,walk,walkBack,talk;
     readonly Transform[] bones;readonly Quaternion[] rest,walkPose,talkPose;
     float talkWeight;
-    // The trunk (hips to neck) keeps a fifth of the idle and talk takes' sway: at full strength the captured takes rock
-    // the chest back and forth all through a conversation, as if the actors were swaying on their feet.
     const float TrunkSway=.22f;
     readonly int[] trunk;readonly Quaternion[] trunkCalm;readonly Transform hips;readonly Vector3 hipsCalm;
-    // Metres one cycle of each walk covers, and how far its pelvis comes up or down so that the foot on the floor
-    // stands where the feet stand at rest (the takes were captured on another body), both measured from the clips: the
-    // cycle follows the distance walked, so the foot on the floor stays where it was put down, and the feet neither
-    // float nor sink.
     readonly struct Gait{public readonly float stride;public readonly Vector3 lift;public Gait(float stride,Vector3 lift){this.stride=stride;this.lift=lift;}}
     readonly Gait walkGait,backGait;Vector3 walkHips;
-    // The arms (shoulders to hands) keep an eighth of the idle and talk takes' gestures: the takes wave them about all
-    // through a line, and against the other actor, the door or the porch posts that read as glitches.
     public static float ArmSway=.12f;
     readonly int[] armBones;readonly Quaternion[] armCalm;
     readonly CinematicArm[] arms=new CinematicArm[2];readonly CinematicHand[] hands=new CinematicHand[2];
     readonly HandGripPose[] grips=new HandGripPose[2];readonly Vector3[] knuckles=new Vector3[2];
     readonly Vector3[][] knuckleEach=new Vector3[2][];
     readonly ArmTwist[] twists=new ArmTwist[2];
-    // the jaw ("Fala" shape: Elias' head with the beard, the visitor's mask over his mouth)
     readonly System.Collections.Generic.List<(SkinnedMeshRenderer skin,int index)> jaws=new System.Collections.Generic.List<(SkinnedMeshRenderer,int)>();
     float mouth;
     public float ContactError {get;private set;}
     public string Trace="";
-    // Signed distance to the plate held with Edge (the tablet): the fingers close onto it until they touch.
     public System.Func<Vector3,float> Plate;
-    // how far each joint may close round the plate (thumb first): enough to fold over its far face
     static readonly float[,] WrapLimit={{0,40,50},{95,100,75},{95,100,75},{95,100,75},{95,100,75}};
-    // Largest wrist bend this frame against its limit (1: at the limit of the joint), for the review.
     public float WristLoad {get;private set;}
     public CinematicArm Arm(bool right)=>arms[right?1:0];
     public CinematicHand Hand(bool right)=>hands[right?1:0];
-    // World directions out of the palm and from the wrist to the knuckles, for the review's close-ups.
     public Vector3 Palm(bool right){int i=right?1:0;return hands[i].hand.TransformDirection(grips[i].PalmLocal).normalized;}
     public Vector3 Fingers(bool right){int i=right?1:0;return hands[i].hand.TransformDirection(grips[i].FingersLocal).normalized;}
     public VisitorCinematicActor(Transform actor)
@@ -55,7 +37,6 @@ public sealed class VisitorCinematicActor
         if(idle==null || walk==null)throw new System.InvalidOperationException("Missing cinematic Idle/Walk clips");
         head=Bone("Head");spine=Bone("Chest");leftHand=Bone("HandL");rightHand=Bone("HandR");
         bones=root.GetComponentsInChildren<Transform>(true);rest=bones.Select(b=>b.localRotation).ToArray();walkPose=new Quaternion[bones.Length];talkPose=new Quaternion[bones.Length];
-        // the trunk's still pose: the idle take's first frame
         hips=Bone("Hips");var toeL=Bone("ToeL");var toeR=Bone("ToeR");
         idle.SampleAnimation(animation.gameObject,0);float standing=Mathf.Min(root.InverseTransformPoint(toeL.position).y,root.InverseTransformPoint(toeR.position).y);
         walkGait=Measure(walk,toeL,toeR,standing);backGait=walkBack!=null?Measure(walkBack,toeL,toeR,standing):walkGait;
@@ -86,9 +67,6 @@ public sealed class VisitorCinematicActor
         var (stride,planted)=Stride(clip,animation.gameObject,root,toeL,toeR);
         return new Gait(stride,hips.parent.InverseTransformVector(root.up*(standing-planted)));
     }
-    // Metres a walk take covers per cycle, and the height of a foot on the floor. Under the body a planted foot slides
-    // against the travel as far as the body moves on. Near the floor most steps are planted ones, so the way most of
-    // them go tells planted from swinging (walking backwards the toe goes down first and skims the floor as it swings).
     public static (float stride,float planted) Stride(AnimationClip clip,GameObject animated,Transform frame,Transform toeL,Transform toeR)
     {
         const int n=24;var toes=new Vector3[2,n+1];
@@ -110,7 +88,6 @@ public sealed class VisitorCinematicActor
     }
     AnimationClip Clip(params string[] names){foreach(var n in names){var c=animation.GetClip(n);if(c!=null)return c;}return null;}
     Transform Bone(params string[] names)=>root.GetComponentsInChildren<Transform>(true).First(t=>names.Contains(t.name));
-    // backward: stepping back (the backward walk take, shorter strides)
     public void Pose(Vector3 position,float yaw,float time,bool moving,bool speaking,Vector3 gaze,float lean=0,float distance=0,float walkWeight=1,bool backward=false)
     {
         for(int i=0;i<bones.Length;i++)bones[i].localRotation=rest[i];
@@ -138,34 +115,23 @@ public sealed class VisitorCinematicActor
         spine.rotation=Quaternion.AngleAxis(lean,root.right)*spine.rotation;
         Vector3 delta=root.InverseTransformDirection(gaze-head.position);
         float turn=Mathf.Clamp(Mathf.Atan2(delta.x,delta.z)*Mathf.Rad2Deg,-28,28);
-        // Downward look is limited so the hood or cap brim never hides the face in close-ups.
         float pitch=Mathf.Clamp(-Mathf.Atan2(delta.y,new Vector2(delta.x,delta.z).magnitude)*Mathf.Rad2Deg,-16,12);
         head.rotation=Quaternion.AngleAxis(turn*.7f,root.up)*Quaternion.AngleAxis(pitch*.65f,root.right)*head.rotation;
     }
 
-    // Palm flat on a surface: `into` points from the palm into the surface, `along` where the fingers point.
     public void Flat(bool right,Vector3 point,Vector3 into,Vector3 along,float weight)
     {
         int i=right?1:0;if(weight<=0)return;
         hands[i].Shape(CinematicHand.Flat,weight);
         Place(i,grips[i].Rotation(into,along),grips[i].ContactLocal,point,weight);
     }
-    // A thin plate (the tablet) held by its side edge the way a book is: the edge in the palm, the thumb on the face
-    // towards the holder, the fingers reaching through past the far face and folding over it. The hand may turn about
-    // the edge by up to 35 degrees either way to whatever keeps the wrist straightest for where the arm is.
-    // edge: on the edge, halfway through the plate; inward: from the edge towards the plate's centre; near: the plate's
-    // normal on the holder's side.
     public void Edge(bool right,Vector3 edge,Vector3 inward,Vector3 near,float thickness,float weight)
     {
         int i=right?1:0;if(weight<=0)return;var hand=hands[i].hand;
         hands[i].Shape(CinematicHand.Edge,weight,aimThumb:true);
         inward=inward.normalized;near=Vector3.ProjectOnPlane(near,inward).normalized;
-        // the knuckles go 1 cm past the far face, so the fingers have something to fold over
         float reach=Vector3.Dot(knuckles[i]-grips[i].ContactLocal,grips[i].FingersLocal)*hand.lossyScale.x;
         Vector3 contact=edge-inward*.004f+near*(reach-thickness*.5f-.02f),local=grips[i].ContactLocal;
-        // every knuckle stays at least 1 cm past the far face whatever the turn, or the fingers would fold into the
-        // plate (or round the near face): turns that break this cost more than any wrist bend
-        // and no part of the palm inside the plate: a thick palm turned the wrong way round the edge sinks into it
         var palm=hands[i].PalmSurface;
         float Knuckles(CinematicArm.Plan plan)
         {
@@ -181,8 +147,6 @@ public sealed class VisitorCinematicActor
             return cost;
         }
         Place(i,grips[i].Rotation(inward,-near),local,contact,weight,inward,-50,50,Knuckles);
-        // a palm thicker than the grip assumes sinks into the plate: move the hand straight out of the face it sank into
-        // (the solid's outward direction at its deepest point) until its skin only touches
         if(Plate!=null)
         {
             var placed=contact;float placedGap=hands[i].PalmGap(Plate,out var deep);
@@ -202,19 +166,15 @@ public sealed class VisitorCinematicActor
         hands[i].AimThumb(edge+inward*.035f+near*(thickness*.5f+.008f),weight);
         if(Plate!=null)hands[i].Wrap(Plate,WrapLimit,weight,skipThumbBase:true);
     }
-    // A closed fist knocking: the knuckles on `point`, `into` pointing into the door, palm down.
     public void Knock(bool right,Vector3 point,Vector3 into,float weight)
     {
         int i=right?1:0;if(weight<=0)return;var hand=hands[i].hand;
         hands[i].Shape(CinematicHand.Fist,weight,aimThumb:true);
         var front=knuckles[i]+grips[i].FingersLocal*(.012f/Mathf.Max(1e-4f,hand.lossyScale.x));
         Place(i,grips[i].Rotation(Vector3.ProjectOnPlane(-root.up,into),into),front,point,weight);
-        // the thumb lies across the middle phalanges of the index and middle fingers
         var palm=hand.TransformDirection(grips[i].PalmLocal).normalized;
         hands[i].AimThumb((hands[i].Middle(1)+hands[i].Middle(2))*.5f+palm*.012f,weight);
     }
-    // The index finger's tip on `point` (a key, a screen), the finger pointing between `along` and the line from the
-    // shoulder (a pointing finger continues the arm; the wrist does not fold to aim it), the others curled.
     public void Point(bool right,Vector3 point,Vector3 along,float weight)
     {
         int i=right?1:0;if(weight<=0)return;var hand=hands[i].hand;
@@ -225,7 +185,6 @@ public sealed class VisitorCinematicActor
         var tip=hand.InverseTransformPoint(hands[i].Tip(1));
         Place(i,grips[i].Rotation(Vector3.ProjectOnPlane(-root.up,along),along),tip,point,weight);
     }
-    // Closed around a bar (a door lever) whose centre line runs along `axis`; `palmFacing`: the way the palm faces.
     public void Bar(bool right,Vector3 centre,Vector3 axis,Vector3 palmFacing,float radius,float weight)
     {
         int i=right?1:0;if(weight<=0)return;
@@ -235,8 +194,6 @@ public sealed class VisitorCinematicActor
         var palm=hands[i].hand.TransformDirection(grips[i].PalmLocal).normalized;
         hands[i].AimThumb(centre+palm*(radius+.012f)-fingers*.01f,weight);
     }
-    // How open the mouth is (0 shut, 1 wide): eased so syllables flow instead of snapping.
-    // snap: a jump in the cutscene's time (a skip, a review sample) takes the new value at once
     public void Speak(float open,bool snap=false)
     {
         mouth=Mathf.Lerp(mouth,Mathf.Clamp01(open),1-Mathf.Exp(-Time.deltaTime*22));
@@ -244,12 +201,12 @@ public sealed class VisitorCinematicActor
         foreach(var (skin,index) in jaws)skin.SetBlendShapeWeight(index,mouth*100);
     }
     public bool HasJaw=>jaws.Count>0;
-    // the jaw shape's weight as rendered (0 shut, 100 wide)
     public float JawWeight=>jaws.Count>0?jaws[0].skin.GetBlendShapeWeight(jaws[0].index):0;
-    // Mouth shape while a line is said: the subtitle's letters spread over the line (a short breath at the start, the
-    // last half second quiet). The mouth opens on each vowel (wide on a, less on e and o, least on i and u) and closes
-    // on the consonants around it and on spaces and punctuation, so it moves in syllables. The cutscene has no voice
-    // recordings, so the text is the voice.
+    public static float Spoken(string text,float time,float duration)
+    {
+        var director=StoryDirector.Instance;float voice=director!=null?director.VoiceOpen(time):-1;
+        return voice>=0?voice:Mouth(text,time,duration);
+    }
     public static float Mouth(string text,float time,float duration)
     {
         if(string.IsNullOrEmpty(text))return 0;
@@ -257,7 +214,6 @@ public sealed class VisitorCinematicActor
         if(u<=0 || u>=1)return 0;
         float at=u*text.Length;int here=Mathf.Clamp((int)at,0,text.Length-1);
         if(!char.IsLetter(text[here]))return 0;
-        // the nearest vowel within the same word sets how open, its distance how far towards it the jaw has come
         float best=0;
         for(int k=-2;k<=2;k++)
         {
@@ -282,18 +238,12 @@ public sealed class VisitorCinematicActor
         }
         return char.IsLetter(c)?.1f:0;
     }
-    // Forearm twist bones after every grip of the frame: the hand's roll spreads along the forearm.
     public void Twist(){foreach(var t in twists)t?.Apply();}
-    // Wrist to a point, the hand as the clip holds it.
     public void Reach(bool right,Vector3 target,float weight)
     {
         int i=right?1:0;if(weight<=0)return;
         arms[i].Apply(arms[i].Solve(target,null),weight);
     }
-    // Arm solved so the hand-local point `local` lands on `point` with the hand turned as close to `rotation` as the
-    // wrist allows (when the wrist reaches its limit the hand turns less and the wrist target follows). With a free
-    // axis, the hand may also turn about it (through `point`) by `from` to `to` degrees: the arm takes the turn that
-    // keeps the wrist straightest.
     void Place(int i,Quaternion rotation,Vector3 local,Vector3 point,float weight,Vector3 free=default,float from=0,float to=0,System.Func<CinematicArm.Plan,float> extra=null)
     {
         var arm=arms[i];Vector3 scaled=Vector3.Scale(local,arm.hand.lossyScale);

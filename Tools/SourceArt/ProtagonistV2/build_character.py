@@ -3,7 +3,7 @@ from mathutils import Vector, Matrix, Quaternion
 ROOT=os.path.dirname(os.path.abspath(__file__))
 OUT=os.path.join(ROOT,'generated');os.makedirs(OUT,exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
-bpy.ops.import_scene.gltf(filepath=r'E:\Jogo3D\ChickenHeist\Assets\69f0dedb-960e-44f9-8794-a2019f4656e6.glb')
+bpy.ops.import_scene.gltf(filepath=r'E:\Jogo3D\ChickenHeist\Tools\SourceArt\ProtagonistV2\source\protagonista_v2.glb')
 mesh=next(o for o in bpy.context.scene.objects if o.type=='MESH')
 bpy.context.view_layer.objects.active=mesh
 bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
@@ -63,8 +63,6 @@ for v in mesh.data.vertices:
     ranked=sorted((distance(p,rig.data.bones[n]),n) for n in names)[:3]
     weights=[1/(d+.012)**5 for d,n in ranked];total=sum(weights)
     for (_,n),w in zip(ranked,weights):mesh.vertex_groups[n].add([v.index],w/total,'REPLACE')
-# Retopologize the generated hands: regular joint loops prevent torn fingers.
-# Sample the original skin paint so the replacement retains the character palette.
 uv=mesh.data.uv_layers.active.data;swatch=None;score=1e9
 for poly in mesh.data.polygons:
     for li in poly.loop_indices:
@@ -159,7 +157,6 @@ for state,file in sources.items():
     added=set(bpy.data.objects)-before;source=next(o for o in added if o.type=='ARMATURE')
     action=source.animation_data.action;start,end=map(int,action.frame_range)
     anim=bpy.data.actions.new(state);anim.use_fake_user=True;rig.animation_data.action=anim
-    # World-space rotation deltas preserve the new character's bone lengths.
     sourceBase=None
     for f in range(start,end+1):
         bpy.context.scene.frame_set(f);reset();bpy.context.view_layer.update()
@@ -195,7 +192,6 @@ for state,duration in {'CrouchIdle':2.8,'Crouch':1.2,'Pickup':.85,'Drive':3,'Loc
             for finger in ['Index','Middle','Ring','Little','Thumb']:
                 for j in range(1,4):
                     b=rig.pose.bones[finger+str(j)+side]
-                    # Finger bend axis is computed in bind space toward the palm.
                     axis=b.bone.matrix_local.to_quaternion().inverted()@Vector((0,s,0))
                     amount=(18 if state=='Carry' else 32 if raised else 4)+(math.sin(p)*2 if raised else 0)
                     b.rotation_quaternion=Quaternion(axis,math.radians(amount))
@@ -207,10 +203,8 @@ bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,'Protagonist_Rigged.blend'
 bpy.ops.object.select_all(action='DESELECT')
 for o in (rig,mesh,head):o.select_set(True)
 bpy.context.view_layer.objects.active=rig
-# Export only target actions, excluding imported source actions with other slots.
 for action in list(bpy.data.actions):
     if action.name not in durations:bpy.data.actions.remove(action)
 bpy.ops.export_scene.fbx(filepath=os.path.join(OUT,'Protagonist_Rigged.fbx'),use_selection=True,object_types={'MESH','ARMATURE'},add_leaf_bones=False,bake_anim=True,bake_anim_use_all_actions=True,bake_anim_use_nla_strips=False,bake_anim_simplify_factor=0,axis_forward='-Z',axis_up='Y')
-with open(os.path.join(OUT,'rig-report.json'),'w') as f:json.dump({'source':'69f0dedb-960e-44f9-8794-a2019f4656e6.glb','bones':len(rig.data.bones),'fingerBones':30,'clips':durations,'packageClips':sources,'unweightedVertices':sum(1 for o in (mesh,head) for v in o.data.vertices if not v.groups)},f,indent=2)
+with open(os.path.join(OUT,'rig-report.json'),'w') as f:json.dump({'source':'protagonista_v2.glb','bones':len(rig.data.bones),'fingerBones':30,'clips':durations,'packageClips':sources,'unweightedVertices':sum(1 for o in (mesh,head) for v in o.data.vertices if not v.groups)},f,indent=2)
 print('EXPORT_OK',flush=True)
-

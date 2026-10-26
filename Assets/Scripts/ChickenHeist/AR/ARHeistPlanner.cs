@@ -6,11 +6,6 @@ using UnityEngine.UI;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
-// "Planejamento do roubo": the augmented-reality companion app (Android, ARCore). The phone finds a table; a tap puts
-// the chosen farm on it as a model (ARFarmModel): its buildings, the farmer walking his patrol, the security cameras
-// sweeping, the chickens and the gate. One finger turns the model, two fingers scale it, buttons switch farms and
-// layers. Without AR (the editor, a desktop, a phone without ARCore) the model stands in front of the camera and the
-// mouse or a finger turns it, so the app can be reviewed anywhere.
 public sealed class ARHeistPlanner : MonoBehaviour
 {
     public ARSession session;
@@ -20,7 +15,6 @@ public sealed class ARHeistPlanner : MonoBehaviour
     public Camera view;
     public GameObject[] farms;
     public Font font;
-    // the review renders without AR at a fixed farm and layout (ARPlanningBuilder.Preview)
     public static int StartFarm;
 
     int current;ARFarmModel model;bool placed,fallback;float scale=1,yaw;
@@ -74,7 +68,6 @@ public sealed class ARHeistPlanner : MonoBehaviour
             else{scale=Mathf.Clamp(scale*d/Mathf.Max(1,pinch),.3f,3f);pinch=d;}
         }
         else pinch=0;
-        // mouse (editor, desktop): drag turns, wheel scales
         if(Input.touchCount==0 && placed)
         {
             if(Input.GetMouseButtonDown(0))lastPointer=Input.mousePosition;
@@ -129,7 +122,6 @@ public sealed class ARHeistPlanner : MonoBehaviour
         foreach(var kv in toggles)kv.Value.color=layers[kv.Key]?Accent:Off;
     }
 
-    // ---------------------------------------------------------------- interface (built in code, Barlow like the game)
     void BuildUi()
     {
         if(EventSystem.current==null){var es=new GameObject("EventSystem");es.AddComponent<EventSystem>();es.AddComponent<StandaloneInputModule>();}

@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic: foot contact measured on the baked skinned mesh (lowest real vertex), not on renderer bounds,
-// for the player body, the merchant and every walker, sampled over a few seconds of their own animation.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod CharacterGroundAudit.Begin
 [InitializeOnLoad]
 public static class CharacterGroundAudit
 {

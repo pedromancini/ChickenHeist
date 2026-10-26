@@ -7,11 +7,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Object=UnityEngine.Object;
 
-// Elias' house after years of debt: damp and peeling plaster, cracks, a ceiling stain over the leak bucket,
-// sprung floorboards, cobwebs, dirty dishes, faded furniture, a yellowed fridge, dim warm bulbs (one flickering);
-// an old doorbell at the front door; the coop gate becomes a working hinged gate (HomeCoopGate).
-// Idempotent: everything it adds lives under "Desgaste - *" objects and is rebuilt on each run.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod HomeWornUpgrade.Install
 public static class HomeWornUpgrade
 {
     const string HomeName="Casa do Protagonista - Sitio do Recomeco",InteriorName="Interior - Uma vida por reconstruir";
@@ -59,7 +54,6 @@ public static class HomeWornUpgrade
     }
     static Transform Fresh(Transform parent,string name){var old=parent.Find(name);if(old!=null)Object.DestroyImmediate(old.gameObject);var t=new GameObject(name).transform;t.SetParent(parent,false);return t;}
 
-    // ---------------------------------------------------------------- interior (home-local, see PlayerHomeBuilder.Interior)
     static void WearInterior(Transform home,Transform interior)
     {
         var root=Fresh(interior,"Desgaste - interior");var rnd=new System.Random(41);float R(float a,float b)=>a+(float)rnd.NextDouble()*(b-a);
@@ -79,7 +73,6 @@ public static class HomeWornUpgrade
         var paper=Mat("Jornal velho",new Color(.62f,.60f,.50f));
         var rust=Mat("Ferrugem",new Color(.36f,.19f,.09f));
         const float floor=.625f,ceiling=3.236f,back=6.812f,left=-7.412f,right=.952f,front=2.428f;
-        // Organic stain: overlapping, slightly rotated patches (halo + core) on a wall plane.
         void Blot(string name,Vector3 c,bool alongX,float w,float h,Material halo,Material core,int count=7)
         {
             for(int i=0;i<count;i++)
@@ -93,16 +86,13 @@ public static class HomeWornUpgrade
                 Piece(root,name,p,size,inner?core:halo,euler);
             }
         }
-        // damp along the base of the walls and around the leak corner
         Blot("Umidade no pe da parede",new Vector3(-5.4f,1.0f,back),true,2.6f,.75f,damp,dampDark,9);
         Blot("Umidade no canto da goteira",new Vector3(-6.9f,1.35f,back),true,1.0f,1.3f,damp,dampDark,7);
         Blot("Umidade na parede lateral",new Vector3(left,1.15f,4.5f),false,2.0f,1.0f,damp,dampDark,8);
         Blot("Umidade na parede do quarto",new Vector3(right,1.0f,3.4f),false,1.4f,.6f,damp,dampDark,6);
         Blot("Umidade sob a janela",new Vector3(-1.1f,1.0f,front),true,1.2f,.5f,damp,dampDark,5);
         Blot("Mancha de gordura atras do fogao",new Vector3(-3.98f,1.85f,back),true,.85f,.55f,dampDark,Mat("Fuligem",new Color(.27f,.25f,.20f)),5);
-        // water streaks running down from the ceiling leak
         for(int i=0;i<5;i++)Piece(root,"Escorrido da goteira",new Vector3(-7.0f+i*.17f,ceiling-.55f-i*.05f,back-.002f),new Vector3(.06f+i%2*.03f,1.1f-i*.12f,.012f),streak);
-        // peeled plaster with laths and bare boards behind
         var chunk=Mat("Caco de reboco",new Color(.52f,.50f,.42f));
         void Peel(string name,Vector3 c,bool alongX,float w,float h)
         {
@@ -110,12 +100,9 @@ public static class HomeWornUpgrade
             Vector3 At(float u,float v,float d)=>c+(alongX?new Vector3(u,v,sign*d):new Vector3(sign*d,v,u));
             Vector3 Size(float a,float b,float d)=>alongX?new Vector3(a,b,d):new Vector3(d,b,a);
             Vector3 Tilt(float t)=>alongX?new Vector3(0,0,t):new Vector3(t,0,0);
-            // ragged hole: a few rotated dark patches
             for(int i=0;i<4;i++)Piece(root,name,At(R(-w,w)*.2f,R(-h,h)*.2f,.001f),Size(w*R(.55f,.85f),h*R(.5f,.8f),.008f),hole,Tilt(R(-18,18)));
-            // laths of uneven length and spacing behind the plaster
             float y=-h*.38f;
             while(y<h*.38f){Piece(root,name+" - ripa",At(R(-w,w)*.08f,y,.005f),Size(w*R(.45f,.85f),.04f,.008f),lath,Tilt(R(-3,3)));y+=R(.075f,.12f);}
-            // broken plaster rim and the chunks that fell to the floor
             for(int i=0;i<5;i++)Piece(root,name+" - borda",At(R(-w,w)*.45f,R(-h,h)*.45f,.006f),Size(R(.06f,.16f),R(.04f,.1f),.014f),chunk,Tilt(R(0,90)));
             Vector3 below=At(0,0,0);below.y=floor+.012f;
             for(int i=0;i<6;i++)Piece(root,"Caco de reboco no chao",below+(alongX?new Vector3(R(-w,w)*.5f,0,sign*R(.05f,.35f)):new Vector3(sign*R(.05f,.35f),0,R(-w,w)*.5f)),new Vector3(R(.03f,.09f),R(.012f,.025f),R(.03f,.08f)),chunk,new Vector3(0,R(0,90),0));
@@ -123,7 +110,6 @@ public static class HomeWornUpgrade
         Peel("Reboco caido acima da mesa",new Vector3(-5.9f,2.35f,back),true,.85f,.55f);
         Peel("Reboco caido perto da porta",new Vector3(left,2.25f,3.2f),false,.7f,.45f);
         Peel("Reboco caido no quarto",new Vector3(.3f,2.55f,back),true,.6f,.4f);
-        // cracks: zig-zag lines on plaster
         void Crack(Vector3 start,Vector3 dir,int steps,bool alongX)
         {
             var p=start;
@@ -137,17 +123,14 @@ public static class HomeWornUpgrade
         Crack(new Vector3(-3.95f,3.1f,front+.004f),Vector3.down+Vector3.left*.4f,5,true);
         Crack(new Vector3(right-.004f,3.2f,5.6f),Vector3.down,6,false);
         Crack(new Vector3(left+.004f,1.0f,6.2f),Vector3.up,5,false);
-        // ceiling stain right above the leak bucket, a sagging board beside it
         Piece(root,"Mancha da goteira no forro",new Vector3(-6.7f,ceiling-.003f,4.55f),new Vector3(1.25f,.012f,1.0f),streak);
         Piece(root,"Centro escuro da goteira",new Vector3(-6.7f,ceiling-.006f,4.55f),new Vector3(.55f,.012f,.45f),dampDark);
         Piece(root,"Tabua do forro cedendo",new Vector3(-5.6f,ceiling-.05f,4.0f),new Vector3(.24f,.03f,1.6f),lath,new Vector3(4,0,3));
-        // floor: open gaps, a sprung board, mud from the yard
         float[] gaps={-6.92f,-6.22f,-5.17f,-4.47f,-2.37f,-1.32f,-.27f};
         foreach(float x in gaps)Piece(root,"Fresta no assoalho",new Vector3(x,floor-.004f,R(3.0f,6.1f)),new Vector3(.03f,.012f,R(.6f,1.5f)),gap);
         Piece(root,"Tabua solta levantada",new Vector3(-3.55f,floor+.02f,4.8f),new Vector3(.33f,.035f,1.1f),lath,new Vector3(-3,0,2));
         Piece(root,"Buraco da tabua solta",new Vector3(-3.55f,floor-.003f,4.8f),new Vector3(.29f,.012f,1.05f),gap);
         for(int i=0;i<6;i++)Piece(root,"Terra trazida das botas",new Vector3(-3.2f+R(-.6f,.6f),floor+.003f,2.7f+i*.32f),new Vector3(R(.2f,.45f),.006f,R(.15f,.3f)),dirt,new Vector3(0,R(0,90),0));
-        // cobwebs in the ceiling corners: a few radial threads and rings
         void Web(Vector3 corner,Vector3 a,Vector3 b)
         {
             for(int i=0;i<=4;i++){var d=Vector3.Slerp(a,b,i/4f);Line(root,"Teia",corner,corner+d*.48f,.006f,web);}
@@ -157,15 +140,13 @@ public static class HomeWornUpgrade
         Web(new Vector3(right-.01f,ceiling-.01f,back-.01f),Vector3.left,Vector3.down);
         Web(new Vector3(left+.01f,ceiling-.01f,front+.01f),Vector3.forward,Vector3.down);
         Web(new Vector3(-1.7f,ceiling-.01f,back-.01f),Vector3.left,Vector3.down);
-        // clutter: boxes against the bedroom wall, bottles, dirty dishes on the stove, old newspaper on the floor
         for(int i=0;i<3;i++)Piece(root,"Caixa de papelao",new Vector3(.5f-i*.05f,floor+.21f+i*.38f,2.85f+i*.04f),new Vector3(.62f-i*.08f,.42f-i*.04f,.48f-i*.06f),card,new Vector3(0,i*9-6,0));
         Piece(root,"Caixa de papelao aberta",new Vector3(-.15f,floor+.15f,2.9f),new Vector3(.5f,.3f,.4f),card,new Vector3(0,22,0));
         for(int i=0;i<4;i++){var b=Piece(root,"Garrafa vazia",new Vector3(-6.95f+i*.11f,i==3?floor+.035f:floor+.13f,6.55f-(i%2)*.1f),new Vector3(.07f,.13f,.07f),i%2==0?bottleGreen:bottleBrown,default,PrimitiveType.Cylinder);if(i==3)b.transform.localRotation=Quaternion.Euler(90,30,0);}
         for(int i=0;i<4;i++)Piece(root,"Prato sujo empilhado",new Vector3(-4.32f,1.54f+i*.018f,6.38f),new Vector3(.24f,.008f,.24f),plate,default,PrimitiveType.Cylinder);
-        // on the table top (1.41), clear of the phone
+        
         Piece(root,"Caneca lascada",new Vector3(-5.75f,1.46f,3.22f),new Vector3(.08f,.05f,.08f),plate,default,PrimitiveType.Cylinder);
         for(int i=0;i<3;i++)Piece(root,"Jornal velho no chao",new Vector3(-2.2f+i*.18f,floor+.004f+i*.002f,6.0f-i*.12f),new Vector3(.42f,.004f,.55f),paper,new Vector3(0,i*27-15,0));
-        // the fridge: yellowed enamel with rust at the hinges and the base
         bool Fridge(Transform t){for(var x=t;x!=null && x!=interior;x=x.parent)if(x.name.ToLowerInvariant().Contains("geladeira"))return true;return false;}
         foreach(var r in interior.GetComponentsInChildren<Renderer>(true).Where(r=>Fridge(r.transform) && (r.name.StartsWith("Gabinete") || r.name.StartsWith("Porta d")) && !r.transform.IsChildOf(root)))
         {r.sharedMaterial=Mat("Esmalte amarelado da geladeira",new Color(.62f,.58f,.43f),.18f);log.Add("fridge part "+r.name);}
@@ -187,7 +168,6 @@ public static class HomeWornUpgrade
             Piece(root,"Mancha na porta da geladeira",new Vector3(c.x-e.x*.3f,c.y,faceZ),new Vector3(.18f,.1f,.008f),damp);
             log.Add("fridge front at "+faceZ+" centre "+c);
         }
-        // faded, grimy furniture: tint the pack materials (shared copies, the originals stay untouched)
         var cache=new Dictionary<Material,Material>();int tinted=0;
         foreach(var r in interior.GetComponentsInChildren<Renderer>(true))
         {
@@ -197,7 +177,7 @@ public static class HomeWornUpgrade
             var mats=r.sharedMaterials;
             for(int i=0;i<mats.Length;i++)
             {
-                var m=mats[i];if(m==null || m.name.StartsWith("Gasto - "))continue; // already faded on an earlier run
+                var m=mats[i];if(m==null || m.name.StartsWith("Gasto - "))continue;
                 if(!cache.TryGetValue(m,out var worn))
                 {
                     string path=MaterialFolder+"/Gasto - "+m.name.Replace("/","_")+".mat";worn=AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -220,7 +200,6 @@ public static class HomeWornUpgrade
             string n=r.sharedMaterial.name;
             if(n.StartsWith("Reboco antigo") || n=="Reboco encardido"){r.sharedMaterial=r.name.StartsWith("Forro")?ceilingMat:grime;walls++;}
         }
-        // The wear never moves: static batching folds ~230 small pieces into a handful of draw calls.
         foreach(Transform t in root.GetComponentsInChildren<Transform>(true))GameObjectUtility.SetStaticEditorFlags(t.gameObject,StaticEditorFlags.BatchingStatic|StaticEditorFlags.ContributeGI);
         log.Add("worn interior pieces "+root.childCount+", furniture renderers faded "+tinted+", plaster surfaces "+walls);
     }
@@ -238,9 +217,6 @@ public static class HomeWornUpgrade
         }
     }
 
-    // ---------------------------------------------------------------- doorbell beside the front door
-    // Everything stays right of the door frame (frame post ends at x -2.36; the leaf hinges on the left at x -3.96
-    // and swings out over the porch), so nothing sits in the door's path.
     static void Doorbell(Transform home)
     {
         var root=Fresh(home,"Desgaste - campainha velha");
@@ -248,7 +224,6 @@ public static class HomeWornUpgrade
         foreach(var hit in Physics.RaycastAll(home.TransformPoint(new Vector3(-2.1f,1.6f,.4f)),home.forward,3f).OrderBy(h=>h.distance))
         {if(hit.collider.transform.IsChildOf(root))continue;wallZ=home.InverseTransformPoint(hit.point).z;break;}
         root.localPosition=new Vector3(0,0,0);root.localRotation=Quaternion.identity;
-        // home-local helpers: a point on the wall face, offset out toward the porch by d
         Vector3 W(float x,float y,float d)=>new Vector3(x,y,wallZ-d);
         var brass=Mat("Latao envelhecido",new Color(.46f,.36f,.18f),.45f);
         var brassDark=Mat("Latao escurecido",new Color(.27f,.21f,.11f),.35f);
@@ -260,8 +235,7 @@ public static class HomeWornUpgrade
         var wire=Mat("Fio velho da campainha",new Color(.09f,.08f,.07f));
         var clip=Mat("Grampo de fio",new Color(.55f,.53f,.48f),.2f);
         var tape=Mat("Fita isolante",new Color(.05f,.05f,.06f),.3f);
-        // push button: stadium-shaped brass plate, dark bezel, ivory button, two screws
-        float bx=-2.17f,by=1.98f; // 1.39 m above the porch floor (home-local y 0.59)
+        float bx=-2.17f,by=1.98f;
         var station=new GameObject("Botao da campainha - espelho").transform;station.SetParent(root,false);station.localPosition=W(bx,by,0);
         Piece(station,"Espelho de latao",new Vector3(0,0,-.006f),new Vector3(.07f,.09f,.012f),brass);
         Piece(station,"Ponta do espelho",new Vector3(0,.045f,-.006f),new Vector3(.07f,.006f,.07f),brass,new Vector3(90,0,0),PrimitiveType.Cylinder);
@@ -270,7 +244,6 @@ public static class HomeWornUpgrade
         var button=Piece(station,"Botao de baquelite",new Vector3(0,0,-.02f),new Vector3(.026f,.007f,.026f),ivory,new Vector3(90,0,0),PrimitiveType.Cylinder);
         Piece(station,"Parafuso",new Vector3(0,.052f,-.013f),new Vector3(.008f,.002f,.008f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
         Piece(station,"Parafuso",new Vector3(0,-.052f,-.013f),new Vector3(.008f,.002f,.008f),screw,new Vector3(90,0,0),PrimitiveType.Cylinder);
-        // bell unit high on the wall, right of the frame: wooden base, coil, brass gong, striker
         float gx=-1.98f,gy=2.62f;
         var bell=new GameObject("Campainha de sino").transform;bell.SetParent(root,false);bell.localPosition=W(gx,gy,0);
         Piece(bell,"Base de madeira",new Vector3(0,0,-.011f),new Vector3(.15f,.21f,.022f),baseWood);
@@ -284,7 +257,6 @@ public static class HomeWornUpgrade
         var hammer=new GameObject("Martelo da campainha").transform;hammer.SetParent(bell,false);hammer.localPosition=new Vector3(0,-.03f,-.075f);
         Piece(hammer,"Haste do martelo",new Vector3(0,.03f,0),new Vector3(.006f,.03f,.006f),screw);
         Piece(hammer,"Bola do martelo",new Vector3(0,.062f,0),new Vector3(.018f,.018f,.018f),brassDark,default,PrimitiveType.Sphere);
-        // two old wires clipped to the wall, from the coil down to the button (all right of the frame)
         for(int k=0;k<2;k++)
         {
             float o=k*.008f;
@@ -296,23 +268,18 @@ public static class HomeWornUpgrade
         Piece(root,"Fita isolante na emenda",W(-2.096f,by+.3f,.009f),new Vector3(.024f,.03f,.012f),tape);
         var component=root.gameObject.AddComponent<HomeDoorbell>();component.button=button.transform;component.chime=bell;component.hammer=hammer;
         component.porchLight=home.Find("Lampada fraca da varanda")?.GetComponentInChildren<Light>();
-        // The porch lantern hung where the opening door passes (37 cm from the hinge): move it past the leaf's sweep.
         var lantern=home.Find("Lanterna da varanda");
         if(lantern!=null){lantern.localPosition=new Vector3(-4.56f,lantern.localPosition.y,wallZ-.075f);log.Add("porch lantern moved to "+lantern.localPosition);}
         log.Add("doorbell button at "+W(bx,by,0)+" bell at "+W(gx,gy,0)+" wall z "+wallZ.ToString("F3"));
     }
 
-    // ---------------------------------------------------------------- coop gate
     static void CoopGate(Transform home)
     {
         var coop=home.Find("Galinheiro gasto - Ultimo Recurso");if(coop==null){log.Add("coop not found");return;}
         var gate=coop.Find("Portinhola aberta - dobradica gasta")??coop.Find("Portinhola do galinheiro");
         if(gate==null){log.Add("coop gate not found");return;}
-        // Hinge just off the face of the post (not its centre) and an 88 degree swing: the leaf clears the post and the wire.
         gate.name="Portinhola do galinheiro";gate.localRotation=Quaternion.identity;
         var hinge=gate.GetComponent<HomeCoopGate>();if(hinge==null)hinge=gate.gameObject.AddComponent<HomeCoopGate>();hinge.openAngle=-88;
-        // Rebuilt leaf with clearances: the opening runs between post faces at x -1.45 and -0.45 (coop space);
-        // the hinge sits 2 cm off the post face and every part stays inside the leaf.
         gate.localPosition=new Vector3(-1.43f,0,-2.2f);
         var woods=gate.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).Where(m=>m!=null && !m.name.StartsWith("Madeira da tramela") && !m.name.StartsWith("Ferragem")).Distinct().ToList();
         if(woods.Count==0)woods.Add(Mat("Madeira da portinhola",new Color(.30f,.26f,.19f)));

@@ -93,7 +93,6 @@ public static class PhaseTwoReview
                 Capture("camera-close",unit.Eye+unit.scanHead.forward*.9f+unit.scanHead.right*.5f+Vector3.up*.16f,unit.transform.position);
                 Capture("camera-field",unit.transform.position+Vector3.up*8+Vector3.back*8,unit.transform.position+Vector3.forward*4);
                 Capture("tripwire",wire.transform.position+new Vector3(1.8f,1.1f,-2),wire.transform.position+Vector3.up*.22f);
-                // Deterministic visibility fixture above the scene; real physics wall.
                 unit.rotationArc=0;unit.transform.position=new Vector3(0,503.4f,0);unit.scanHead.rotation=Quaternion.identity;
                 Position(new Vector3(0,500,6));Physics.SyncTransforms();
                 Check(unit.CanSeePoint(new Vector3(0,501,6)),"Unobstructed target visible");
@@ -129,7 +128,6 @@ public static class PhaseTwoReview
             }
             else if(phase==4)
             {
-                // Width-sensitive passage fixture, independent of scene geometry.
                 var nav=MissionNavigation.Instance;
                 var wall=GameObject.CreatePrimitive(PrimitiveType.Cube);wall.transform.position=new Vector3(.9f,502,4);wall.transform.localScale=new Vector3(.2f,4,5);Physics.SyncTransforms();
                 Check(nav.ClearPassage(new Vector3(0,500,0),new Vector3(0,500,8),false),"Walking clearance fits narrow lane");

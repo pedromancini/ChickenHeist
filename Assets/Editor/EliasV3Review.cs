@@ -7,9 +7,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-// Diagnostic for Elias v3 (Tools/SourceArt/ProtagonistV3): first-person body seen from the player camera,
-// and a line-up of Elias beside the cast (merchant, farmers, walkers) under the same light.
-// Run: Unity.exe -batchmode -projectPath . -executeMethod EliasV3Review.Begin
 [InitializeOnLoad]
 public static class EliasV3Review
 {
@@ -61,8 +58,8 @@ public static class EliasV3Review
             var legs=Player.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(s=>s.name=="Pernas em primeira pessoa");
             Check(legs==null,"no legs-only first-person copy (legs are never drawn in first person)");
             Check(fp.gameObject.layer==30,"first-person body on layer 30 (tris "+tris+", bones "+fp.bones.Length+")");
-            // only vertices used by triangles (the copy keeps the source vertex list and drops the leg triangles),
-            // ignoring arms and hands, which hang below the waist in the idle pose
+            
+            
             var posed=new Mesh();fp.BakeMesh(posed,true);var pv=posed.vertices;var bw=fp.sharedMesh.boneWeights;
             bool Arm(int i){var n=fp.bones[bw[i].boneIndex0].name;return n.StartsWith("Hand") || n.StartsWith("Forearm") || n.StartsWith("Thumb") || n.StartsWith("Index") || n.StartsWith("Middle") || n.StartsWith("Ring") || n.StartsWith("Little");}
             float lowest=posed.triangles.Distinct().Where(i=>!Arm(i)).Min(i=>Player.InverseTransformPoint(fp.transform.TransformPoint(pv[i])).y);Object.DestroyImmediate(posed);

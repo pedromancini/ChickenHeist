@@ -38,8 +38,6 @@ public static class NPCIntegrationTests
         var result=new List<string>();
         foreach(var pair in starts)
         {
-            // a resident may be standing a while at the end of an errand (3 to 9 s) through the whole window: that is
-            // not being stuck
             bool moved=pair.Key.DistanceWalked-pair.Value>.15f;
             result.Add((moved || pair.Key.Pausing?"PASS ":"FAIL ")+pair.Key.name+": moved on street during gameplay"+(moved?"":pair.Key.Pausing?" (pausing at a stop or giving way)":" (stood still with no reason)"));
             var driver=pair.Key.GetComponentInChildren<RuralCharacterAnimator>();

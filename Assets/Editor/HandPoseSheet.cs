@@ -6,9 +6,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Diagnostic: both hands of the protagonist prefab in several clips (first frame), lit from both sides so dark
-// areas are geometry rather than shadow, with each thumb bone's direction relative to the hand logged.
-// Run: Unity.exe -batchmode -quit -projectPath . -executeMethod HandPoseSheet.Run
 public static class HandPoseSheet
 {
     const string Folder="output/hand-poses";
