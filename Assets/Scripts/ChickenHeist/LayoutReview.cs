@@ -65,6 +65,14 @@ public sealed class LayoutReview : MonoBehaviour
             game.EndActiveMission();yield return new WaitForSecondsRealtime(.3f);
             var phone=ProtagonistPhone.Instance;phone.ReviewTab=3;phone.SetOpen(true);
             yield return Capture("shop-tablet-"+at);phone.SetOpen(false);yield return null;
+            phone.ReviewTab=2;phone.SetOpen(true);yield return Capture("photos-tablet-"+at);
+            var palm=new Texture2D(2,2);palm.LoadImage(File.ReadAllBytes(Path.Combine(Application.dataPath,"../../../Tools/PalmSamples/palma_para_cima.png")));
+            PalmFarmView.StillImage=palm;PalmFarmView.Open(0);yield return new WaitForSecondsRealtime(1.5f);
+            Check(PalmFarmView.Current!=null && PalmFarmView.Current.Showing,"The farm sits on the palm at "+at);
+            yield return Capture("palm-view-"+at);
+            var controls=PalmFarmView.Current.Controls;
+            Check(controls.xMin>=0 && controls.xMax<=Screen.width && !UITheme.Occupied.Any(o=>o.Overlaps(controls)),"The 3D view buttons fit and stay clear of the hint bar at "+at+" ("+controls+")");
+            PalmFarmView.Close();PalmFarmView.StillImage=null;Destroy(palm);phone.SetOpen(false);yield return null;
             var market=FindAnyObjectByType<VillageMarket>();
             if(market!=null && market.counter!=null)
             {

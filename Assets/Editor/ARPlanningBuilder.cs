@@ -157,13 +157,13 @@ public static class ARPlanningBuilder
         return $"{tag} {farm.identity}: {parts.Length} pieces in {materials.Count} materials, {buildings.vertexCount} vertices, scale 1:{Mathf.RoundToInt(1/scale)}, patrol {(model.patrol?.Length??0)} points ({model.patrolLength:0} m), cameras {model.cameras}, chickens {model.chickens}";
     }
 
-    static Mesh SaveMesh(Mesh mesh,string path)
+    internal static Mesh SaveMesh(Mesh mesh,string path)
     {
         var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);
         if(old==null){AssetDatabase.CreateAsset(mesh,path);return mesh;}
         old.Clear();EditorUtility.CopySerialized(mesh,old);old.name=mesh.name;EditorUtility.SetDirty(old);Object.DestroyImmediate(mesh);return old;
     }
-    static Material Mat(string name,Color color,bool transparent=false)
+    internal static Material Mat(string name,Color color,bool transparent=false)
     {
         string path=Folder+"Materials/"+name+".mat";var m=AssetDatabase.LoadAssetAtPath<Material>(path);
         if(m==null){m=new Material(Shader.Find(transparent?"Universal Render Pipeline/Unlit":"Universal Render Pipeline/Lit"));AssetDatabase.CreateAsset(m,path);}
@@ -177,7 +177,7 @@ public static class ARPlanningBuilder
         }
         EditorUtility.SetDirty(m);return m;
     }
-    static GameObject Primitive(PrimitiveType type,Transform parent,Vector3 position,Vector3 size,Material material)
+    internal static GameObject Primitive(PrimitiveType type,Transform parent,Vector3 position,Vector3 size,Material material)
     {
         var go=GameObject.CreatePrimitive(type);Object.DestroyImmediate(go.GetComponent<Collider>());
         go.transform.SetParent(parent,false);go.transform.localPosition=position;go.transform.localScale=size;go.GetComponent<Renderer>().sharedMaterial=material;return go;
@@ -219,14 +219,14 @@ public static class ARPlanningBuilder
         for(int i=0;i<path.Count;i++){int a=i*2,b=((i+1)%path.Count)*2;t.AddRange(new[]{a,b,a+1,a+1,b,b+1});}
         var m=new Mesh();m.SetVertices(v);m.SetTriangles(t,0);m.RecalculateNormals();m.RecalculateBounds();return m;
     }
-    static Mesh Cone()
+    internal static Mesh Cone()
     {
         var v=new List<Vector3>{Vector3.zero};var t=new List<int>();const int n=16;
         for(int i=0;i<=n;i++){float a=Mathf.Lerp(-21,21,(float)i/n)*Mathf.Deg2Rad;v.Add(new Vector3(Mathf.Sin(a),0,Mathf.Cos(a)));}
         for(int i=1;i<=n;i++)t.AddRange(new[]{0,i,i+1});
         var m=new Mesh{name="Cone de visao"};m.SetVertices(v);m.SetTriangles(t,0);m.RecalculateNormals();m.RecalculateBounds();return m;
     }
-    static Mesh Arrow()
+    internal static Mesh Arrow()
     {
         var v=new[]{new Vector3(-.25f,0,-1),new Vector3(.25f,0,-1),new Vector3(.25f,0,.2f),new Vector3(.6f,0,.2f),new Vector3(0,0,1),new Vector3(-.6f,0,.2f),new Vector3(-.25f,0,.2f)};
         var t=new[]{0,6,1,1,6,2,6,4,2,2,4,3,6,5,4};

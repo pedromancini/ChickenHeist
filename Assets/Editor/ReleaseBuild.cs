@@ -17,6 +17,7 @@ public static class ReleaseBuild
         if(settings==null)throw new InvalidOperationException("Mac Build Support is not installed for this Unity version.");
         var arch=settings.GetProperty("architecture");
         arch?.SetValue(null,Enum.Parse(arch.PropertyType,"x64ARM64"));
+        PlayerSettings.iOS.cameraUsageDescription="A câmera mostra a maquete da fazenda na palma da sua mão.";AssetDatabase.SaveAssets();
         const string folder="Builds/macOS";
         Directory.CreateDirectory(folder);
         var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -28,7 +29,8 @@ public static class ReleaseBuild
         });
         var summary=report.summary;
         Directory.CreateDirectory("output/playable-review");
-        File.WriteAllText("output/playable-review/mac-build.txt","Result: "+summary.result+"\nErrors: "+summary.totalErrors+"\nBytes: "+summary.totalSize+"\nArchitecture: "+(arch!=null?arch.GetValue(null):"?"));
+        File.WriteAllText("output/playable-review/mac-build.txt","Result: "+summary.result+"\nErrors: "+summary.totalErrors+"\nBytes: "+summary.totalSize+"\nArchitecture: "+(arch!=null?arch.GetValue(null):"?")
+            +"\nCamera permission: "+(summary.result==BuildResult.Succeeded && File.ReadAllText(folder+"/ChickenHeist.app/Contents/Info.plist").Contains("NSCameraUsageDescription")));
         if(summary.result!=BuildResult.Succeeded)throw new InvalidOperationException("macOS build failed. See Editor.log.");
         Debug.Log("CHICKEN HEIST MAC BUILD SUCCEEDED: "+Path.GetFullPath(folder+"/ChickenHeist.app"));
     }

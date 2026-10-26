@@ -16,10 +16,11 @@ public class ProtagonistPhone : MonoBehaviour
     CursorLockMode oldLock; bool oldCursor;
     GUIStyle title,body,small,caption,button,primary,tabStyle,heading,amount,card,rowTitle,rowText;
     public int ReviewTab {set {tab=value;scroll=Vector2.zero;}}
+    public int PhotoIndex {get=>photoIndex;set=>photoIndex=value;}
     void Awake(){Instance=this;IsOpen=false;}
     void Update()
     {
-        if(GameMenu.BlocksInput || VillageMarket.IsOpen || VillageMarket.ClosedFrame==Time.frameCount)return;
+        if(GameMenu.BlocksInput || VillageMarket.IsOpen || VillageMarket.ClosedFrame==Time.frameCount || PalmFarmView.Active || PalmFarmView.ClosedFrame==Time.frameCount)return;
         if(Input.GetKeyDown(KeyCode.Tab) && !IsOpen && economy!=null && economy.Account.introSeen && economy.Account.tabletWaiting)
         {
             HeistGameManager.Instance?.ShowMessage(economy.Account.TabletAtDoor?"O tablet esta na caixa do lado da porta.":"O tablet chega amanha cedo, numa caixa do lado da porta. Va dormir.",5);
@@ -37,7 +38,7 @@ public class ProtagonistPhone : MonoBehaviour
         if(IsOpen==open)return;
         if(open){oldLock=Cursor.lockState;oldCursor=Cursor.visible;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
             if(economy!=null && economy.Account.newsUnread){tab=4;scroll=Vector2.zero;economy.ReadNews();}}
-        else {Cursor.lockState=oldLock;Cursor.visible=oldCursor;confirmProduct=-1;LastClosedFrame=Time.frameCount;}
+        else {PalmFarmView.Close();Cursor.lockState=oldLock;Cursor.visible=oldCursor;confirmProduct=-1;LastClosedFrame=Time.frameCount;}
         IsOpen=open;
     }
     void OnDisable(){SetOpen(false);if(Instance==this)Instance=null;}
@@ -53,7 +54,7 @@ public class ProtagonistPhone : MonoBehaviour
             GUI.Label(new Rect(r.xMax-58*s,r.y+34*s,44*s,28*s),"Tab",UITheme.Style("key"));
         }
         
-        if(IsOpen && economy!=null && economy.Ready)DrawScreen(economy.Account,economy.Message);
+        if(IsOpen && economy!=null && economy.Ready && !PalmFarmView.Active)DrawScreen(economy.Account,economy.Message);
     }
     public void DrawScreen(HouseholdAccount account,string message,Rect? phoneRect=null)
     {
@@ -151,6 +152,7 @@ public class ProtagonistPhone : MonoBehaviour
                 GUILayout.EndVertical();GUILayout.FlexibleSpace();
                 if(GUILayout.Button("‹  Anterior",button,GUILayout.Width(140)))photoIndex=(photoIndex+count-1)%count;
                 if(GUILayout.Button("Próxima  ›",button,GUILayout.Width(140)))photoIndex=(photoIndex+1)%count;
+                if(GUILayout.Button("Ver em 3D",button,GUILayout.Width(140)))PalmFarmView.Open(photoIndex);
                 GUILayout.EndHorizontal();
                 var game=HeistGameManager.Instance;
                 bool active=game!=null && game.MissionActive;

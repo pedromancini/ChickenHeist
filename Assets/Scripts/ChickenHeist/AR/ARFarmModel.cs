@@ -8,6 +8,7 @@ public sealed class ARFarmModel : MonoBehaviour
     public int chickens,cameras,guards;
     public float patrolSpeed=1.8f,patrolLength;
     public Transform scaled,route,cones,birds,gate,token,labels;
+    public Vector3 origin;
     public Vector3[] patrol;
     public Sweep[] sweeps;
     public string[] labelTexts;
