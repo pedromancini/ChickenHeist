@@ -14,6 +14,8 @@ public class RuralCharacterAnimator : MonoBehaviour
     float gestureUntil;
     string gestureState="Trade";
     string state;
+    float pace;
+    const float WalkPace=1.7f,RunPace=3.4f;
     public float Length(string name)=>clips!=null && clips[name]!=null?clips[name].length:0;
     public void Gesture(){PlayGesture("Trade");}
     public void Pickup(){PlayGesture("Pickup");}
@@ -32,6 +34,7 @@ public class RuralCharacterAnimator : MonoBehaviour
     void Update()
     {
         if(clips==null)return;
+        var moved=transform.position-previousPosition;moved.y=0;
         string next=Time.time<gestureUntil?gestureState:movement==null?"Idle":PlayerState(
             movement.estaMovendo,movement.estaAgachado,movement.estaSprinting,
             movement.enabled && movement.IsAirborne,movement.VerticalSpeed);
@@ -55,6 +58,11 @@ public class RuralCharacterAnimator : MonoBehaviour
         previousPosition=transform.position;
         if(clips[next]==null)next="Idle";
         if(state!=next){clips.CrossFade(next,.18f);state=next;}
+        if(movement==null && (next=="Walk" || next=="Run"))
+        {
+            pace=Mathf.Lerp(pace,moved.magnitude/Mathf.Max(Time.deltaTime,1e-4f),1-Mathf.Exp(-Time.deltaTime*6));
+            clips[next].speed=Mathf.Clamp(pace/(next=="Run"?RunPace:WalkPace),.55f,1.4f);
+        }
         if(movement!=null && (next=="Walk" || next=="Crouch"))
             clips[next].speed=!articulatedPlayer && movement.MoveInput.y<-.1f?-1:1;
         if(movement!=null && (next.StartsWith("Walk") || next.StartsWith("Run") || next=="Crouch"))

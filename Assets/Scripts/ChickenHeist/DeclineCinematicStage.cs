@@ -352,6 +352,7 @@ public sealed class DeclineCinematicStage : MonoBehaviour
     {
         readonly Transform root,head,hand;readonly GameObject animated;readonly AnimationClip idle,walk,talk;
         readonly List<(SkinnedMeshRenderer skin,int index)> jaws=new List<(SkinnedMeshRenderer,int)>();float mouth;
+        readonly Transform[] bones;readonly float[] gesture;readonly Quaternion[] spoken;float voice;
         public Vector3 Head=>head.position;public Vector3 Hand=>hand!=null?hand.position:head.position+Vector3.down*.9f;
         public float JawWeight=>jaws.Count>0?jaws[0].skin.GetBlendShapeWeight(jaws[0].index):0;
         public static float Step;
@@ -361,11 +362,19 @@ public sealed class DeclineCinematicStage : MonoBehaviour
             idle=anim?.GetClip("Idle");walk=anim?.GetClip("Walk");talk=anim?.GetClip("Trade");
             var all=actor.GetComponentsInChildren<Transform>(true);head=all.First(t=>t.name=="Head");hand=all.FirstOrDefault(t=>t.name=="Hand_R" || t.name=="HandR");
             foreach(var s in actor.GetComponentsInChildren<SkinnedMeshRenderer>(true)){int k=s.sharedMesh!=null?s.sharedMesh.GetBlendShapeIndex("Fala"):-1;if(k>=0)jaws.Add((s,k));}
+            bones=animated.GetComponentsInChildren<Transform>(true);spoken=new Quaternion[bones.Length];
+            gesture=bones.Select(b=>{var n=b.name.ToLower();return new[]{"arm","hand","shoulder","clavicle","thumb","index","middle","ring","pinky","finger"}.Any(n.Contains)?.15f:new[]{"spine","chest","neck","head"}.Any(n.Contains)?.5f:0;}).ToArray();
         }
         public void Pose(Vector3 at,float yaw,float time,bool speaking,Vector3 gaze,float open,float bow=0,bool walking=false,float distance=0)
         {
-            var clip=walking && walk!=null?walk:speaking && talk!=null?talk:idle;
-            if(clip!=null)clip.SampleAnimation(animated,walking?Mathf.Repeat(distance/1.3f,1)*clip.length:Mathf.Repeat(time,Mathf.Max(.1f,clip.length)));
+            if(walking && walk!=null)walk.SampleAnimation(animated,Mathf.Repeat(distance/1.36f,1)*walk.length);
+            else
+            {
+                voice=Mathf.MoveTowards(voice,speaking?1:0,Step*2.5f);bool calm=voice>0 && talk!=null && idle!=null;
+                if(calm){talk.SampleAnimation(animated,Mathf.Repeat(time,Mathf.Max(.1f,talk.length)));for(int i=0;i<bones.Length;i++)spoken[i]=bones[i].localRotation;}
+                var still=idle??talk;if(still!=null)still.SampleAnimation(animated,Mathf.Repeat(time,Mathf.Max(.1f,still.length)));
+                if(calm)for(int i=0;i<bones.Length;i++)if(gesture[i]>0)bones[i].localRotation=Quaternion.Slerp(bones[i].localRotation,spoken[i],gesture[i]*voice);
+            }
             root.SetPositionAndRotation(at,Quaternion.Euler(0,yaw,0));
             var local=root.InverseTransformDirection(gaze-head.position);
             float turn=Mathf.Clamp(Mathf.Atan2(local.x,local.z)*Mathf.Rad2Deg,-35,35),pitch=Mathf.Clamp(-Mathf.Atan2(local.y,new Vector2(local.x,local.z).magnitude)*Mathf.Rad2Deg+bow,-20,30);

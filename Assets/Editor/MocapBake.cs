@@ -9,7 +9,9 @@ public static class MocapBake
 {
     const string Source="Assets/ThirdParty/HumanBasicMotions/",Models="Assets/ImportedMedievalPeople/fbx/people_unity/",Folder="Assets/ChickenHeistGenerated/Characters/Villagers/";
     static readonly (string state,string take,bool loop)[] States={("Idle","HumanM@Idle01",true),("Walk","HumanM@Walk01_Forward",true),("Run","HumanM@Run01_Forward",true),("Trade","HumanM@Talk01",false),("Sleep","HumanM@Idle02",true)};
-    public static void Run()
+    public static void Run()=>Bake(true);
+    public static void Villagers()=>Bake(false);
+    static void Bake(bool protagonist)
     {
         var log=new List<string>();
         foreach(var take in States.Select(s=>s.take).Distinct())Humanoid(Source+take+".fbx",true);
@@ -20,7 +22,7 @@ public static class MocapBake
             if(!Humanoid(path,false)){log.Add("SKIP "+model+": humanoid avatar could not be built");continue;}
             foreach(var s in States)log.Add(Bake(model,path,s.state,s.take,s.loop));
         }
-        log.AddRange(BakeProtagonist());
+        if(protagonist)log.AddRange(BakeProtagonist());
         AssetDatabase.SaveAssets();
         Directory.CreateDirectory("output/mocap");File.WriteAllLines("output/mocap/bake.txt",log);
         Debug.Log("MOCAP BAKE\n"+string.Join("\n",log));
@@ -108,14 +110,13 @@ public static class MocapBake
             float length=clip.length;int frames=Mathf.Max(2,Mathf.RoundToInt(length*30));
             var curves=bones.ToDictionary(b=>b,b=>Enumerable.Range(0,4).Select(_=>new AnimationCurve()).ToArray());
             var hipCurves=Enumerable.Range(0,3).Select(_=>new AnimationCurve()).ToArray();
-            Vector3 hipRest=hips.localPosition;float hipStartY=0;
             for(int f=0;f<=frames;f++)
             {
                 float t=length*f/frames;
                 clip.SampleAnimation(visual,t);
                 foreach(var b in bones){var q=b.localRotation;var c=curves[b];c[0].AddKey(t,q.x);c[1].AddKey(t,q.y);c[2].AddKey(t,q.z);c[3].AddKey(t,q.w);}
-                var p=hips.localPosition;if(f==0)hipStartY=p.y;
-                hipCurves[0].AddKey(t,hipRest.x);hipCurves[1].AddKey(t,hipRest.y+(p.y-hipStartY));hipCurves[2].AddKey(t,hipRest.z);
+                var p=hips.localPosition;
+                hipCurves[0].AddKey(t,p.x);hipCurves[1].AddKey(t,p.y);hipCurves[2].AddKey(t,p.z);
             }
             var baked=new AnimationClip{name=state,legacy=true,wrapMode=loop?WrapMode.Loop:WrapMode.Once,frameRate=30};
             foreach(var kv in curves)
